@@ -10,7 +10,7 @@ import pandas as pd
 from db.connection import get_session
 from services.processos_service import ProcessosService, ProcessoCreate, ProcessoUpdate
 from app.ui.theme import inject_global_css, card
-from app.ui.components import page_header
+from app.ui.page_header import page_header
 
 
 ATUACAO_UI = {

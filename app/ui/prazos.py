@@ -14,7 +14,7 @@ from db.models import Processo
 from services.prazos_service import PrazosService, PrazoCreate, PrazoUpdate
 from services.utils import now_br, ensure_br, format_date_br, date_to_br_datetime
 from app.ui.theme import inject_global_css, card
-from app.ui.components import page_header
+from app.ui.page_header import page_header
 from services.calendario_service import CalendarioService, RegrasCalendario
 
 

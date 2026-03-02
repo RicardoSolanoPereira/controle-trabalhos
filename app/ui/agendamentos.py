@@ -20,7 +20,7 @@ from services.agendamentos_service import (
 )
 
 from app.ui.theme import inject_global_css, card
-from app.ui.components import page_header
+from app.ui.page_header import page_header
 
 
 # -------------------------

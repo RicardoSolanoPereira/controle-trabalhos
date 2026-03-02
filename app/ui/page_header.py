@@ -12,9 +12,13 @@ def page_header(
 ) -> bool:
     """
     Header padrão de página.
-    Retorna True se o botão da direita foi clicado.
+    - Desktop: título à esquerda + botão à direita
+    - Mobile: empilha (botão abaixo, largura total)
+    Retorna True se o botão foi clicado.
     """
-    left, right = st.columns([1, 0.25], vertical_alignment="center")
+    st.markdown('<div class="sp-page-header">', unsafe_allow_html=True)
+
+    left, right = st.columns([1, 0.28], vertical_alignment="center")
     with left:
         st.markdown(f"## {title}")
         if subtitle:
@@ -28,7 +32,9 @@ def page_header(
                 key=right_button_key,
                 help=right_button_help,
                 use_container_width=right_button_full,
+                type="primary",
             )
 
+    st.markdown("</div>", unsafe_allow_html=True)
     st.divider()
     return clicked
