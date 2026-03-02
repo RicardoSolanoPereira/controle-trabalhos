@@ -1,87 +1,104 @@
+# connection.py
 from __future__ import annotations
 
 import os
-import sqlite3
-from typing import Optional
+import re
 from pathlib import Path
+from typing import Optional
 
-from sqlalchemy import create_engine, event
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
-# ===============================
-# DATABASE URL
-# ===============================
+# =========================================================
+# CARREGA .env (sempre o da raiz do projeto, com override)
+# =========================================================
+# Ajuste: este arquivo está em db/connection.py, então a raiz é parents[1]
+ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(ENV_PATH, override=True)
+
+
+# =========================================================
+# HELPERS
+# =========================================================
+def _mask_db_url(db_url: str) -> str:
+    """Mascara a senha para não vazar em logs."""
+    return re.sub(r"(://[^:]+:)([^@]+)(@)", r"\1***\3", db_url)
+
+
+def _remove_channel_binding(db_url: str) -> str:
+    """Remove channel_binding=require (não é necessário e pode causar dor de cabeça)."""
+    # remove tanto "&channel_binding=require" quanto "?channel_binding=require"
+    db_url = re.sub(
+        r"(&|\?)channel_binding=require",
+        lambda m: "?" if m.group(1) == "?" else "",
+        db_url,
+    )
+    # se ficou "??" ou "?&" em casos raros, normaliza
+    db_url = db_url.replace("?&", "?")
+    db_url = db_url.replace("??", "?")
+    # se ficou terminando com "?" por remoção, remove
+    if db_url.endswith("?"):
+        db_url = db_url[:-1]
+    return db_url
 
 
 def get_db_url() -> str:
     """
-    Ordem de prioridade:
-    1) Streamlit Secrets
-    2) Variável de ambiente DB_URL
-    3) SQLite local (fallback)
+    Lê DATABASE_URL do ambiente e garante compatibilidade com Neon.
+
+    - Padroniza para SQLAlchemy + psycopg (v3): postgresql+psycopg://
+    - Garante sslmode=require.
+    - Remove channel_binding=require, se existir.
     """
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError(
+            "DATABASE_URL não configurado. "
+            "Defina no .env ou nas variáveis do ambiente."
+        )
 
-    # 1) Streamlit Secrets (Cloud)
-    try:
-        import streamlit as st
+    db_url = db_url.strip()
+    db_url = _remove_channel_binding(db_url)
 
-        if "DB_URL" in st.secrets:
-            url = str(st.secrets["DB_URL"]).strip()
-            if url:
-                return url
-    except Exception:
+    # Normaliza para psycopg (v3)
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    elif db_url.startswith("postgresql+psycopg2://"):
+        # força psycopg v3 (porque foi o que funcionou no seu teste)
+        db_url = db_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+    elif db_url.startswith("postgresql+psycopg://"):
         pass
+    else:
+        raise RuntimeError(
+            f"Esquema inválido em DATABASE_URL: {db_url.split(':', 1)[0]!r}. "
+            "Use postgres://, postgresql://, postgresql+psycopg2:// ou postgresql+psycopg://"
+        )
 
-    # 2) Variável de ambiente
-    env_url = os.getenv("DB_URL")
-    if env_url and env_url.strip():
-        return env_url.strip()
+    # Neon exige SSL
+    if "sslmode=" not in db_url:
+        join = "&" if "?" in db_url else "?"
+        db_url = f"{db_url}{join}sslmode=require"
 
-    # 3) Fallback SQLite local
-    repo_root = Path(__file__).resolve().parent.parent  # .../sistema_pericias
-    db_path = repo_root / "data" / "app.db"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    return f"sqlite:///{db_path.as_posix()}"
+    return db_url
 
 
-# ===============================
+# =========================================================
 # BASE
-# ===============================
-
-
+# =========================================================
 class Base(DeclarativeBase):
     pass
 
 
-# ===============================
-# SQLITE PRAGMA (ONLY SQLITE)
-# ===============================
-
-
-@event.listens_for(Engine, "connect")
-def _set_sqlite_pragma(dbapi_connection, connection_record):
-    """
-    Ativa foreign keys no SQLite.
-    Importante: só executa se a conexão for sqlite3.
-    """
-    try:
-        # sqlite3 connections come from module "sqlite3"
-        if dbapi_connection.__class__.__module__.startswith("sqlite3"):
-            cursor = dbapi_connection.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.close()
-    except Exception:
-        pass
-
-
-# ===============================
-# ENGINE / SESSION
-# ===============================
-
+# =========================================================
+# ENGINE / SESSION (Singleton)
+# =========================================================
 _engine: Optional[Engine] = None
-_SessionLocal = None
+_SessionLocal: Optional[sessionmaker] = None
 
 
 def get_engine() -> Engine:
@@ -90,35 +107,13 @@ def get_engine() -> Engine:
     if _engine is None:
         db_url = get_db_url()
 
-        # --------------------------
-        # SQLITE
-        # --------------------------
-        if db_url.startswith("sqlite"):
-            connect_args = {
-                "check_same_thread": False,
-                "detect_types": sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
-            }
-
-            _engine = create_engine(
-                db_url,
-                echo=False,
-                future=True,
-                connect_args=connect_args,
-            )
-
-        # --------------------------
-        # POSTGRESQL (NEON)
-        # --------------------------
-        else:
-            _engine = create_engine(
-                db_url,
-                echo=False,
-                future=True,
-                pool_pre_ping=True,
-                pool_size=1,
-                max_overflow=0,
-                connect_args={"sslmode": "require"},
-            )
+        _engine = create_engine(
+            db_url,
+            echo=False,
+            future=True,
+            pool_pre_ping=True,
+            pool_recycle=1800,
+        )
 
         _SessionLocal = sessionmaker(
             bind=_engine,
@@ -127,10 +122,37 @@ def get_engine() -> Engine:
             future=True,
         )
 
+        print("BANCO EM USO:", _mask_db_url(db_url))
+        print("ENV:", str(ENV_PATH))
+
     return _engine
 
 
 def get_session():
+    """
+    Retorna uma Session SQLAlchemy.
+    Ex:
+        with get_session() as s:
+            ...
+    """
+    global _SessionLocal
     if _SessionLocal is None:
         get_engine()
+    assert _SessionLocal is not None
     return _SessionLocal()
+
+
+def db_healthcheck() -> None:
+    """
+    Teste rápido: rode uma vez para confirmar que conectou no Neon.
+    """
+    engine = get_engine()
+    with engine.connect() as conn:
+        ok = conn.execute(text("select 1")).scalar()
+        info = conn.execute(
+            text(
+                "select current_database(), current_user, inet_server_addr(), version()"
+            )
+        ).one()
+        print("DB OK select 1 =", ok)
+        print("DB INFO =", info)
