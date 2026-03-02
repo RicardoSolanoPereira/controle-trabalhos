@@ -6,7 +6,11 @@ from sqlalchemy import select
 
 from db.connection import get_session
 from db.models import Processo
-from core.andamentos_service import AndamentosService, AndamentoCreate, AndamentoUpdate
+from services.andamentos_service import (
+    AndamentosService,
+    AndamentoCreate,
+    AndamentoUpdate,
+)
 
 
 def _proc_label(p: Processo) -> str:

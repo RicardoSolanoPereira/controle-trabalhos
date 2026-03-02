@@ -40,13 +40,22 @@ class RegrasCalendario:
 
 
 class CalendarioService:
+    """
+    Serviço central de calendário:
+    - normaliza comarca/município/local
+    - obtém feriados aplicáveis por período (BD + CPC 220)
+    - calcula próximos dias úteis e soma de dias úteis (CPC 219/224)
+    """
+
     _MARGEM_INICIAL_DIAS = 120
     _MARGEM_CRESCIMENTO_DIAS = 120
 
+    # Mapeamento automático quando a comarca for informada e município não.
     AUTO_MUNICIPIO_BY_COMARCA = {
         "ilhabela": "ilhabela",
     }
 
+    # Alias/normalização de escopo para unificar cadastros
     _ESCOPO_ALIASES = {
         "ESTADUAL": "ESTADUAL_SP",
         "SP_ESTADUAL": "ESTADUAL_SP",
@@ -74,12 +83,20 @@ class CalendarioService:
         CalendarioService._feriados_aplicaveis_cached.cache_clear()
 
     # ============================================================
-    # Normalização
+    # Normalização / utilitários de data
     # ============================================================
 
     @staticmethod
-    def _to_dt(d: date) -> datetime:
+    def _to_dt(d: date | datetime) -> datetime:
+        """Garante datetime (útil se algum lugar ainda trafegar datetime)."""
+        if isinstance(d, datetime):
+            return d
         return datetime(d.year, d.month, d.day)
+
+    @staticmethod
+    def _as_date(v: date | datetime) -> date:
+        """Garante date (Postgres DATE já vem como date; datetime vira date)."""
+        return v.date() if isinstance(v, datetime) else v
 
     @staticmethod
     def _strip_accents(s: str) -> str:
@@ -109,6 +126,7 @@ class CalendarioService:
             "foro da ",
             "foro do ",
             "municipio de ",
+            "município de ",
         ):
             if v.startswith(prefix):
                 v = v[len(prefix) :].strip()
@@ -137,11 +155,7 @@ class CalendarioService:
     @staticmethod
     def _match_local(loc_norm: str | None, alvo_norm: str | None) -> bool:
         """
-        Match tolerante para evitar erros por variações:
-        - "ilhabela" == "ilhabela"
-        - "ilhabela/sp" ~ "ilhabela"  (normalização remove)
-        - "foro de ilhabela" ~ "ilhabela"
-        - "municipio de ilhabela" ~ "ilhabela"
+        Match tolerante para evitar erros por variações.
         """
         if not loc_norm or not alvo_norm:
             return False
@@ -196,14 +210,15 @@ class CalendarioService:
     def _feriados_periodo(inicio: date, fim: date) -> list[Feriado]:
         """
         Busca feriados no intervalo [inicio, fim] (inclusive).
-        """
-        ini_dt = CalendarioService._to_dt(inicio)
-        fim_exclusivo = CalendarioService._to_dt(fim + timedelta(days=1))
 
+        IMPORTANTE:
+        - Com Postgres, mantenha Feriado.data como DATE.
+        - Filtrar por DATE evita casts implícitos e bugs (SQLite era permissivo).
+        """
         with get_session() as s:
             stmt = (
                 select(Feriado)
-                .where(Feriado.data >= ini_dt, Feriado.data < fim_exclusivo)
+                .where(Feriado.data >= inicio, Feriado.data <= fim)
                 .order_by(Feriado.data.asc())
             )
             return list(s.execute(stmt).scalars().all())
@@ -248,7 +263,7 @@ class CalendarioService:
         if esc == "MUNICIPAL":
             if not regras.incluir_municipal:
                 return False
-            # ✅ aceita casar por município OU por comarca (cadastros variam muito)
+            # aceita casar por município OU por comarca (cadastros variam)
             return CalendarioService._match_local(
                 loc, ctx.municipio
             ) or CalendarioService._match_local(loc, ctx.comarca)
@@ -287,7 +302,8 @@ class CalendarioService:
         feriados_bd = CalendarioService._feriados_periodo(inicio, fim)
         for f in feriados_bd:
             if CalendarioService._eh_aplicavel(f, ctx, regras):
-                aplicaveis.add(f.data.date())
+                # Postgres DATE -> date; se vier datetime por algum motivo, converte.
+                aplicaveis.add(CalendarioService._as_date(f.data))
 
         # 2) CPC art. 220 automático (somente se TJSP geral estiver habilitado)
         if regras.incluir_tjsp_geral:

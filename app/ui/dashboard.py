@@ -7,7 +7,7 @@ from sqlalchemy import select, func, case
 
 from db.connection import get_session
 from db.models import Processo, Prazo, LancamentoFinanceiro, Agendamento
-from core.utils import now_br, ensure_br, format_date_br
+from services.utils import now_br, ensure_br, format_date_br
 from app.ui.theme import inject_global_css, card
 from app.ui_state import navigate
 from app.ui.components import page_header

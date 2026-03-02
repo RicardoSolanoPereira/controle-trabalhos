@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from db.connection import get_session
 from db.models import Processo
-from core.financeiro_service import (
+from services.financeiro_service import (
     FinanceiroService,
     LancamentoCreate,
     LancamentoUpdate,

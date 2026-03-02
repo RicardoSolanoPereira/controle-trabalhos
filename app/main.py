@@ -26,9 +26,9 @@ if ROOT_DIR not in sys.path:
 # ------------------------------------------------------------
 # APP IMPORTS
 # ------------------------------------------------------------
-from db.init_db import init_db
-from db.connection import get_session
-from db.models import User
+from app.db import init_db
+from app.db.connection import get_session
+from app.db.models import User
 from app.ui import dashboard, processos, prazos, agendamentos, andamentos, financeiro
 from app.ui.theme import inject_global_css
 

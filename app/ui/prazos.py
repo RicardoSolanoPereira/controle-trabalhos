@@ -11,11 +11,11 @@ from sqlalchemy import select
 
 from db.connection import get_session
 from db.models import Processo
-from core.prazos_service import PrazosService, PrazoCreate, PrazoUpdate
-from core.utils import now_br, ensure_br, format_date_br, date_to_br_datetime
+from services.prazos_service import PrazosService, PrazoCreate, PrazoUpdate
+from services.utils import now_br, ensure_br, format_date_br, date_to_br_datetime
 from app.ui.theme import inject_global_css, card
 from app.ui.components import page_header
-from core.calendario_service import CalendarioService, RegrasCalendario
+from services.calendario_service import CalendarioService, RegrasCalendario
 
 
 # ============================================================

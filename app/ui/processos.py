@@ -8,7 +8,7 @@ import streamlit as st
 import pandas as pd
 
 from db.connection import get_session
-from core.processos_service import ProcessosService, ProcessoCreate, ProcessoUpdate
+from services.processos_service import ProcessosService, ProcessoCreate, ProcessoUpdate
 from app.ui.theme import inject_global_css, card
 from app.ui.components import page_header
 

@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from db.connection import get_session
 from db.models import Processo
-from core.agendamentos_service import (
+from services.agendamentos_service import (
     AgendamentosService,
     AgendamentoCreate,
     AgendamentoUpdate,

@@ -8,7 +8,7 @@ from typing import List, Tuple
 from sqlalchemy import select
 
 from db.models import Agendamento, Prazo, Processo
-from core.utils import now_br, ensure_br, format_date_br
+from services.utils import now_br, ensure_br, format_date_br
 
 
 @dataclass(frozen=True)
