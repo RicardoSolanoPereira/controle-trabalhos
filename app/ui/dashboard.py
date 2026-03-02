@@ -13,6 +13,7 @@ from services.utils import now_br, ensure_br, format_date_br
 
 from app.ui.theme import card
 from app.ui_state import navigate
+from app.ui.page_header import page_header
 
 ATUACAO_UI = {
     "(Todas)": None,
@@ -122,26 +123,97 @@ def _build_agenda_df(rows) -> pd.DataFrame:
     return pd.DataFrame(data) if data else pd.DataFrame()
 
 
-def _header(title: str, subtitle: str | None = None) -> bool:
-    st.markdown('<div class="sp-page-header">', unsafe_allow_html=True)
-    left, right = st.columns([1, 0.28], vertical_alignment="center")
-    with left:
-        st.markdown(f"## {title}")
-        if subtitle:
-            st.caption(subtitle)
+def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
+    """
+    Mobile-friendly: cards (sem tabela).
+    rows: (Prazo.id, evento, data_limite, prioridade, Processo.numero_processo, Processo.tipo_acao)
+    """
+    with st.container(border=True):
+        st.subheader(title)
+        if not rows:
+            st.caption(empty_msg)
+            return
 
-    with right:
-        clicked = st.button(
-            "🔄 Recarregar",
-            key="dash_btn_recarregar_top",
-            help="Recarrega os dados do painel",
+        for _id, evento, data_limite, prioridade, numero_processo, tipo_acao in rows:
+            dias = int(_dias_restantes(data_limite))
+            status = _status_prazo(dias)
+            prior = _prior_badge(prioridade)
+
+            tone = "success"
+            if dias < 0:
+                tone = "danger"
+            elif dias <= 5:
+                tone = "warning"
+            elif dias <= 10:
+                tone = "info"
+
+            st.markdown(
+                f"""
+                <div class="sp-surface" style="margin-bottom:10px;">
+                  <div style="font-weight:850; font-size:0.98rem;">
+                    {numero_processo} – {tipo_acao or "Sem tipo"}
+                  </div>
+                  <div style="margin-top:6px; color: rgba(15,23,42,0.75);">
+                    <b>Evento:</b> {evento}
+                  </div>
+                  <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+                    <span class="sp-chip">📅 {format_date_br(data_limite)}</span>
+                    <span class="sp-chip">⏳ {dias} dia(s)</span>
+                    <span class="sp-chip">{status}</span>
+                    <span class="sp-chip">{prior}</span>
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        st.button(
+            "Abrir lista completa",
             use_container_width=True,
+            key=f"btn_open_{title}",
             type="primary",
+            on_click=lambda: navigate(
+                "Prazos",
+                state={"prazos_section": "Lista", "pz_nav_to": "Lista"},
+            ),
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.divider()
-    return bool(clicked)
+
+def _render_agenda_cards(rows: list, title: str, empty_msg: str) -> None:
+    """
+    rows: (Agendamento.id, tipo, inicio, local, numero_processo, tipo_acao)
+    """
+    with st.container(border=True):
+        st.subheader(title)
+        if not rows:
+            st.caption(empty_msg)
+            return
+
+        for _id, tipo, inicio, local, numero_processo, tipo_acao in rows:
+            inicio_br = ensure_br(inicio).strftime("%d/%m/%Y %H:%M")
+            st.markdown(
+                f"""
+                <div class="sp-surface" style="margin-bottom:10px;">
+                  <div style="font-weight:850; font-size:0.98rem;">
+                    {numero_processo} – {tipo_acao or "Sem tipo"}
+                  </div>
+                  <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+                    <span class="sp-chip">📌 {tipo}</span>
+                    <span class="sp-chip">🕒 {inicio_br}</span>
+                    {f"<span class='sp-chip'>📍 {local}</span>" if local else ""}
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        if st.button(
+            "Abrir agenda",
+            use_container_width=True,
+            type="primary",
+            key=f"btn_open_{title}_agenda",
+        ):
+            navigate("Agendamentos")
 
 
 # -------------------------
@@ -394,21 +466,21 @@ def _fetch_ultimos_processos_cached(owner_user_id: int, tipo_val: str | None) ->
 # Render
 # -------------------------
 def render(owner_user_id: int):
-    if _header("Painel de Controle", "Alertas, prazos, agenda e financeiro"):
-        st.cache_data.clear()
-        st.rerun()
+    # Header compacto (botão de refresh agora é o "Sincronizar" da sidebar)
+    page_header("Painel de Controle", "Alertas, prazos, agenda e financeiro")
 
-    # Filtro (Atuação)
-    c1, c2 = st.columns([0.36, 0.64], vertical_alignment="center")
-    with c1:
-        atuacao_label = st.selectbox(
-            "Atuação",
-            list(ATUACAO_UI.keys()),
-            index=0,
-            key="dash_atuacao_ui",
-        )
-    with c2:
-        st.caption("Use a atuação para filtrar indicadores e listas.")
+    # Filtro (Atuação) - compacto
+    with st.container(border=True):
+        c1, c2 = st.columns([0.42, 0.58], vertical_alignment="center")
+        with c1:
+            atuacao_label = st.selectbox(
+                "Atuação",
+                list(ATUACAO_UI.keys()),
+                index=0,
+                key="dash_atuacao_ui",
+            )
+        with c2:
+            st.caption("Filtra indicadores e listas conforme sua atuação.")
     tipo_val = ATUACAO_UI[atuacao_label]
 
     hoje_sp = now_br().date()
@@ -437,6 +509,7 @@ def render(owner_user_id: int):
                             "pz_list_nav_to": "Atrasados",
                         },
                     )
+
         elif k["prazos_7dias"] > 0:
             with left:
                 st.markdown(
@@ -456,12 +529,14 @@ def render(owner_user_id: int):
             with left:
                 st.markdown(f"**🟢 Nenhum prazo crítico** • **{atuacao_label}**")
             with right:
-                if st.button("Cadastrar prazo", use_container_width=True):
+                if st.button(
+                    "Cadastrar prazo", use_container_width=True, type="primary"
+                ):
                     navigate("Prazos", state={"prazos_section": "Cadastro"})
 
     st.write("")
 
-    # 2) KPIs
+    # 2) KPIs (operacional + financeiro)
     with st.container(border=True):
         st.subheader("Resumo")
 
@@ -469,14 +544,15 @@ def render(owner_user_id: int):
         pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
 
         st.markdown("**Operacional**")
-        op1, op2, op3, op4 = st.columns(4)
 
-        with op1:
+        # Melhor para mobile sem precisar detectar largura:
+        # 2 colunas (fica ótimo no mobile e aceitável no desktop)
+        r1c1, r1c2 = st.columns(2)
+        with r1c1:
             card("Trabalhos", f"{k['total_proc']}", "cadastrados", tone="info")
             if st.button("Ver todos", use_container_width=True, key="go_proc"):
                 navigate("Processos", state={"processos_section": "Lista"})
-
-        with op2:
+        with r1c2:
             card("Ativos", f"{k['ativos']}", "em andamento", tone="neutral")
             if st.button("Ver ativos", use_container_width=True, key="go_proc_ativos"):
                 navigate(
@@ -485,7 +561,8 @@ def render(owner_user_id: int):
                     state={"processos_section": "Lista"},
                 )
 
-        with op3:
+        r2c1, r2c2 = st.columns(2)
+        with r2c1:
             tone_pz = (
                 "danger"
                 if k["prazos_atrasados"] > 0
@@ -507,48 +584,45 @@ def render(owner_user_id: int):
                     },
                 )
 
-        with op4:
+        with r2c2:
             card("Agenda (7 dias)", f"{k['ag_7d']}", "agendados", tone="info")
             if st.button("Ver agenda", use_container_width=True, key="go_agenda"):
                 navigate("Agendamentos")
 
         st.write("")
         st.markdown("**Financeiro**")
-        fin1, fin2, fin3 = st.columns([0.28, 0.28, 0.44], vertical_alignment="top")
-        with fin1:
+
+        f1, f2 = st.columns(2)
+        with f1:
             card(
                 "Receitas (R$)",
                 _fmt_money_br(k["receitas"]),
                 "acumulado",
                 tone="success",
             )
-        with fin2:
+        with f2:
             card(
                 "Despesas (R$)",
                 _fmt_money_br(k["despesas"]),
                 "acumulado",
                 tone="danger",
             )
-        with fin3:
-            tone_saldo = "success" if k["saldo"] >= 0 else "danger"
-            card(
-                "Saldo (R$)",
-                _fmt_money_br(k["saldo"]),
-                "receitas - despesas",
-                tone=tone_saldo,
-                emphasize=True,
-            )
-            if st.button(
-                "Abrir financeiro",
-                use_container_width=True,
-                key="go_fin",
-                type="primary",
-            ):
-                navigate("Financeiro", state={"financeiro_section": "Lançamentos"})
+
+        card(
+            "Saldo (R$)",
+            _fmt_money_br(k["saldo"]),
+            "receitas - despesas",
+            tone=("success" if k["saldo"] >= 0 else "danger"),
+            emphasize=True,
+        )
+        if st.button(
+            "Abrir financeiro", use_container_width=True, type="primary", key="go_fin"
+        ):
+            navigate("Financeiro", state={"financeiro_section": "Lançamentos"})
 
     st.divider()
 
-    # 3) Listas (mantidas como antes)
+    # 3) Listas Analíticas
     tab1, tab2, tab3 = st.tabs(["⏳ Prazos", "📅 Agenda", "🗂️ Trabalhos"])
 
     with tab1:
@@ -559,58 +633,70 @@ def render(owner_user_id: int):
             k["end_7d"].isoformat(timespec="seconds"),
         )
 
-        colA, colB = st.columns(2, vertical_alignment="top")
-        with colA:
-            with st.container(border=True):
-                st.subheader("Prazos atrasados")
-                st.caption("Top 10 por data mais antiga")
-                if not rows_atrasados:
-                    st.caption("✅ Sem prazos atrasados.")
-                else:
+        # Mobile-first: cards
+        _render_prazo_cards(
+            rows_atrasados, "Prazos atrasados", "✅ Sem prazos atrasados."
+        )
+        _render_prazo_cards(
+            rows_7d, "Vencem em até 7 dias", "✅ Sem prazos vencendo em até 7 dias."
+        )
+
+        # Tabela opcional (desktop / auditoria)
+        with st.expander("Ver em tabela", expanded=False):
+            colA, colB = st.columns(2, vertical_alignment="top")
+
+            with colA:
+                st.caption("Atrasados (Top 10)")
+                if rows_atrasados:
                     df = _build_prazos_df(rows_atrasados)
                     st.dataframe(
                         df, use_container_width=True, hide_index=True, height=320
                     )
-
-        with colB:
-            with st.container(border=True):
-                st.subheader("Vencem em até 7 dias")
-                st.caption("Top 10 por vencimento")
-                if not rows_7d:
-                    st.caption("✅ Sem prazos vencendo em até 7 dias.")
                 else:
+                    st.caption("—")
+
+            with colB:
+                st.caption("7 dias (Top 10)")
+                if rows_7d:
                     df = _build_prazos_df(rows_7d)
                     st.dataframe(
                         df, use_container_width=True, hide_index=True, height=320
                     )
+                else:
+                    st.caption("—")
 
     with tab2:
         rows_24h, rows_ag_7d = _fetch_agendamentos_cached(
             owner_user_id, tipo_val, k["now_n"].isoformat(timespec="seconds")
         )
 
-        col1, col2 = st.columns(2, vertical_alignment="top")
-        with col1:
-            with st.container(border=True):
-                st.subheader("Próximas 24 horas")
-                if not rows_24h:
-                    st.caption("✅ Sem agendamentos nas próximas 24 horas.")
-                else:
+        _render_agenda_cards(
+            rows_24h, "Próximas 24 horas", "✅ Sem agendamentos nas próximas 24 horas."
+        )
+        _render_agenda_cards(
+            rows_ag_7d, "Próximos 7 dias", "✅ Sem agendamentos nos próximos 7 dias."
+        )
+
+        with st.expander("Ver em tabela", expanded=False):
+            col1, col2 = st.columns(2, vertical_alignment="top")
+            with col1:
+                st.caption("24 horas (Top 10)")
+                if rows_24h:
                     dfa = _build_agenda_df(rows_24h)
                     st.dataframe(
                         dfa, use_container_width=True, hide_index=True, height=320
                     )
-
-        with col2:
-            with st.container(border=True):
-                st.subheader("Próximos 7 dias")
-                if not rows_ag_7d:
-                    st.caption("✅ Sem agendamentos nos próximos 7 dias.")
                 else:
+                    st.caption("—")
+            with col2:
+                st.caption("7 dias (Top 10)")
+                if rows_ag_7d:
                     dfa = _build_agenda_df(rows_ag_7d)
                     st.dataframe(
                         dfa, use_container_width=True, hide_index=True, height=320
                     )
+                else:
+                    st.caption("—")
 
     with tab3:
         procs = _fetch_ultimos_processos_cached(owner_user_id, tipo_val)
@@ -648,4 +734,5 @@ def render(owner_user_id: int):
                     "tipo_trabalho": "Atuação",
                 }
             )
+
             st.dataframe(dfp, use_container_width=True, hide_index=True, height=420)
