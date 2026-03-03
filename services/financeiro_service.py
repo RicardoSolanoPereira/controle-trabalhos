@@ -403,8 +403,23 @@ class FinanceiroService:
         Tab4 da UI: lista dicts com mes/receitas/despesas/saldo
         mes no formato YYYY-MM
         """
-        # SQLite: strftime('%Y-%m', data_lancamento)
-        mes = func.strftime("%Y-%m", LancamentoFinanceiro.data_lancamento)
+        dialect = session.get_bind().dialect.name
+
+        # SQLite tem strftime; Postgres não.
+        if dialect == "sqlite":
+            mes_expr = func.strftime(
+                "%Y-%m", LancamentoFinanceiro.data_lancamento
+            ).label("mes")
+            mes_group = mes_expr
+            mes_order = mes_expr
+        else:
+            # Postgres: agrupa por mês "real" e depois formata no Python
+            mes_dt = func.date_trunc(
+                "month", LancamentoFinanceiro.data_lancamento
+            ).label("mes")
+            mes_expr = mes_dt
+            mes_group = mes_dt
+            mes_order = mes_dt
 
         receitas = func.coalesce(
             func.sum(
@@ -433,14 +448,14 @@ class FinanceiroService:
 
         stmt = (
             select(
-                mes.label("mes"),
+                mes_expr,
                 receitas.label("receitas"),
                 despesas.label("despesas"),
             )
             .join(Processo, Processo.id == LancamentoFinanceiro.processo_id)
             .where(Processo.owner_user_id == owner_user_id)
-            .group_by("mes")
-            .order_by("mes")
+            .group_by(mes_group)
+            .order_by(mes_order)
         )
 
         if processo_id:
@@ -456,9 +471,16 @@ class FinanceiroService:
         for m, rec, desp in rows:
             rec_f = float(rec or 0)
             desp_f = float(desp or 0)
+
+            if dialect == "sqlite":
+                mes_str = str(m)  # já vem YYYY-MM
+            else:
+                # m vem como datetime truncado para o 1º dia do mês
+                mes_str = m.strftime("%Y-%m") if hasattr(m, "strftime") else str(m)
+
             out.append(
                 {
-                    "mes": str(m),
+                    "mes": mes_str,
                     "receitas": rec_f,
                     "despesas": desp_f,
                     "saldo": rec_f - desp_f,
