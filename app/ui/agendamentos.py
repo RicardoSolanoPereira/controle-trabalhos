@@ -18,7 +18,6 @@ from services.agendamentos_service import (
     TIPOS_VALIDOS,
     STATUS_VALIDOS,
 )
-
 from app.ui.theme import inject_global_css, card
 from app.ui.page_header import page_header
 
@@ -31,6 +30,14 @@ class ProcMaps:
     labels: List[str]
     label_to_id: Dict[str, int]
     label_by_id: Dict[int, str]
+
+
+def _is_mobile_hint() -> bool:
+    """
+    Streamlit não expõe viewport real.
+    Heurística controlada por toggle (útil para testes no celular).
+    """
+    return bool(st.session_state.get("ui_mobile_mode", False))
 
 
 def _proc_label(p: Processo) -> str:
@@ -74,9 +81,16 @@ def _load_processos(owner_user_id: int) -> List[Processo]:
 
 
 def _build_proc_maps(processos: List[Processo]) -> ProcMaps:
-    labels = [_proc_label(p) for p in processos]
-    label_to_id = {_proc_label(p): int(p.id) for p in processos}
-    label_by_id = {int(p.id): _proc_label(p) for p in processos}
+    labels: List[str] = []
+    label_to_id: Dict[str, int] = {}
+    label_by_id: Dict[int, str] = {}
+
+    for p in processos:
+        lbl = _proc_label(p)
+        labels.append(lbl)
+        label_to_id[lbl] = int(p.id)
+        label_by_id[int(p.id)] = lbl
+
     return ProcMaps(labels=labels, label_to_id=label_to_id, label_by_id=label_by_id)
 
 
@@ -153,6 +167,31 @@ def _apply_pref_processo_defaults(proc_maps: ProcMaps) -> None:
     st.session_state.setdefault("ag_list_filtro_proc", pref_label)
 
 
+def _render_agendamento_card(a, proc_label_by_id: Dict[int, str]) -> None:
+    proc_lbl = proc_label_by_id.get(a.processo_id, f"[{a.processo_id}]")
+    local = (a.local or "").strip()
+    desc = (a.descricao or "").strip()
+
+    st.markdown(
+        f"""
+        <div class="sp-surface" style="margin-bottom:10px;">
+          <div style="font-weight:850; font-size:0.98rem;">
+            {proc_lbl}
+          </div>
+          <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+            <span class="sp-chip">📌 {a.tipo}</span>
+            <span class="sp-chip">🧾 {a.status}</span>
+            <span class="sp-chip">🕒 {_format_dt(a.inicio)}</span>
+            {f"<span class='sp-chip'>⏱️ {_format_dt(a.fim)}</span>" if a.fim else ""}
+            {f"<span class='sp-chip'>📍 {local}</span>" if local else ""}
+          </div>
+          {f"<div style='margin-top:8px; color: rgba(15,23,42,0.75);'><b>Descrição:</b> {desc}</div>" if desc else ""}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # -------------------------
 # Page
 # -------------------------
@@ -168,6 +207,10 @@ def render(owner_user_id: int):
     )
     if clicked_refresh:
         st.rerun()
+
+    # Toggle de testes (mesmo padrão da aba Trabalhos)
+    with st.sidebar.expander("📱 Ajustes (UI)", expanded=False):
+        st.checkbox("Modo mobile (cards)", value=False, key="ui_mobile_mode")
 
     processos = _load_processos(owner_user_id)
     if not processos:
@@ -258,36 +301,66 @@ def render(owner_user_id: int):
         st.markdown("#### 📋 Lista")
         st.caption("Filtre e visualize rapidamente.")
 
-        cF1, cF2, cF3, cF4 = st.columns([3, 2, 2, 1])
-        filtro_proc = cF1.selectbox(
-            "Trabalho",
-            ["(Todos)"] + proc_maps.labels,
-            index=0,
-            key="ag_list_filtro_proc",
-        )
-        filtro_tipo = cF2.selectbox(
-            "Tipo",
-            ["(Todos)"] + TIPOS,
-            index=0,
-            key="ag_list_filtro_tipo",
-        )
-        filtro_status = cF3.selectbox(
-            "Status",
-            ["(Todos)"] + STATUS,
-            index=0,
-            key="ag_list_filtro_status",
-        )
-        filtro_limit = cF4.selectbox(
-            "Limite", [100, 200, 300, 500], index=1, key="ag_list_limit"
-        )
+        if _is_mobile_hint():
+            filtro_proc = st.selectbox(
+                "Trabalho",
+                ["(Todos)"] + proc_maps.labels,
+                index=0,
+                key="ag_list_filtro_proc",
+            )
+            filtro_tipo = st.selectbox(
+                "Tipo",
+                ["(Todos)"] + TIPOS,
+                index=0,
+                key="ag_list_filtro_tipo",
+            )
+            filtro_status = st.selectbox(
+                "Status",
+                ["(Todos)"] + STATUS,
+                index=0,
+                key="ag_list_filtro_status",
+            )
+            filtro_limit = st.selectbox(
+                "Limite", [100, 200, 300, 500], index=1, key="ag_list_limit"
+            )
 
-        cO1, cO2 = st.columns([1, 3])
-        order = cO1.radio(
-            "Ordem", ["Próximos", "Recentes"], horizontal=True, key="ag_list_order"
-        )
-        filtro_q = cO2.text_input(
-            "Buscar (local/descrição)", value="", key="ag_list_busca"
-        )
+            order = st.radio(
+                "Ordem", ["Próximos", "Recentes"], horizontal=True, key="ag_list_order"
+            )
+            filtro_q = st.text_input(
+                "Buscar (local/descrição)", value="", key="ag_list_busca"
+            )
+        else:
+            cF1, cF2, cF3, cF4 = st.columns([3, 2, 2, 1])
+            filtro_proc = cF1.selectbox(
+                "Trabalho",
+                ["(Todos)"] + proc_maps.labels,
+                index=0,
+                key="ag_list_filtro_proc",
+            )
+            filtro_tipo = cF2.selectbox(
+                "Tipo",
+                ["(Todos)"] + TIPOS,
+                index=0,
+                key="ag_list_filtro_tipo",
+            )
+            filtro_status = cF3.selectbox(
+                "Status",
+                ["(Todos)"] + STATUS,
+                index=0,
+                key="ag_list_filtro_status",
+            )
+            filtro_limit = cF4.selectbox(
+                "Limite", [100, 200, 300, 500], index=1, key="ag_list_limit"
+            )
+
+            cO1, cO2 = st.columns([1, 3])
+            order = cO1.radio(
+                "Ordem", ["Próximos", "Recentes"], horizontal=True, key="ag_list_order"
+            )
+            filtro_q = cO2.text_input(
+                "Buscar (local/descrição)", value="", key="ag_list_busca"
+            )
 
         order_val = "asc" if order == "Próximos" else "desc"
 
@@ -342,27 +415,35 @@ def render(owner_user_id: int):
             )
 
         st.write("")
-        if ags:
-            df = pd.DataFrame(
-                [
-                    {
-                        "id": a.id,
-                        "trabalho": proc_maps.label_by_id.get(
-                            a.processo_id, f"[{a.processo_id}]"
-                        ),
-                        "status": a.status,
-                        "tipo": a.tipo,
-                        "início": _format_dt(a.inicio),
-                        "fim": _format_dt(a.fim),
-                        "local": a.local or "",
-                        "descrição": a.descricao or "",
-                    }
-                    for a in ags
-                ]
-            )
-            st.dataframe(df, use_container_width=True, hide_index=True, height=420)
-        else:
+
+        if not ags:
             st.info("Nenhum agendamento encontrado com os filtros atuais.")
+        else:
+            # Mobile-first: cards | Desktop: tabela
+            if _is_mobile_hint():
+                for a in ags[:50]:
+                    _render_agendamento_card(a, proc_maps.label_by_id)
+                if len(ags) > 50:
+                    st.caption(f"Mostrando 50 de {len(ags)}. Use filtros para reduzir.")
+            else:
+                df = pd.DataFrame(
+                    [
+                        {
+                            "id": a.id,
+                            "trabalho": proc_maps.label_by_id.get(
+                                a.processo_id, f"[{a.processo_id}]"
+                            ),
+                            "status": a.status,
+                            "tipo": a.tipo,
+                            "início": _format_dt(a.inicio),
+                            "fim": _format_dt(a.fim),
+                            "local": a.local or "",
+                            "descrição": a.descricao or "",
+                        }
+                        for a in ags
+                    ]
+                )
+                st.dataframe(df, use_container_width=True, hide_index=True, height=420)
 
     st.write("")
 
@@ -383,7 +464,6 @@ def render(owner_user_id: int):
         edit_labels = [
             _build_agendamento_label(a, proc_maps.label_by_id) for a in ags_for_edit
         ]
-
         st.session_state.setdefault("ag_edit_selected", edit_labels[0])
 
         selected_label = st.selectbox(
@@ -408,7 +488,7 @@ def render(owner_user_id: int):
 
         # Ações rápidas (fora do form)
         st.caption("⚡ Ações rápidas (no agendamento selecionado)")
-        cA, cB, cC, cD = st.columns([1, 1, 1, 1.2], vertical_alignment="center")
+        cA, cB, cC, cD = st.columns([1, 1, 1, 1.6], vertical_alignment="center")
 
         if cA.button(
             "✅ Realizado", key="ag_quick_realizado", use_container_width=True
@@ -445,16 +525,25 @@ def render(owner_user_id: int):
             except Exception as e:
                 st.error(str(e))
 
-        if cD.button(
-            "🗑️ Excluir definitivamente", key="ag_quick_delete", use_container_width=True
-        ):
-            try:
-                with get_session() as s:
-                    AgendamentosService.delete(s, owner_user_id, int(agendamento_id))
-                st.warning("Agendamento excluído.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Erro ao excluir: {e}")
+        with cD:
+            confirm_del = st.checkbox(
+                "Confirmar exclusão", value=False, key="ag_del_confirm"
+            )
+            if st.button(
+                "🗑️ Excluir definitivamente",
+                key="ag_quick_delete",
+                use_container_width=True,
+                disabled=not confirm_del,
+            ):
+                try:
+                    with get_session() as s:
+                        AgendamentosService.delete(
+                            s, owner_user_id, int(agendamento_id)
+                        )
+                    st.warning("Agendamento excluído.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao excluir: {e}")
 
         st.divider()
 
@@ -520,7 +609,6 @@ def render(owner_user_id: int):
         if atualizar:
             try:
                 processo_id_e = int(proc_maps.label_to_id[proc_lbl_e])
-
                 inicio_e = _combine_date_time(d_ini_e, h_ini_e)
                 fim_e = _combine_date_time(d_fim_e, h_fim_e)
                 fim_val = _sanitize_end_dt(inicio_e, fim_e)

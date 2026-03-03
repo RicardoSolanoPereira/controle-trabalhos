@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, time, date
 import pandas as pd
 import streamlit as st
 from sqlalchemy import select, func, case
+from sqlalchemy.exc import SQLAlchemyError
 
 from db.connection import get_session
 from db.models import Processo, Prazo, LancamentoFinanceiro, Agendamento
@@ -139,14 +140,6 @@ def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
             status = _status_prazo(dias)
             prior = _prior_badge(prioridade)
 
-            tone = "success"
-            if dias < 0:
-                tone = "danger"
-            elif dias <= 5:
-                tone = "warning"
-            elif dias <= 10:
-                tone = "info"
-
             st.markdown(
                 f"""
                 <div class="sp-surface" style="margin-bottom:10px;">
@@ -170,7 +163,7 @@ def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
         st.button(
             "Abrir lista completa",
             use_container_width=True,
-            key=f"btn_open_{title}",
+            key=f"btn_open_{title}_prazos",
             type="primary",
             on_click=lambda: navigate(
                 "Prazos",
@@ -216,13 +209,20 @@ def _render_agenda_cards(rows: list, title: str, empty_msg: str) -> None:
             navigate("Agendamentos")
 
 
+def _alert_tone(prazos_atrasados: int, prazos_7dias: int) -> str:
+    if prazos_atrasados > 0:
+        return "danger"
+    if prazos_7dias > 0:
+        return "warning"
+    return "success"
+
+
 # -------------------------
 # Queries (cacheadas)
 # -------------------------
 @st.cache_data(show_spinner=False, ttl=45)
 def _fetch_kpis_cached(owner_user_id: int, tipo_val: str | None, hoje_iso: str) -> dict:
     hoje_sp = date.fromisoformat(hoje_iso)
-
     start_today, end_7d = _dt_bounds(hoje_sp)
     now = now_br()
     now_n = _naive(now)
@@ -466,10 +466,9 @@ def _fetch_ultimos_processos_cached(owner_user_id: int, tipo_val: str | None) ->
 # Render
 # -------------------------
 def render(owner_user_id: int):
-    # Header compacto (botão de refresh agora é o "Sincronizar" da sidebar)
     page_header("Painel de Controle", "Alertas, prazos, agenda e financeiro")
 
-    # Filtro (Atuação) - compacto
+    # Filtro Atuação (compacto)
     with st.container(border=True):
         c1, c2 = st.columns([0.42, 0.58], vertical_alignment="center")
         with c1:
@@ -487,16 +486,34 @@ def render(owner_user_id: int):
     hoje_iso, _ = _date_range_strings(hoje_sp)
     k = _fetch_kpis_cached(owner_user_id, tipo_val, hoje_iso)
 
-    # 1) Alertas
+    # ------------------------------------------------------------
+    # 1) ALERTA (Prioridades)
+    # ------------------------------------------------------------
+    tone = _alert_tone(k["prazos_atrasados"], k["prazos_7dias"])
+
     with st.container(border=True):
-        st.subheader("Prioridades de hoje")
+        # Dá “cara de alerta” (borda esquerda) usando sua classe sp-tone-*
+        st.markdown(
+            f"""
+            <div class="sp-card sp-tone-{tone}" style="margin-bottom:6px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:900;font-size:1.05rem;">Prioridades de hoje</div>
+                  <div class="sp-muted" style="margin-top:4px;">
+                    {atuacao_label}
+                  </div>
+                </div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
         left, right = st.columns([0.72, 0.28], vertical_alignment="center")
 
         if k["prazos_atrasados"] > 0:
             with left:
-                st.markdown(
-                    f"**🔴 {int(k['prazos_atrasados'])} prazo(s) atrasado(s)** • **{atuacao_label}**"
-                )
+                st.markdown(f"**🔴 {int(k['prazos_atrasados'])} prazo(s) atrasado(s)**")
             with right:
                 if st.button(
                     "Abrir atrasados", use_container_width=True, type="primary"
@@ -512,9 +529,7 @@ def render(owner_user_id: int):
 
         elif k["prazos_7dias"] > 0:
             with left:
-                st.markdown(
-                    f"**🟠 {int(k['prazos_7dias'])} prazo(s) em até 7 dias** • **{atuacao_label}**"
-                )
+                st.markdown(f"**🟠 {int(k['prazos_7dias'])} prazo(s) em até 7 dias**")
             with right:
                 if st.button("Ver 7 dias", use_container_width=True, type="primary"):
                     navigate(
@@ -527,7 +542,7 @@ def render(owner_user_id: int):
                     )
         else:
             with left:
-                st.markdown(f"**🟢 Nenhum prazo crítico** • **{atuacao_label}**")
+                st.markdown("**🟢 Nenhum prazo crítico**")
             with right:
                 if st.button(
                     "Cadastrar prazo", use_container_width=True, type="primary"
@@ -536,33 +551,22 @@ def render(owner_user_id: int):
 
     st.write("")
 
-    # 2) KPIs (operacional + financeiro)
+    # ------------------------------------------------------------
+    # 2) RESUMO (separado: Operacional / Financeiro)
+    # ------------------------------------------------------------
+    pct_atraso = _pct(k["prazos_atrasados"], k["prazos_abertos"])
+    pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
+
+    # -------------------
+    # Operacional
+    # -------------------
     with st.container(border=True):
-        st.subheader("Resumo")
+        st.subheader("Resumo operacional")
 
-        pct_atraso = _pct(k["prazos_atrasados"], k["prazos_abertos"])
-        pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
-
-        st.markdown("**Operacional**")
-
-        # Melhor para mobile sem precisar detectar largura:
-        # 2 colunas (fica ótimo no mobile e aceitável no desktop)
+        # Ordem mobile-first: Prazos → Ativos → Trabalhos → Agenda
+        # (Usar 2 colunas é ok no desktop; no mobile vira mais estreito, mas ainda funcional)
         r1c1, r1c2 = st.columns(2)
         with r1c1:
-            card("Trabalhos", f"{k['total_proc']}", "cadastrados", tone="info")
-            if st.button("Ver todos", use_container_width=True, key="go_proc"):
-                navigate("Processos", state={"processos_section": "Lista"})
-        with r1c2:
-            card("Ativos", f"{k['ativos']}", "em andamento", tone="neutral")
-            if st.button("Ver ativos", use_container_width=True, key="go_proc_ativos"):
-                navigate(
-                    "Processos",
-                    qp={"status": "Ativo"},
-                    state={"processos_section": "Lista"},
-                )
-
-        r2c1, r2c2 = st.columns(2)
-        with r2c1:
             tone_pz = (
                 "danger"
                 if k["prazos_atrasados"] > 0
@@ -573,6 +577,7 @@ def render(owner_user_id: int):
                 f"{k['prazos_abertos']}",
                 f"{pct_atraso} atrasados • {pct_7d} em 7d",
                 tone=tone_pz,
+                emphasize=(k["prazos_atrasados"] > 0),
             )
             if st.button("Ver prazos", use_container_width=True, key="go_prazos"):
                 navigate(
@@ -584,13 +589,33 @@ def render(owner_user_id: int):
                     },
                 )
 
+        with r1c2:
+            card("Ativos", f"{k['ativos']}", "em andamento", tone="neutral")
+            if st.button("Ver ativos", use_container_width=True, key="go_proc_ativos"):
+                navigate(
+                    "Processos",
+                    qp={"status": "Ativo"},
+                    state={"processos_section": "Lista"},
+                )
+
+        r2c1, r2c2 = st.columns(2)
+        with r2c1:
+            card("Trabalhos", f"{k['total_proc']}", "cadastrados", tone="info")
+            if st.button("Ver todos", use_container_width=True, key="go_proc"):
+                navigate("Processos", state={"processos_section": "Lista"})
+
         with r2c2:
             card("Agenda (7 dias)", f"{k['ag_7d']}", "agendados", tone="info")
             if st.button("Ver agenda", use_container_width=True, key="go_agenda"):
                 navigate("Agendamentos")
 
-        st.write("")
-        st.markdown("**Financeiro**")
+    st.write("")
+
+    # -------------------
+    # Financeiro
+    # -------------------
+    with st.container(border=True):
+        st.subheader("Resumo financeiro")
 
         f1, f2 = st.columns(2)
         with f1:
@@ -615,6 +640,7 @@ def render(owner_user_id: int):
             tone=("success" if k["saldo"] >= 0 else "danger"),
             emphasize=True,
         )
+
         if st.button(
             "Abrir financeiro", use_container_width=True, type="primary", key="go_fin"
         ):
@@ -622,7 +648,9 @@ def render(owner_user_id: int):
 
     st.divider()
 
+    # ------------------------------------------------------------
     # 3) Listas Analíticas
+    # ------------------------------------------------------------
     tab1, tab2, tab3 = st.tabs(["⏳ Prazos", "📅 Agenda", "🗂️ Trabalhos"])
 
     with tab1:
@@ -633,7 +661,6 @@ def render(owner_user_id: int):
             k["end_7d"].isoformat(timespec="seconds"),
         )
 
-        # Mobile-first: cards
         _render_prazo_cards(
             rows_atrasados, "Prazos atrasados", "✅ Sem prazos atrasados."
         )
@@ -641,7 +668,6 @@ def render(owner_user_id: int):
             rows_7d, "Vencem em até 7 dias", "✅ Sem prazos vencendo em até 7 dias."
         )
 
-        # Tabela opcional (desktop / auditoria)
         with st.expander("Ver em tabela", expanded=False):
             colA, colB = st.columns(2, vertical_alignment="top")
 
@@ -700,6 +726,7 @@ def render(owner_user_id: int):
 
     with tab3:
         procs = _fetch_ultimos_processos_cached(owner_user_id, tipo_val)
+
         with st.container(border=True):
             st.subheader("Últimos trabalhos")
             st.caption("Registros mais recentes cadastrados (respeita a atuação)")

@@ -1,21 +1,22 @@
 # app/ui/prazos.py
 from __future__ import annotations
 
-import streamlit as st
-import pandas as pd
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Iterable
 
+import pandas as pd
+import streamlit as st
 from sqlalchemy import select
 
 from db.connection import get_session
 from db.models import Processo
 from services.prazos_service import PrazosService, PrazoCreate, PrazoUpdate
 from services.utils import now_br, ensure_br, format_date_br, date_to_br_datetime
-from app.ui.theme import inject_global_css, card
-from app.ui.page_header import page_header
 from services.calendario_service import CalendarioService, RegrasCalendario
+
+from app.ui.theme import inject_global_css, card, subtle_divider
+from app.ui.page_header import page_header
 
 
 # ============================================================
@@ -127,7 +128,7 @@ def _apply_requested_list_tab() -> None:
 
 
 # ============================================================
-# UI HELPERS (estilo painel)
+# UI HELPERS
 # ============================================================
 def _inject_segmented_radio_css() -> None:
     st.markdown(
@@ -200,7 +201,7 @@ def _list_tabs_selector() -> str:
 
 
 # ============================================================
-# HELPERS
+# HELPERS (sem tocar lógica)
 # ============================================================
 def _norm(s: str | None) -> str | None:
     if not s:
@@ -334,15 +335,9 @@ def _merge_obs_with_audit(obs: str | None, audit: str | None) -> str | None:
 def _apply_pref_processo_defaults(
     proc_labels: list[str], label_to_id: dict[str, int]
 ) -> None:
-    """
-    Integra com o padrão do Painel/Trabalhos:
-    - se vier st.session_state["pref_processo_id"] (setado em Trabalhos), pré-seleciona
-      no Cadastro e no filtro da Lista sem quebrar estados já escolhidos pelo usuário.
-    """
     pref_id = st.session_state.get("pref_processo_id")
     if not pref_id:
         return
-
     try:
         pref_id = int(pref_id)
     except Exception:
@@ -361,7 +356,7 @@ def _apply_pref_processo_defaults(
 
 
 # ============================================================
-# AÇÕES / EDITAR
+# AÇÕES / EDITAR (lógica intacta)
 # ============================================================
 def _quick_actions(filtered_items: list[PrazoRow], owner_user_id: int) -> None:
     if not filtered_items:
@@ -373,10 +368,7 @@ def _quick_actions(filtered_items: list[PrazoRow], owner_user_id: int) -> None:
     for r in filtered_items:
         dias = _dias_restantes(r.data_limite)
         status = "✅ Concluído" if r.concluido else _semaforo(dias)
-        label = (
-            f"[{int(r.prazo_id)}] {r.processo_numero} | "
-            f"{r.evento} | {format_date_br(r.data_limite)} | {status}"
-        )
+        label = f"[{int(r.prazo_id)}] {r.processo_numero} | {r.evento} | {format_date_br(r.data_limite)} | {status}"
         options.append(label)
         id_by_label[label] = int(r.prazo_id)
 
@@ -514,13 +506,12 @@ def _editar_excluir_prazo(items: list[PrazoRow], owner_user_id: int) -> None:
 
 
 # ============================================================
-# RENDER
+# RENDER (UI/UX refatorado, lógica intacta)
 # ============================================================
 def render(owner_user_id: int) -> None:
     inject_global_css()
     st.session_state[KEY_OWNER] = owner_user_id
 
-    # Header padrão do Painel
     clicked_refresh = page_header(
         "Prazos",
         "Cadastro, filtros e controle de prazos (judicial e extrajudicial).",
@@ -549,7 +540,7 @@ def render(owner_user_id: int) -> None:
     label_to_id = {proc_labels[i]: processos[i].id for i in range(len(processos))}
     proc_by_id = {p.id: p for p in processos}
 
-    # Defaults estáveis
+    # Defaults estáveis (mantidos)
     hoje_sp = now_br().date()
     st.session_state.setdefault(KEY_C_MODE, "Manual")
     st.session_state.setdefault(KEY_C_DATA_LIM, hoje_sp)
@@ -572,22 +563,26 @@ def render(owner_user_id: int) -> None:
     if section == "Cadastrar":
         with st.container(border=True):
             st.markdown("#### Novo prazo")
-            st.caption("Escolha o modo e salve. O sistema calcula quando aplicável.")
+            st.caption(
+                "Escolha o modo de contagem e salve. O sistema calcula quando aplicável."
+            )
+            subtle_divider()
 
             sel_proc = st.selectbox("Trabalho *", proc_labels, index=0, key=KEY_C_PROC)
             processo_id = int(label_to_id[sel_proc])
             proc = proc_by_id.get(processo_id)
             comarca_proc = (proc.comarca or "").strip() or None if proc else None
 
-            st.divider()
-
+            # Passo 1: modo
+            st.markdown("**1) Modo de contagem**")
             modo = st.selectbox(
-                "Modo de contagem",
-                ["Manual", "Dias corridos", "Dias úteis"],
-                key=KEY_C_MODE,
+                "Modo", ["Manual", "Dias corridos", "Dias úteis"], key=KEY_C_MODE
             )
 
-            st.divider()
+            subtle_divider()
+
+            # Passo 2: cálculo (lógica intacta)
+            st.markdown("**2) Base e cálculo**")
 
             if modo == "Manual":
                 st.date_input("Data limite *", key=KEY_C_DATA_LIM)
@@ -601,7 +596,12 @@ def render(owner_user_id: int) -> None:
                 nova = base + timedelta(days=int(dias))
                 st.session_state[KEY_C_DATA_LIM] = nova
                 st.session_state[KEY_C_AUDIT] = "Auto: dias corridos"
-                st.caption(f"🧮 Data final: {nova.strftime('%d/%m/%Y')}")
+                card(
+                    "Data final",
+                    nova.strftime("%d/%m/%Y"),
+                    f"Base: {base.strftime('%d/%m/%Y')} • +{int(dias)} dia(s)",
+                    tone="info",
+                )
 
             else:
                 c1, c2 = st.columns(2)
@@ -622,6 +622,7 @@ def render(owner_user_id: int) -> None:
                     help="Requer 'Comarca' preenchida no trabalho (ex.: Ilhabela).",
                 )
 
+                # >>>>> LÓGICA INTACTA (NÃO ALTERADA) <<<<<
                 regras = RegrasCalendario(
                     incluir_nacional=True,
                     incluir_estadual_sp=True,
@@ -640,6 +641,7 @@ def render(owner_user_id: int) -> None:
                     aplicar_local=aplicar_local,
                     regras=regras,
                 )
+                # >>>>> FIM DA LÓGICA INTACTA <<<<<
 
                 st.session_state[KEY_C_DATA_LIM] = nova
 
@@ -662,7 +664,17 @@ def render(owner_user_id: int) -> None:
                             "Auto: DJE + dias úteis (Nac/Estadual)"
                         )
 
-                st.caption(f"🧮 Data final: {nova.strftime('%d/%m/%Y')}")
+                card(
+                    "Data final",
+                    nova.strftime("%d/%m/%Y"),
+                    f"Base: {base.strftime('%d/%m/%Y')} • {int(dias)} dia(s) úteis"
+                    + (
+                        f" • Comarca: {comarca_proc}"
+                        if (incluir_municipal and comarca_proc)
+                        else ""
+                    ),
+                    tone="info",
+                )
 
                 if DEBUG_PRAZOS:
                     from datetime import date as _date
@@ -689,8 +701,10 @@ def render(owner_user_id: int) -> None:
                     st.write("contém 02/02/2026?:", _date(2026, 2, 2) in fer_set)
                     st.write("feriados janela:", sorted(list(fer_set)))
 
-            st.divider()
+            subtle_divider()
+            st.markdown("**3) Detalhes do prazo**")
 
+            # Form somente com inputs + submit (sem botões extras)
             with st.form("form_prazo_create", clear_on_submit=True):
                 cE1, cE2, cE3 = st.columns(3)
                 evento = cE1.text_input("Evento *", key=KEY_C_EVENTO)
@@ -764,22 +778,24 @@ def render(owner_user_id: int) -> None:
 
         with st.container(border=True):
             st.markdown("#### Filtros")
-            cF1, cF2, cF3 = st.columns([2, 2, 6])
 
-            filtro_tipo = cF1.selectbox(
+            # Mobile-first: 2 colunas + busca embaixo
+            f1, f2 = st.columns(2)
+            filtro_tipo = f1.selectbox(
                 "Tipo de trabalho",
                 ["(Todos)"] + list(TIPOS_TRABALHO),
                 index=0,
                 key=KEY_FILTER_TIPO,
             )
-            filtro_proc = cF2.selectbox(
+            filtro_proc = f2.selectbox(
                 "Trabalho",
                 ["(Todos)"] + proc_labels,
                 index=0,
                 key=KEY_FILTER_PROC,
             )
+
             busca = (
-                cF3.text_input(
+                st.text_input(
                     "Buscar",
                     placeholder="processo, evento, origem, referência, observações…",
                     value="",
@@ -810,7 +826,7 @@ def render(owner_user_id: int) -> None:
                 continue
             filtered.append(r)
 
-        # KPIs no padrão Painel (baseado nos filtros atuais)
+        # KPIs (mobile-first: 2 colunas)
         abertos = [r for r in filtered if not r.concluido]
         atrasados = [
             r
@@ -824,7 +840,7 @@ def render(owner_user_id: int) -> None:
         ]
         concluidos = [r for r in filtered if r.concluido]
 
-        k1, k2, k3, k4 = st.columns(4)
+        k1, k2 = st.columns(2)
         with k1:
             card("Abertos", f"{len(abertos)}", "nos filtros", tone="info")
         with k2:
@@ -834,6 +850,8 @@ def render(owner_user_id: int) -> None:
                 "urgente",
                 tone="warning" if atrasados else "neutral",
             )
+
+        k3, k4 = st.columns(2)
         with k3:
             card(
                 "Vencem (7d)",

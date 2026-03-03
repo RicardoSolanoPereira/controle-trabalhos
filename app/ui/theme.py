@@ -8,14 +8,19 @@ def inject_global_css() -> None:
         """
         <style>
           :root{
-            --bg: #F5F7FA;
+            /* ==================================================
+               TOKENS (mantém consistente com .streamlit/config.toml)
+               base=light
+               primaryColor ~ #111827 / textColor #0f172a / secondaryBackground #f4f6f8
+            ================================================== */
+            --bg: #ffffff;
             --surface: #ffffff;
             --border: #e5e7eb;
 
             --text: #0f172a;
             --muted: #64748b;
 
-            --primary: #1E2A38;
+            --primary: #111827;
             --primary-2: #2F4F6F;
 
             --info: #1976d2;
@@ -58,8 +63,8 @@ def inject_global_css() -> None:
             color: var(--muted) !important;
           }
 
-          /* Remove um pouco de “respiro” exagerado em alguns widgets */
-          div[data-testid="stVerticalBlock"] > div:has(> .stMarkdown){
+          /* Reduz espaços verticais padrão do Streamlit (mais robusto que :has) */
+          div[data-testid="stVerticalBlock"] > div{
             margin-bottom: 0.35rem;
           }
 
@@ -67,14 +72,15 @@ def inject_global_css() -> None:
              UTILITIES
           ================================================== */
           .sp-muted{ color: rgba(15,23,42,0.58); }
+
           .sp-chip{
             display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 6px 10px;
             border-radius: 999px;
-            background: rgba(30,42,56,0.06);
-            border: 1px solid rgba(30,42,56,0.14);
+            background: rgba(17,24,39,0.06);
+            border: 1px solid rgba(17,24,39,0.14);
             font-size: 0.82rem;
             color: rgba(15,23,42,0.82);
             white-space: nowrap;
@@ -122,23 +128,23 @@ def inject_global_css() -> None:
             margin-bottom: 6px;
             cursor: pointer;
             transition: all 0.12s ease;
-            border: 1px solid rgba(30,42,56,0.10);
+            border: 1px solid rgba(17,24,39,0.10);
             background: rgba(255,255,255,0.70);
           }
 
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           label[data-baseweb="radio"]:hover{
-            background: rgba(30,42,56,0.06);
-            border-color: rgba(30,42,56,0.22);
+            background: rgba(17,24,39,0.06);
+            border-color: rgba(17,24,39,0.22);
             transform: translateY(-1px);
           }
 
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           label[data-baseweb="radio"]:has(input:checked){
-            background: rgba(30,42,56,0.12);
-            border: 1px solid rgba(30,42,56,0.35);
+            background: rgba(17,24,39,0.12);
+            border: 1px solid rgba(17,24,39,0.35);
             border-left: 5px solid var(--primary);
             padding-left: 11px;
             font-weight: 780;
@@ -151,7 +157,7 @@ def inject_global_css() -> None:
           ================================================== */
           div[data-baseweb="tab-list"]{
             background: #ffffff !important;
-            border: 1px solid rgba(30,42,56,0.18) !important;
+            border: 1px solid rgba(17,24,39,0.18) !important;
             border-radius: 14px !important;
             padding: 6px !important;
             gap: 6px !important;
@@ -163,7 +169,7 @@ def inject_global_css() -> None:
             padding: 10px 14px !important;
             font-weight: 760 !important;
             background: #f8fafc !important;
-            border: 1px solid rgba(30,42,56,0.16) !important;
+            border: 1px solid rgba(17,24,39,0.16) !important;
             color: rgba(15,23,42,0.86) !important;
             transition: all 0.12s ease !important;
             box-shadow: none !important;
@@ -171,7 +177,7 @@ def inject_global_css() -> None:
 
           button[data-baseweb="tab"]:hover{
             background: #ffffff !important;
-            border-color: rgba(30,42,56,0.30) !important;
+            border-color: rgba(17,24,39,0.30) !important;
             transform: translateY(-1px);
           }
 
@@ -200,7 +206,7 @@ def inject_global_css() -> None:
           }
 
           .stButton > button:hover{
-            border-color: rgba(30,42,56,0.30);
+            border-color: rgba(17,24,39,0.30);
             transform: translateY(-1px);
           }
 
@@ -209,8 +215,8 @@ def inject_global_css() -> None:
           }
 
           .stButton > button:focus-visible{
-            box-shadow: 0 0 0 3px rgba(30,42,56,0.18) !important;
-            border-color: rgba(30,42,56,0.50) !important;
+            box-shadow: 0 0 0 3px rgba(17,24,39,0.18) !important;
+            border-color: rgba(17,24,39,0.50) !important;
           }
 
           .stButton > button[kind="primary"]{
@@ -220,8 +226,8 @@ def inject_global_css() -> None:
           }
 
           .stButton > button[kind="primary"]:hover{
-            background: #16202B !important;
-            border-color: #16202B !important;
+            background: #0b1220 !important;
+            border-color: #0b1220 !important;
           }
 
           /* ==================================================
@@ -231,21 +237,21 @@ def inject_global_css() -> None:
           div[data-baseweb="textarea"] > div,
           div[data-baseweb="select"] > div{
             border-radius: var(--radius-md) !important;
-            border-color: rgba(30,42,56,0.18) !important;
+            border-color: rgba(17,24,39,0.18) !important;
             background: #ffffff !important;
           }
 
           div[data-baseweb="input"] > div:hover,
           div[data-baseweb="textarea"] > div:hover,
           div[data-baseweb="select"] > div:hover{
-            border-color: rgba(30,42,56,0.32) !important;
+            border-color: rgba(17,24,39,0.32) !important;
           }
 
           div[data-baseweb="input"] > div:focus-within,
           div[data-baseweb="textarea"] > div:focus-within,
           div[data-baseweb="select"] > div:focus-within{
-            border-color: rgba(30,42,56,0.75) !important;
-            box-shadow: 0 0 0 3px rgba(30,42,56,0.12) !important;
+            border-color: rgba(17,24,39,0.75) !important;
+            box-shadow: 0 0 0 3px rgba(17,24,39,0.12) !important;
           }
 
           /* ==================================================
@@ -319,7 +325,7 @@ def inject_global_css() -> None:
           }
 
           /* ==================================================
-             RESPONSIVO (mobile-first)
+             RESPONSIVO (mobile)
           ================================================== */
           @media (max-width: 768px){
             /* container geral */
@@ -351,6 +357,17 @@ def inject_global_css() -> None:
             .stButton > button{
               width: 100% !important;
               padding: 0.70rem 0.95rem !important;
+              min-height: 44px !important;
+            }
+
+            /* inputs: touch friendly (e evita zoom em iOS) */
+            div[data-baseweb="input"] input,
+            div[data-baseweb="textarea"] textarea{
+              min-height: 44px !important;
+              font-size: 16px !important;
+            }
+            div[data-baseweb="select"] > div{
+              min-height: 44px !important;
             }
 
             /* tabs compactas */
@@ -367,7 +384,7 @@ def inject_global_css() -> None:
               width: 100% !important;
             }
 
-            /* dataframe: reduzir sensação de “tabela gigante” */
+            /* dataframe */
             div[data-testid="stDataFrame"]{
               border-radius: 12px !important;
             }

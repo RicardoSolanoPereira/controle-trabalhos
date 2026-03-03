@@ -2,10 +2,16 @@
 [theme]
 base="light"
 
-# Leve suavização (continua executivo, mas menos "preto")
-primaryColor="#1f2937"
+# Tom executivo (bom para botões/links)
+primaryColor="#111827"
 
+# Fundo branco limpo
 backgroundColor="#ffffff"
+
+# Fundo secundário levemente acinzentado (sidebar/containers)
 secondaryBackgroundColor="#f4f6f8"
+
+# Texto com bom contraste
 textColor="#0f172a"
+
 font="sans serif"
