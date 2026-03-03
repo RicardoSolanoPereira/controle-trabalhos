@@ -1,17 +1,15 @@
 # .streamlit/config.toml
+
 [theme]
-base="light"
+base = "light"
 
-# Tom executivo (bom para botões/links)
-primaryColor="#111827"
+# Neutro suave (não azul forte, não preto pesado)
+primaryColor = "#475569"  # slate-600
 
-# Fundo branco limpo
-backgroundColor="#ffffff"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8fafc"  # slate-50
 
-# Fundo secundário levemente acinzentado (sidebar/containers)
-secondaryBackgroundColor="#f4f6f8"
+textColor = "#0f172a"          # slate-900
+secondaryTextColor = "#64748b" # slate-500
 
-# Texto com bom contraste
-textColor="#0f172a"
-
-font="sans serif"
+font = "sans serif"

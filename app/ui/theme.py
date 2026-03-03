@@ -1,38 +1,58 @@
 # app/ui/theme.py
 from __future__ import annotations
+
+import html
 import streamlit as st
 
 
+_CSS_FLAG_KEY = "_sp_css_injected_v1"
+
+
 def inject_global_css() -> None:
+    """
+    CSS global (tokens + componentes).
+    Objetivos:
+    - Padrão executivo / leve
+    - Botões consistentes (primário grafite)
+    - Tabs segmentadas
+    - Sidebar tipo "pill menu"
+    - Responsivo mobile
+    """
+    if st.session_state.get(_CSS_FLAG_KEY):
+        return
+    st.session_state[_CSS_FLAG_KEY] = True
+
     st.markdown(
         """
         <style>
           :root{
             /* ==================================================
-               TOKENS (mantém consistente com .streamlit/config.toml)
-               base=light
-               primaryColor ~ #111827 / textColor #0f172a / secondaryBackground #f4f6f8
+               TOKENS
             ================================================== */
             --bg: #ffffff;
             --surface: #ffffff;
+            --surface-2: #f8fafc;
             --border: #e5e7eb;
 
-            --text: #0f172a;
-            --muted: #64748b;
+            --text: #0f172a;   /* slate-900 */
+            --muted: #64748b;  /* slate-500 */
 
-            --primary: #111827;
-            --primary-2: #2F4F6F;
+            /* Primário (botões primários) */
+            --primary: #334155;        /* slate-700 */
+            --primary-hover: #1e293b;  /* slate-800 */
+            --primary-soft: rgba(51,65,85,0.10);
 
-            --info: #1976d2;
-            --success: #2E7D32;
-            --warning: #ED6C02;
-            --danger: #C62828;
+            /* Indicadores */
+            --info: #2563eb;     /* blue-600 */
+            --success: #16a34a;  /* green-600 */
+            --warning: #f59e0b;  /* amber-500 */
+            --danger: #dc2626;   /* red-600 */
 
-            --radius-lg: 16px;
-            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-md: 14px;
 
-            --shadow: 0 1px 2px rgba(0,0,0,0.045);
-            --shadow-2: 0 4px 10px rgba(0,0,0,0.10);
+            --shadow: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-2: 0 8px 18px rgba(0,0,0,0.10);
           }
 
           /* ==================================================
@@ -43,15 +63,15 @@ def inject_global_css() -> None:
             color: var(--text);
           }
 
-          /* Container principal (desktop) */
-          .block-container{
-            padding-top: 1.4rem;
-            padding-bottom: 1.4rem;
-            max-width: 1400px;
-          }
-
           header[data-testid="stHeader"]{
             background: transparent;
+          }
+
+          /* Container principal */
+          .block-container{
+            padding-top: 1.35rem;
+            padding-bottom: 1.6rem;
+            max-width: 1400px;
           }
 
           h1, h2, h3, h4{
@@ -63,28 +83,15 @@ def inject_global_css() -> None:
             color: var(--muted) !important;
           }
 
-          /* Reduz espaços verticais padrão do Streamlit (mais robusto que :has) */
+          /* Reduz espaços verticais padrão (sem “amassar”) */
           div[data-testid="stVerticalBlock"] > div{
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.40rem;
           }
 
           /* ==================================================
              UTILITIES
           ================================================== */
-          .sp-muted{ color: rgba(15,23,42,0.58); }
-
-          .sp-chip{
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: rgba(17,24,39,0.06);
-            border: 1px solid rgba(17,24,39,0.14);
-            font-size: 0.82rem;
-            color: rgba(15,23,42,0.82);
-            white-space: nowrap;
-          }
+          .sp-muted{ color: rgba(15,23,42,0.60); }
 
           .sp-surface{
             background: var(--surface);
@@ -94,11 +101,24 @@ def inject_global_css() -> None:
             box-shadow: var(--shadow);
           }
 
+          .sp-chip{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(15,23,42,0.04);
+            border: 1px solid rgba(15,23,42,0.12);
+            font-size: 0.82rem;
+            color: rgba(15,23,42,0.84);
+            white-space: nowrap;
+          }
+
           /* ==================================================
              SIDEBAR
           ================================================== */
           section[data-testid="stSidebar"]{
-            background-color: #f4f6f8;
+            background-color: #f1f5f9; /* slate-100 */
             border-right: 1px solid var(--border);
           }
 
@@ -111,7 +131,10 @@ def inject_global_css() -> None:
             border-color: var(--border) !important;
           }
 
-          /* Radio -> pill menu */
+          /* Radio -> pill menu:
+             - Esconde bolinha
+             - Estiliza label como "pill"
+             Obs: em algumas versões o estado checked pode estar em div[role="radio"] */
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           label[data-baseweb="radio"] > div:first-child{
@@ -128,28 +151,54 @@ def inject_global_css() -> None:
             margin-bottom: 6px;
             cursor: pointer;
             transition: all 0.12s ease;
-            border: 1px solid rgba(17,24,39,0.10);
-            background: rgba(255,255,255,0.70);
+            border: 1px solid rgba(15,23,42,0.10);
+            background: rgba(255,255,255,0.78);
           }
 
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           label[data-baseweb="radio"]:hover{
-            background: rgba(17,24,39,0.06);
-            border-color: rgba(17,24,39,0.22);
+            background: rgba(15,23,42,0.05);
+            border-color: rgba(15,23,42,0.18);
             transform: translateY(-1px);
           }
 
+          /* checked (quando aria-checked estiver no label) */
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
-          label[data-baseweb="radio"]:has(input:checked){
-            background: rgba(17,24,39,0.12);
-            border: 1px solid rgba(17,24,39,0.35);
+          label[data-baseweb="radio"][aria-checked="true"]{
+            background: rgba(51,65,85,0.10);
+            border: 1px solid rgba(51,65,85,0.22);
             border-left: 5px solid var(--primary);
             padding-left: 11px;
-            font-weight: 780;
+            font-weight: 760;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
             transform: none;
+          }
+
+          /* checked (fallback: quando aria-checked estiver em div role=radio) */
+          section[data-testid="stSidebar"]
+          div[role="radiogroup"]
+          div[role="radio"][aria-checked="true"]{
+            background: rgba(51,65,85,0.10) !important;
+            border: 1px solid rgba(51,65,85,0.22) !important;
+            border-left: 5px solid var(--primary) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important;
+          }
+
+          /* ==================================================
+             EXPANDER
+          ================================================== */
+          details[data-testid="stExpander"]{
+            border-radius: 14px;
+            border: 1px solid rgba(15,23,42,0.14);
+            background: #ffffff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            overflow: hidden;
+          }
+          details[data-testid="stExpander"] summary{
+            padding: 10px 12px;
           }
 
           /* ==================================================
@@ -157,7 +206,7 @@ def inject_global_css() -> None:
           ================================================== */
           div[data-baseweb="tab-list"]{
             background: #ffffff !important;
-            border: 1px solid rgba(17,24,39,0.18) !important;
+            border: 1px solid rgba(15,23,42,0.16) !important;
             border-radius: 14px !important;
             padding: 6px !important;
             gap: 6px !important;
@@ -166,10 +215,10 @@ def inject_global_css() -> None:
 
           button[data-baseweb="tab"]{
             border-radius: 12px !important;
-            padding: 10px 14px !important;
-            font-weight: 760 !important;
-            background: #f8fafc !important;
-            border: 1px solid rgba(17,24,39,0.16) !important;
+            padding: 9px 12px !important;
+            font-weight: 700 !important;
+            background: var(--surface-2) !important;
+            border: 1px solid rgba(15,23,42,0.12) !important;
             color: rgba(15,23,42,0.86) !important;
             transition: all 0.12s ease !important;
             box-shadow: none !important;
@@ -177,7 +226,7 @@ def inject_global_css() -> None:
 
           button[data-baseweb="tab"]:hover{
             background: #ffffff !important;
-            border-color: rgba(17,24,39,0.30) !important;
+            border-color: rgba(15,23,42,0.22) !important;
             transform: translateY(-1px);
           }
 
@@ -197,37 +246,38 @@ def inject_global_css() -> None:
              BOTÕES
           ================================================== */
           .stButton > button{
-            border-radius: var(--radius-md);
-            padding: 0.55rem 0.95rem;
-            font-weight: 720;
-            border: 1px solid rgba(49,51,63,0.15);
-            background: #ffffff;
-            transition: all 0.12s ease;
+            border-radius: 12px;
+            padding: 0.60rem 1rem;
+            font-weight: 600;
+            border: 1px solid rgba(15,23,42,0.15);
+            background: transparent;
+            color: rgba(15,23,42,0.90);
+            transition: all 0.15s ease;
           }
 
           .stButton > button:hover{
-            border-color: rgba(17,24,39,0.30);
+            border-color: rgba(15,23,42,0.25);
+            background: rgba(15,23,42,0.04);
             transform: translateY(-1px);
           }
 
-          .stButton > button:focus{
-            outline: none !important;
-          }
+          .stButton > button:focus{ outline: none !important; }
 
           .stButton > button:focus-visible{
-            box-shadow: 0 0 0 3px rgba(17,24,39,0.18) !important;
-            border-color: rgba(17,24,39,0.50) !important;
+            box-shadow: 0 0 0 3px rgba(51,65,85,0.14) !important;
+            border-color: rgba(51,65,85,0.45) !important;
           }
 
           .stButton > button[kind="primary"]{
             background: var(--primary) !important;
-            border-color: var(--primary) !important;
+            border: 1px solid var(--primary) !important;
             color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
           }
 
           .stButton > button[kind="primary"]:hover{
-            background: #0b1220 !important;
-            border-color: #0b1220 !important;
+            background: var(--primary-hover) !important;
+            border-color: var(--primary-hover) !important;
           }
 
           /* ==================================================
@@ -237,21 +287,21 @@ def inject_global_css() -> None:
           div[data-baseweb="textarea"] > div,
           div[data-baseweb="select"] > div{
             border-radius: var(--radius-md) !important;
-            border-color: rgba(17,24,39,0.18) !important;
+            border-color: rgba(15,23,42,0.14) !important;
             background: #ffffff !important;
           }
 
           div[data-baseweb="input"] > div:hover,
           div[data-baseweb="textarea"] > div:hover,
           div[data-baseweb="select"] > div:hover{
-            border-color: rgba(17,24,39,0.32) !important;
+            border-color: rgba(15,23,42,0.24) !important;
           }
 
           div[data-baseweb="input"] > div:focus-within,
           div[data-baseweb="textarea"] > div:focus-within,
           div[data-baseweb="select"] > div:focus-within{
-            border-color: rgba(17,24,39,0.75) !important;
-            box-shadow: 0 0 0 3px rgba(17,24,39,0.12) !important;
+            border-color: rgba(51,65,85,0.52) !important;
+            box-shadow: 0 0 0 3px rgba(51,65,85,0.12) !important;
           }
 
           /* ==================================================
@@ -266,7 +316,7 @@ def inject_global_css() -> None:
           }
 
           /* ==================================================
-             CARDS
+             CARDS (KPIs)
           ================================================== */
           .sp-card{
             background: var(--surface);
@@ -280,7 +330,7 @@ def inject_global_css() -> None:
             font-size: 0.78rem;
             color: rgba(15,23,42,0.62);
             margin-bottom: 6px;
-            font-weight: 740;
+            font-weight: 720;
           }
 
           .sp-card-value{
@@ -301,6 +351,7 @@ def inject_global_css() -> None:
             margin-top: 6px;
           }
 
+          /* tons (bordas laterais) */
           .sp-tone-danger{ border-left: 6px solid var(--danger); padding-left: 12px; }
           .sp-tone-warning{ border-left: 6px solid var(--warning); padding-left: 12px; }
           .sp-tone-success{ border-left: 6px solid var(--success); padding-left: 12px; }
@@ -308,7 +359,7 @@ def inject_global_css() -> None:
           .sp-tone-neutral{ border-left: 6px solid #cbd5e1; padding-left: 12px; }
 
           /* ==================================================
-             DATAFRAME (melhor leitura)
+             DATAFRAME
           ================================================== */
           div[data-testid="stDataFrame"]{
             border-radius: 14px;
@@ -325,22 +376,30 @@ def inject_global_css() -> None:
           }
 
           /* ==================================================
+             REDUZ MOTION (acessibilidade)
+          ================================================== */
+          @media (prefers-reduced-motion: reduce){
+            *{
+              transition: none !important;
+              transform: none !important;
+              scroll-behavior: auto !important;
+            }
+          }
+
+          /* ==================================================
              RESPONSIVO (mobile)
           ================================================== */
           @media (max-width: 768px){
-            /* container geral */
             .block-container{
               padding: 1rem !important;
               max-width: 100% !important;
             }
 
-            /* sidebar mais “compacta” */
             section[data-testid="stSidebar"] .block-container{
               padding-top: 0.85rem !important;
               padding-bottom: 0.85rem !important;
             }
 
-            /* cards */
             .sp-card{
               padding: 12px !important;
             }
@@ -353,14 +412,13 @@ def inject_global_css() -> None:
               font-size: 1.45rem !important;
             }
 
-            /* botões: touch friendly */
+            /* Botões touch-friendly */
             .stButton > button{
-              width: 100% !important;
-              padding: 0.70rem 0.95rem !important;
               min-height: 44px !important;
+              padding: 0.72rem 1rem !important;
             }
 
-            /* inputs: touch friendly (e evita zoom em iOS) */
+            /* Inputs touch-friendly + evita zoom iOS */
             div[data-baseweb="input"] input,
             div[data-baseweb="textarea"] textarea{
               min-height: 44px !important;
@@ -370,12 +428,10 @@ def inject_global_css() -> None:
               min-height: 44px !important;
             }
 
-            /* tabs compactas */
             button[data-baseweb="tab"]{
               padding: 8px 10px !important;
             }
 
-            /* header empilha (título + botão) */
             .sp-page-header div[data-testid="stHorizontalBlock"]{
               flex-wrap: wrap !important;
             }
@@ -384,7 +440,6 @@ def inject_global_css() -> None:
               width: 100% !important;
             }
 
-            /* dataframe */
             div[data-testid="stDataFrame"]{
               border-radius: 12px !important;
             }
@@ -403,17 +458,24 @@ def card(
     tone: str = "neutral",
     emphasize: bool = False,
 ) -> None:
+    """Card/KPI padronizado (seguro para strings com caracteres especiais)."""
     tone = (tone or "neutral").strip().lower()
     if tone not in {"neutral", "danger", "warning", "success", "info"}:
         tone = "neutral"
 
+    title_h = html.escape(title or "")
+    value_h = html.escape(value or "")
+    subtitle_h = html.escape(subtitle or "")
+
     emph_class = "emph" if emphasize else ""
+    subtitle_html = f"<div class='sp-card-sub'>{subtitle_h}</div>" if subtitle_h else ""
+
     st.markdown(
         f"""
         <div class="sp-card sp-tone-{tone}">
-          <div class="sp-card-title">{title}</div>
-          <div class="sp-card-value {emph_class}">{value}</div>
-          <div class="sp-card-sub">{subtitle}</div>
+          <div class="sp-card-title">{title_h}</div>
+          <div class="sp-card-value {emph_class}">{value_h}</div>
+          {subtitle_html}
         </div>
         """,
         unsafe_allow_html=True,
@@ -421,7 +483,7 @@ def card(
 
 
 def section_title(text: str) -> None:
-    st.markdown(f"#### {text}")
+    st.markdown(f"#### {html.escape(text or '')}")
 
 
 def subtle_divider() -> None:

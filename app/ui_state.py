@@ -3,10 +3,6 @@ app/ui_state.py
 
 Centraliza navegação e passagem de contexto entre telas.
 
-O projeto usa um mecanismo de navegação "segura" via `nav_target` aplicado
-no `app/main.py` antes do `st.sidebar.radio()` existir.
-
-Aqui empacotamos:
 - query params (ótimo para filtros em listas)
 - session_state (ótimo para abrir uma seção específica: Lista/Editar etc.)
 - política de limpeza por tela (evita "estado grudado")
@@ -24,6 +20,10 @@ import streamlit as st
 # Política de limpeza de estado por tela (evita "estado grudado")
 # ------------------------------------------------------------
 _PAGE_STATE_KEYS: dict[str, set[str]] = {
+    "Dashboard": {
+        "dashboard_tab",
+        "dashboard_filter_q",
+    },
     "Prazos": {
         "prazos_section",
         "prazo_open_window",
@@ -37,6 +37,11 @@ _PAGE_STATE_KEYS: dict[str, set[str]] = {
         "processos_filter_status",
         "processos_filter_q",
     },
+    "Andamentos": {
+        "andamentos_section",
+        "andamento_selected_id",
+        "andamentos_filter_q",
+    },
     "Financeiro": {
         "financeiro_section",
         "financeiro_selected_id",
@@ -45,9 +50,6 @@ _PAGE_STATE_KEYS: dict[str, set[str]] = {
         "agendamentos_section",
         "agendamento_selected_id",
     },
-    # Se quiser, já deixa pronto (sem efeito se não usar):
-    # "Andamentos": {"andamentos_section", "andamento_selected_id"},
-    # "Dashboard": set(),
 }
 
 _LAST_MENU_KEY = "__last_menu"
@@ -56,12 +58,37 @@ _LAST_MENU_KEY = "__last_menu"
 # ------------------------------------------------------------
 # Query params helpers (compatível com versões diferentes)
 # ------------------------------------------------------------
+def _qp_get_all() -> dict[str, Any]:
+    """Retorna todos os query params em formato dict (compatível)."""
+    try:
+        # Streamlit novo
+        return dict(st.query_params)  # type: ignore[attr-defined]
+    except Exception:
+        try:
+            # Streamlit antigo
+            return st.experimental_get_query_params()
+        except Exception:
+            return {}
+
+
+def _qp_set_all(params: dict[str, Any]) -> None:
+    """Seta query params de uma vez (compatível)."""
+    try:
+        st.query_params.clear()  # type: ignore[attr-defined]
+        for k, v in params.items():
+            st.query_params[k] = v  # type: ignore[attr-defined]
+    except Exception:
+        try:
+            st.experimental_set_query_params(**params)
+        except Exception:
+            pass
+
+
 def _qp_get(key: str) -> Any:
     """Obtém query param (pode vir como str, lista ou None)."""
     try:
         return st.query_params.get(key)  # type: ignore[attr-defined]
     except Exception:
-        # fallback para versões antigas
         try:
             return st.experimental_get_query_params().get(key)
         except Exception:
@@ -90,53 +117,48 @@ def get_qp_list(key: str) -> list[str]:
 # ------------------------------------------------------------
 # Internals
 # ------------------------------------------------------------
-def _set_query_params(qp: dict[str, Any] | None) -> None:
-    """Atualiza query params de forma robusta.
+def _normalize_qp_value(v: Any) -> Any:
+    """
+    Normaliza valores para query params:
+    - None / "" => remove
+    - list/tuple => lista de strings (sem vazios)
+    - outros => string
+    """
+    if v is None or v == "":
+        return None
+    if isinstance(v, (list, tuple)):
+        values = [str(x) for x in v if x is not None and x != ""]
+        return values if values else None
+    return str(v)
+
+
+def _set_query_params(
+    qp: dict[str, Any] | None, *, clear_existing: bool = False
+) -> None:
+    """
+    Atualiza query params de forma robusta.
 
     Regras:
     - None / "" remove o parâmetro
     - list/tuple vira múltiplos valores
-    - tudo é convertido para str
+    - tudo vira str/list[str]
     """
-    if not qp:
+    if qp is None and not clear_existing:
         return
 
-    for k, v in qp.items():
-        if v is None or v == "":
-            # remoção segura (compatível com versões que não suportam `del`)
-            try:
-                st.query_params.pop(k, None)  # type: ignore[attr-defined]
-            except Exception:
-                try:
-                    # fallback antigo (reconstrói qp)
-                    params = st.experimental_get_query_params()
-                    params.pop(k, None)
-                    st.experimental_set_query_params(**params)
-                except Exception:
-                    pass
-            continue
+    current = {} if clear_existing else _qp_get_all()
+    current = {str(k): v for k, v in current.items()}
 
-        if isinstance(v, (list, tuple)):
-            values = [str(x) for x in v if x is not None and x != ""]
-            try:
-                st.query_params[k] = values  # type: ignore[attr-defined]
-            except Exception:
-                try:
-                    params = st.experimental_get_query_params()
-                    params[k] = values
-                    st.experimental_set_query_params(**params)
-                except Exception:
-                    pass
-        else:
-            try:
-                st.query_params[k] = str(v)  # type: ignore[attr-defined]
-            except Exception:
-                try:
-                    params = st.experimental_get_query_params()
-                    params[k] = str(v)
-                    st.experimental_set_query_params(**params)
-                except Exception:
-                    pass
+    if qp:
+        for k, v in qp.items():
+            k = str(k)
+            nv = _normalize_qp_value(v)
+            if nv is None:
+                current.pop(k, None)
+            else:
+                current[k] = nv
+
+    _qp_set_all(current)
 
 
 def _set_state(state: dict[str, Any] | None) -> None:
@@ -147,9 +169,9 @@ def _set_state(state: dict[str, Any] | None) -> None:
 
 
 def _clear_page_state(menu_key: str, incoming_state: dict[str, Any] | None) -> None:
-    """Remove chaves de estado da tela destino, exceto as que vierem explicitamente em `incoming_state`.
-
-    Isso evita herdar filtros/abas de uma visita anterior (ex.: prazo_open_window=Atrasados).
+    """
+    Remove chaves de estado da tela destino, exceto as que vierem explicitamente em `incoming_state`.
+    Evita herdar filtros/abas de uma visita anterior.
     """
     keys = _PAGE_STATE_KEYS.get(menu_key)
     if not keys:
@@ -165,7 +187,8 @@ def _clear_page_state(menu_key: str, incoming_state: dict[str, Any] | None) -> N
 # Public API
 # ------------------------------------------------------------
 def on_menu_change(current_menu: str) -> None:
-    """Chamar após o sidebar.radio retornar o menu selecionado.
+    """
+    Chamar após o sidebar.radio retornar o menu selecionado.
 
     Se o usuário trocar de aba pelo menu (sem usar navigate()),
     limpamos o estado da tela destino para evitar 'estado grudado'.
@@ -176,29 +199,30 @@ def on_menu_change(current_menu: str) -> None:
         st.session_state[_LAST_MENU_KEY] = current_menu
 
 
+def bump_data_version(owner_user_id: int) -> int:
+    """
+    Invalida caches por usuário (dashboard/listas), sem depender só de TTL.
+    Use após CREATE/UPDATE/DELETE em qualquer tela.
+    """
+    key = f"data_version_{owner_user_id}"
+    st.session_state[key] = int(st.session_state.get(key, 0)) + 1
+    return int(st.session_state[key])
+
+
 def navigate(
     menu_key: str,
     *,
     qp: dict[str, Any] | None = None,
     state: dict[str, Any] | None = None,
+    clear_qp: bool = False,
 ) -> None:
-    """Navega para `menu_key` carregando parâmetros.
-
-    Args:
-        menu_key: chave do MENU (ex.: "Processos", "Prazos", "Financeiro").
-        qp: query params (ex.: {"status": "Ativo"}).
-        state: session_state extra (ex.: {"processos_section": "Lista"}).
     """
-    # 1) Limpa o estado da tela destino (para evitar herança indevida)
+    Navega para `menu_key` carregando parâmetros.
+    """
     _clear_page_state(menu_key, state)
-
-    # 2) Aplica qp/state
-    _set_query_params(qp)
+    _set_query_params(qp, clear_existing=clear_qp)
     _set_state(state)
 
-    # 3) Marca "último menu" também (mantém consistência)
     st.session_state[_LAST_MENU_KEY] = menu_key
-
-    # 4) Navegação segura (main.py aplica antes do radio existir)
     st.session_state["nav_target"] = menu_key
     st.rerun()

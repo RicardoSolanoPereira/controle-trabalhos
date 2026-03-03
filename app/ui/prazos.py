@@ -3,20 +3,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
 import streamlit as st
 from sqlalchemy import select
 
-from db.connection import get_session
-from db.models import Processo
+from app.db.connection import get_session
+from app.db.models import Processo
 from services.prazos_service import PrazosService, PrazoCreate, PrazoUpdate
 from services.utils import now_br, ensure_br, format_date_br, date_to_br_datetime
 from services.calendario_service import CalendarioService, RegrasCalendario
 
-from app.ui.theme import inject_global_css, card, subtle_divider
+from app.ui.theme import card, subtle_divider
 from app.ui.page_header import page_header
+from app.ui_state import bump_data_version
 
 
 # ============================================================
@@ -94,6 +95,83 @@ class PrazoRow:
     origem: str | None
     referencia: str | None
     observacoes: str | None
+
+
+# ============================================================
+# DATA VERSION (cache-buster)
+# ============================================================
+def _data_version(owner_user_id: int) -> int:
+    return int(st.session_state.get(f"data_version_{owner_user_id}", 0))
+
+
+# ============================================================
+# CACHE (SERIALIZÁVEL)
+# ============================================================
+def _pzproc_to_dict(prazo: Any, proc: Any) -> dict[str, Any]:
+    return {
+        "prazo": {
+            "id": int(getattr(prazo, "id", 0) or 0),
+            "evento": str(getattr(prazo, "evento", "") or ""),
+            "data_limite": getattr(prazo, "data_limite", None),
+            "prioridade": str(getattr(prazo, "prioridade", "Média") or "Média"),
+            "concluido": bool(getattr(prazo, "concluido", False)),
+            "origem": getattr(prazo, "origem", None),
+            "referencia": getattr(prazo, "referencia", None),
+            "observacoes": getattr(prazo, "observacoes", None),
+            "processo_id": int(getattr(prazo, "processo_id", 0) or 0),
+        },
+        "proc": {
+            "id": int(getattr(proc, "id", 0) or 0),
+            "numero_processo": str(getattr(proc, "numero_processo", "") or ""),
+            "tipo_acao": getattr(proc, "tipo_acao", None),
+            "comarca": getattr(proc, "comarca", None),
+            "vara": getattr(proc, "vara", None),
+            "contratante": getattr(proc, "contratante", None),
+            "papel": getattr(proc, "papel", None),
+        },
+    }
+
+
+@st.cache_data(show_spinner=False, ttl=45)
+def _cached_processos(owner_user_id: int, version: int) -> list[dict[str, Any]]:
+    with get_session() as s:
+        procs = (
+            s.execute(
+                select(Processo)
+                .where(Processo.owner_user_id == owner_user_id)
+                .order_by(Processo.id.desc())
+            )
+            .scalars()
+            .all()
+        )
+
+    out: list[dict[str, Any]] = []
+    for p in procs:
+        out.append(
+            {
+                "id": int(p.id),
+                "numero_processo": str(p.numero_processo or ""),
+                "tipo_acao": p.tipo_acao,
+                "comarca": p.comarca,
+                "vara": p.vara,
+                "contratante": p.contratante,
+                "papel": p.papel,
+            }
+        )
+    return out
+
+
+@st.cache_data(show_spinner=False, ttl=45)
+def _cached_prazos_list_all(owner_user_id: int, version: int) -> list[dict[str, Any]]:
+    with get_session() as s:
+        rows_all = PrazosService.list_all(s, owner_user_id, status="all")
+    # rows_all = Iterable[tuple[prazo, proc]]
+    out: list[dict[str, Any]] = []
+    for prazo, proc in rows_all:
+        if prazo is None or proc is None:
+            continue
+        out.append(_pzproc_to_dict(prazo, proc))
+    return out
 
 
 # ============================================================
@@ -200,6 +278,87 @@ def _list_tabs_selector() -> str:
     return chosen_value
 
 
+# ---------- Contexto do trabalho (UI) ----------
+def _chip(text: str) -> str:
+    t = (text or "").strip()
+    if not t:
+        return ""
+    return f"<span class='sp-chip'>{t}</span>"
+
+
+def _get_pref_context(proc_by_id: dict[int, dict[str, Any]]) -> dict[str, Any] | None:
+    """
+    Contexto vem da navegação (Processos/Dashboard):
+      - st.session_state["pref_processo_id"]
+    """
+    pref_id = st.session_state.get("pref_processo_id")
+    if not pref_id:
+        return None
+    try:
+        pid = int(pref_id)
+    except Exception:
+        return None
+    return proc_by_id.get(pid)
+
+
+def _render_contexto_trabalho(proc: dict[str, Any] | None) -> None:
+    """
+    Card de contexto (não altera lógica).
+    Mostra: Processo, Tipo, Comarca, Vara, Papel, Contratante.
+    """
+    if not proc:
+        return
+
+    numero = (proc.get("numero_processo") or "").strip()
+    tipo_acao = (proc.get("tipo_acao") or "").strip()
+    comarca = (proc.get("comarca") or "").strip()
+    vara = (proc.get("vara") or "").strip()
+    contratante = (proc.get("contratante") or "").strip()
+    papel = (proc.get("papel") or "").strip()
+
+    chips = []
+    if numero:
+        chips.append(_chip(f"📄 {numero}"))
+    if tipo_acao:
+        chips.append(_chip(f"🗂️ {tipo_acao}"))
+    if papel:
+        chips.append(_chip(f"⚖️ {papel}"))
+    if comarca:
+        chips.append(_chip(f"🏛 {comarca}"))
+    if vara:
+        chips.append(_chip(f"🏢 {vara}"))
+    if contratante:
+        chips.append(_chip(f"👤 {contratante}"))
+
+    chips_html = " ".join([c for c in chips if c])
+
+    st.markdown(
+        f"""
+        <div class="sp-surface" style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="font-weight:900; font-size:1.02rem;">Contexto do trabalho</div>
+            <div style="min-width:160px;">
+              <form>
+              </form>
+            </div>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+            {chips_html if chips_html else "<span class='sp-muted'>—</span>"}
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Botão "Limpar" (opcional, mas útil no MVP)
+    c1, c2 = st.columns([0.82, 0.18], vertical_alignment="center")
+    with c2:
+        if st.button("Limpar", key="pz_clear_pref_ctx", use_container_width=True):
+            for k in ("pref_processo_id", "pref_processo_ref"):
+                st.session_state.pop(k, None)
+            st.rerun()
+
+
 # ============================================================
 # HELPERS (sem tocar lógica)
 # ============================================================
@@ -226,10 +385,12 @@ def _semaforo(dias: int) -> str:
     return "🟢 Ok"
 
 
-def _proc_label(p: Processo) -> str:
-    tipo = (p.tipo_acao or "").strip()
-    papel = (p.papel or "").strip()
-    base = f"[{p.id}] {p.numero_processo}"
+def _proc_label_dict(p: dict[str, Any]) -> str:
+    pid = int(p["id"])
+    numero = str(p.get("numero_processo") or "")
+    tipo = (p.get("tipo_acao") or "").strip()
+    papel = (p.get("papel") or "").strip()
+    base = f"[{pid}] {numero}"
     if tipo:
         base += f" – {tipo}"
     if papel:
@@ -253,41 +414,28 @@ def _filter_text(row: PrazoRow) -> str:
     return " ".join(str(x) for x in parts).lower()
 
 
-def _load_processos(owner_user_id: int) -> list[Processo]:
-    with get_session() as s:
-        return (
-            s.execute(
-                select(Processo)
-                .where(Processo.owner_user_id == owner_user_id)
-                .order_by(Processo.id.desc())
-            )
-            .scalars()
-            .all()
-        )
-
-
-def _rows_to_dataclass(rows_all: Iterable[tuple[Any, Any]]) -> list[PrazoRow]:
+def _dicts_to_dataclass(items: list[dict[str, Any]]) -> list[PrazoRow]:
     out: list[PrazoRow] = []
-    for prazo, proc in rows_all:
-        if proc is None or prazo is None:
-            continue
+    for it in items:
+        prazo = it.get("prazo") or {}
+        proc = it.get("proc") or {}
         out.append(
             PrazoRow(
-                prazo_id=int(prazo.id),
-                processo_id=int(proc.id),
-                processo_numero=str(proc.numero_processo or ""),
-                processo_tipo_acao=proc.tipo_acao,
-                processo_comarca=proc.comarca,
-                processo_vara=proc.vara,
-                processo_contratante=proc.contratante,
-                processo_papel=proc.papel,
-                evento=str(prazo.evento or ""),
-                data_limite=prazo.data_limite,
-                prioridade=str(prazo.prioridade or "Média"),
-                concluido=bool(prazo.concluido),
-                origem=getattr(prazo, "origem", None),
-                referencia=getattr(prazo, "referencia", None),
-                observacoes=getattr(prazo, "observacoes", None),
+                prazo_id=int(prazo.get("id") or 0),
+                processo_id=int(proc.get("id") or 0),
+                processo_numero=str(proc.get("numero_processo") or ""),
+                processo_tipo_acao=proc.get("tipo_acao"),
+                processo_comarca=proc.get("comarca"),
+                processo_vara=proc.get("vara"),
+                processo_contratante=proc.get("contratante"),
+                processo_papel=proc.get("papel"),
+                evento=str(prazo.get("evento") or ""),
+                data_limite=prazo.get("data_limite"),
+                prioridade=str(prazo.get("prioridade") or "Média"),
+                concluido=bool(prazo.get("concluido") or False),
+                origem=prazo.get("origem"),
+                referencia=prazo.get("referencia"),
+                observacoes=prazo.get("observacoes"),
             )
         )
     return out
@@ -382,6 +530,7 @@ def _quick_actions(filtered_items: list[PrazoRow], owner_user_id: int) -> None:
                 PrazosService.update(
                     s, owner_user_id, int(prazo_id), PrazoUpdate(concluido=True)
                 )
+            bump_data_version(owner_user_id)
             st.success("Prazo concluído.")
             st.rerun()
         except Exception as e:
@@ -393,6 +542,7 @@ def _quick_actions(filtered_items: list[PrazoRow], owner_user_id: int) -> None:
                 PrazosService.update(
                     s, owner_user_id, int(prazo_id), PrazoUpdate(concluido=False)
                 )
+            bump_data_version(owner_user_id)
             st.success("Prazo reaberto.")
             st.rerun()
         except Exception as e:
@@ -402,6 +552,7 @@ def _quick_actions(filtered_items: list[PrazoRow], owner_user_id: int) -> None:
         try:
             with get_session() as s:
                 PrazosService.delete(s, owner_user_id, int(prazo_id))
+            bump_data_version(owner_user_id)
             st.warning("Prazo excluído.")
             st.rerun()
         except Exception as e:
@@ -490,6 +641,7 @@ def _editar_excluir_prazo(items: list[PrazoRow], owner_user_id: int) -> None:
                         observacoes=(obs_e or "").strip() or None,
                     ),
                 )
+            bump_data_version(owner_user_id)
             st.success("Prazo atualizado.")
             st.rerun()
         except Exception as e:
@@ -499,6 +651,7 @@ def _editar_excluir_prazo(items: list[PrazoRow], owner_user_id: int) -> None:
         try:
             with get_session() as s:
                 PrazosService.delete(s, owner_user_id, int(prazo_id))
+            bump_data_version(owner_user_id)
             st.warning("Prazo excluído.")
             st.rerun()
         except Exception as e:
@@ -509,7 +662,6 @@ def _editar_excluir_prazo(items: list[PrazoRow], owner_user_id: int) -> None:
 # RENDER (UI/UX refatorado, lógica intacta)
 # ============================================================
 def render(owner_user_id: int) -> None:
-    inject_global_css()
     st.session_state[KEY_OWNER] = owner_user_id
 
     clicked_refresh = page_header(
@@ -531,14 +683,24 @@ def render(owner_user_id: int) -> None:
             st.success("Cache de feriados limpo.")
             st.rerun()
 
-    processos = _load_processos(owner_user_id)
+    version = _data_version(owner_user_id)
+    processos = _cached_processos(owner_user_id, version)
+
     if not processos:
         st.info("Cadastre um trabalho primeiro.")
         return
 
-    proc_labels = [_proc_label(p) for p in processos]
-    label_to_id = {proc_labels[i]: processos[i].id for i in range(len(processos))}
-    proc_by_id = {p.id: p for p in processos}
+    proc_labels = [_proc_label_dict(p) for p in processos]
+    label_to_id = {
+        proc_labels[i]: int(processos[i]["id"]) for i in range(len(processos))
+    }
+    proc_by_id = {int(p["id"]): p for p in processos}
+
+    # ------------------------------------------------------------
+    # CONTEXTO DO TRABALHO (vem de Processos/Dashboard)
+    # ------------------------------------------------------------
+    pref_proc = _get_pref_context(proc_by_id)
+    _render_contexto_trabalho(pref_proc)
 
     # Defaults estáveis (mantidos)
     hoje_sp = now_br().date()
@@ -571,7 +733,9 @@ def render(owner_user_id: int) -> None:
             sel_proc = st.selectbox("Trabalho *", proc_labels, index=0, key=KEY_C_PROC)
             processo_id = int(label_to_id[sel_proc])
             proc = proc_by_id.get(processo_id)
-            comarca_proc = (proc.comarca or "").strip() or None if proc else None
+            comarca_proc = (
+                ((proc.get("comarca") or "").strip() or None) if proc else None
+            )
 
             # Passo 1: modo
             st.markdown("**1) Modo de contagem**")
@@ -704,7 +868,6 @@ def render(owner_user_id: int) -> None:
             subtle_divider()
             st.markdown("**3) Detalhes do prazo**")
 
-            # Form somente com inputs + submit (sem botões extras)
             with st.form("form_prazo_create", clear_on_submit=True):
                 cE1, cE2, cE3 = st.columns(3)
                 evento = cE1.text_input("Evento *", key=KEY_C_EVENTO)
@@ -762,6 +925,7 @@ def render(owner_user_id: int) -> None:
                                 ),
                             )
 
+                        bump_data_version(owner_user_id)
                         st.success("Prazo criado.")
                         _request_tab("Lista")
                         _request_list_tab("Abertos")
@@ -779,7 +943,6 @@ def render(owner_user_id: int) -> None:
         with st.container(border=True):
             st.markdown("#### Filtros")
 
-            # Mobile-first: 2 colunas + busca embaixo
             f1, f2 = st.columns(2)
             filtro_tipo = f1.selectbox(
                 "Tipo de trabalho",
@@ -810,10 +973,9 @@ def render(owner_user_id: int) -> None:
             None if filtro_proc == "(Todos)" else int(label_to_id[filtro_proc])
         )
 
-        with get_session() as s:
-            rows_all = PrazosService.list_all(s, owner_user_id, status="all")
-
-        all_rows = _rows_to_dataclass(rows_all)
+        # cacheado (serializável)
+        version = _data_version(owner_user_id)
+        all_rows = _dicts_to_dataclass(_cached_prazos_list_all(owner_user_id, version))
 
         filtered: list[PrazoRow] = []
         for r in all_rows:
@@ -826,7 +988,7 @@ def render(owner_user_id: int) -> None:
                 continue
             filtered.append(r)
 
-        # KPIs (mobile-first: 2 colunas)
+        # KPIs
         abertos = [r for r in filtered if not r.concluido]
         atrasados = [
             r
@@ -848,7 +1010,7 @@ def render(owner_user_id: int) -> None:
                 "Atrasados",
                 f"{len(atrasados)}",
                 "urgente",
-                tone="warning" if atrasados else "neutral",
+                tone="danger" if atrasados else "neutral",
             )
 
         k3, k4 = st.columns(2)
@@ -902,7 +1064,7 @@ def render(owner_user_id: int) -> None:
                 )
 
         elif chosen_view == "Vencem (7 dias)":
-            items: list[PrazoRow] = []
+            items = []
             for r in filtered:
                 if r.concluido:
                     continue
@@ -949,7 +1111,7 @@ def render(owner_user_id: int) -> None:
                 key=KEY_OPEN_ORDER,
             )
 
-            items: list[PrazoRow] = []
+            items = []
             for r in filtered:
                 if r.concluido:
                     continue
@@ -1015,8 +1177,8 @@ def render(owner_user_id: int) -> None:
             st.markdown("#### Editar / Excluir")
             st.caption("Selecione um prazo e ajuste os campos necessários.")
 
-            with get_session() as s:
-                rows_all = PrazosService.list_all(s, owner_user_id, status="all")
-
-            all_rows = _rows_to_dataclass(rows_all)
+            version = _data_version(owner_user_id)
+            all_rows = _dicts_to_dataclass(
+                _cached_prazos_list_all(owner_user_id, version)
+            )
             _editar_excluir_prazo(all_rows, owner_user_id)

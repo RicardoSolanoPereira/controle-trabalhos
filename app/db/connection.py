@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,8 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 # Ajuste: este arquivo está em db/connection.py, então a raiz é parents[1]
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(ENV_PATH, override=True)
+
+DEBUG = os.environ.get("DEBUG", "0") == "1"
 
 
 # =========================================================
@@ -69,7 +72,7 @@ def get_db_url() -> str:
     elif db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
     elif db_url.startswith("postgresql+psycopg2://"):
-        # força psycopg v3 (porque foi o que funcionou no seu teste)
+        # força psycopg v3
         db_url = db_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
     elif db_url.startswith("postgresql+psycopg://"):
         pass
@@ -112,7 +115,12 @@ def get_engine() -> Engine:
             echo=False,
             future=True,
             pool_pre_ping=True,
-            pool_recycle=1800,
+            pool_recycle=int(os.environ.get("DB_POOL_RECYCLE", "1800")),
+            pool_size=int(os.environ.get("DB_POOL_SIZE", "5")),
+            max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "5")),
+            connect_args={
+                "connect_timeout": int(os.environ.get("DB_CONNECT_TIMEOUT", "5"))
+            },
         )
 
         _SessionLocal = sessionmaker(
@@ -122,8 +130,9 @@ def get_engine() -> Engine:
             future=True,
         )
 
-        print("BANCO EM USO:", _mask_db_url(db_url))
-        print("ENV:", str(ENV_PATH))
+        if DEBUG:
+            print("BANCO EM USO:", _mask_db_url(db_url))
+            print("ENV:", str(ENV_PATH))
 
     return _engine
 
@@ -142,6 +151,25 @@ def get_session():
     return _SessionLocal()
 
 
+@contextmanager
+def session_scope():
+    """
+    Context manager seguro para transações:
+        with session_scope() as s:
+            ...
+    Faz commit no sucesso e rollback em exceção, garantindo close().
+    """
+    s = get_session()
+    try:
+        yield s
+        s.commit()
+    except Exception:
+        s.rollback()
+        raise
+    finally:
+        s.close()
+
+
 def db_healthcheck() -> None:
     """
     Teste rápido: rode uma vez para confirmar que conectou no Neon.
@@ -154,5 +182,6 @@ def db_healthcheck() -> None:
                 "select current_database(), current_user, inet_server_addr(), version()"
             )
         ).one()
-        print("DB OK select 1 =", ok)
-        print("DB INFO =", info)
+        if DEBUG:
+            print("DB OK select 1 =", ok)
+            print("DB INFO =", info)

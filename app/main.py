@@ -27,16 +27,19 @@ from app.ui import dashboard, processos, prazos, agendamentos, andamentos, finan
 from app.ui.theme import inject_global_css
 
 # ------------------------------------------------------------
-# STREAMLIT CONFIG
+# LOCAL SETUP
 # ------------------------------------------------------------
 Path("data").mkdir(parents=True, exist_ok=True)
 load_dotenv()
 
-# Melhor para mobile: sidebar pode ser aberta quando precisar.
-# No desktop continua fácil abrir/fechar.
+DEBUG = os.getenv("DEBUG", "0") == "1"
+
+# Melhor para mobile: sidebar colapsada por padrão (config via env)
 DEFAULT_SIDEBAR_STATE = os.getenv("SIDEBAR_STATE", "collapsed").strip().lower()
 if DEFAULT_SIDEBAR_STATE not in {"expanded", "collapsed"}:
     DEFAULT_SIDEBAR_STATE = "collapsed"
+
+BUILD_ID = os.getenv("BUILD_ID", "2026-02-28-DEF-1")
 
 st.set_page_config(
     page_title="Gestão Técnica",
@@ -45,13 +48,24 @@ st.set_page_config(
     initial_sidebar_state=DEFAULT_SIDEBAR_STATE,
 )
 
-BUILD_ID = "2026-02-28-DEF-1"
 
 # ------------------------------------------------------------
-# BOOTSTRAP DB + THEME (1x)
+# BOOTSTRAP DB + THEME (1x por sessão)
 # ------------------------------------------------------------
-init_db()
-inject_global_css()
+@st.cache_resource
+def _bootstrap_db() -> None:
+    # Evita rodar init_db em todo rerun
+    init_db()
+
+
+@st.cache_resource
+def _bootstrap_theme() -> None:
+    # Injeta CSS 1x por sessão
+    inject_global_css()
+
+
+_bootstrap_db()
+_bootstrap_theme()
 
 # ------------------------------------------------------------
 # DEFAULT USER (BOOTSTRAP)
@@ -98,10 +112,21 @@ def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
             raise
 
 
+@st.cache_resource
+def _get_owner_user_id_cached(email: str, name: str) -> int:
+    """
+    Cache por sessão para não bater no DB a cada rerun.
+    Se você mudar DEFAULT_EMAIL/NAME e quiser refletir, reinicie a sessão.
+    """
+    return get_or_create_owner_user_id(email, name)
+
+
 try:
-    owner_user_id = get_or_create_owner_user_id(DEFAULT_EMAIL, DEFAULT_NAME)
+    owner_user_id = _get_owner_user_id_cached(DEFAULT_EMAIL, DEFAULT_NAME)
 except Exception as e:
     st.error(f"Falha ao inicializar usuário padrão: {type(e).__name__}: {e}")
+    if DEBUG:
+        st.exception(e)
     st.stop()
 
 # ------------------------------------------------------------
@@ -152,7 +177,7 @@ def render_sidebar() -> str:
 
     st.sidebar.divider()
 
-    # AÇÕES RÁPIDAS (um único comando consistente)
+    # AÇÕES RÁPIDAS
     st.sidebar.subheader("⚡ Ações rápidas")
 
     sync_clicked = st.sidebar.button(
@@ -169,6 +194,13 @@ def render_sidebar() -> str:
         st.caption("Backup/alertas serão retomados quando necessário.")
         st.caption("Objetivo atual: refatorar UI/UX (mobile).")
 
+        # Toggle opcional pra facilitar testes de mobile (não quebra nada)
+        st.checkbox(
+            "Forçar modo celular (teste)",
+            value=bool(st.session_state.get("force_mobile", False)),
+            key="force_mobile",
+        )
+
     return menu
 
 
@@ -181,6 +213,7 @@ def render_shell(menu: str) -> None:
     if not render_fn:
         st.error("Rota inválida.")
         return
+
     render_fn(owner_user_id)
 
 

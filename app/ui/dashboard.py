@@ -2,19 +2,21 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, time, date
+from typing import Any
 
 import pandas as pd
 import streamlit as st
 from sqlalchemy import select, func, case
-from sqlalchemy.exc import SQLAlchemyError
 
-from db.connection import get_session
-from db.models import Processo, Prazo, LancamentoFinanceiro, Agendamento
+from app.db.connection import get_session
+from app.db.models import Processo, Prazo, LancamentoFinanceiro, Agendamento
 from services.utils import now_br, ensure_br, format_date_br
 
 from app.ui.theme import card
 from app.ui_state import navigate
 from app.ui.page_header import page_header
+from app.ui.layout import section, grid, spacer
+
 
 ATUACAO_UI = {
     "(Todas)": None,
@@ -28,6 +30,7 @@ ATUACAO_UI = {
 # Helpers
 # -------------------------
 def _naive(dt: datetime) -> datetime:
+    """Remove tzinfo caso venha timezone-aware (evita comparação com dt naive)."""
     try:
         if getattr(dt, "tzinfo", None) is not None:
             return dt.replace(tzinfo=None)
@@ -36,7 +39,7 @@ def _naive(dt: datetime) -> datetime:
     return dt
 
 
-def _dias_restantes(dt) -> int:
+def _dias_restantes(dt: Any) -> int:
     dt_br = ensure_br(dt)
     hoje = now_br().date()
     return (dt_br.date() - hoje).days
@@ -79,16 +82,13 @@ def _prior_badge(p: str | None) -> str:
     return "⚖️ Média"
 
 
-def _date_range_strings(hoje: date) -> tuple[str, str]:
-    ate7 = hoje + timedelta(days=7)
-    return hoje.isoformat(), ate7.isoformat()
-
-
-def _dt_bounds(hoje: date) -> tuple[datetime, datetime]:
+def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
+    """Retorna: start_today, end_7d, now_naive."""
     ate7 = hoje + timedelta(days=7)
     start_today = datetime.combine(hoje, time.min)
     end_7d = datetime.combine(ate7, time.max)
-    return start_today, end_7d
+    now_n = _naive(now_br())
+    return start_today, end_7d, now_n
 
 
 def _build_prazos_df(rows) -> pd.DataFrame:
@@ -125,12 +125,8 @@ def _build_agenda_df(rows) -> pd.DataFrame:
 
 
 def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
-    """
-    Mobile-friendly: cards (sem tabela).
-    rows: (Prazo.id, evento, data_limite, prioridade, Processo.numero_processo, Processo.tipo_acao)
-    """
-    with st.container(border=True):
-        st.subheader(title)
+    """Cards (mobile-friendly)."""
+    with section(title, subtitle="Top 10 (resumo)", divider=False):
         if not rows:
             st.caption(empty_msg)
             return
@@ -173,11 +169,8 @@ def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
 
 
 def _render_agenda_cards(rows: list, title: str, empty_msg: str) -> None:
-    """
-    rows: (Agendamento.id, tipo, inicio, local, numero_processo, tipo_acao)
-    """
-    with st.container(border=True):
-        st.subheader(title)
+    """Cards (mobile-friendly)."""
+    with section(title, subtitle="Top 10 (resumo)", divider=False):
         if not rows:
             st.caption(empty_msg)
             return
@@ -217,15 +210,19 @@ def _alert_tone(prazos_atrasados: int, prazos_7dias: int) -> str:
     return "success"
 
 
+def _cache_buster(owner_user_id: int) -> int:
+    return int(st.session_state.get(f"data_version_{owner_user_id}", 0))
+
+
 # -------------------------
 # Queries (cacheadas)
 # -------------------------
 @st.cache_data(show_spinner=False, ttl=45)
-def _fetch_kpis_cached(owner_user_id: int, tipo_val: str | None, hoje_iso: str) -> dict:
+def _fetch_kpis_cached(
+    owner_user_id: int, tipo_val: str | None, hoje_iso: str, version: int
+) -> dict:
     hoje_sp = date.fromisoformat(hoje_iso)
-    start_today, end_7d = _dt_bounds(hoje_sp)
-    now = now_br()
-    now_n = _naive(now)
+    start_today, end_7d, now_n = _dt_bounds(hoje_sp)
 
     with get_session() as s:
         stmt_total = select(func.count(Processo.id)).where(
@@ -245,15 +242,16 @@ def _fetch_kpis_cached(owner_user_id: int, tipo_val: str | None, hoje_iso: str) 
             select(
                 func.count(Prazo.id).label("abertos"),
                 func.coalesce(
-                    func.sum(case((Prazo.data_limite < start_today, 1), else_=0)),
-                    0,
+                    func.sum(case((Prazo.data_limite < start_today, 1), else_=0)), 0
                 ).label("atrasados"),
                 func.coalesce(
                     func.sum(
                         case(
                             (
-                                (Prazo.data_limite >= start_today)
-                                & (Prazo.data_limite <= end_7d),
+                                (
+                                    (Prazo.data_limite >= start_today)
+                                    & (Prazo.data_limite <= end_7d)
+                                ),
                                 1,
                             ),
                             else_=0,
@@ -266,14 +264,13 @@ def _fetch_kpis_cached(owner_user_id: int, tipo_val: str | None, hoje_iso: str) 
             .join(Processo, Processo.id == Prazo.processo_id)
             .where(
                 Processo.owner_user_id == owner_user_id,
-                Prazo.concluido == False,  # noqa
+                Prazo.concluido.is_(False),
             )
         )
         stmt_prazos_counts = _apply_tipo_filter(stmt_prazos_counts, tipo_val)
         prazos_abertos, prazos_atrasados, prazos_7dias = s.execute(
             stmt_prazos_counts
         ).one()
-
         prazos_abertos = int(prazos_abertos or 0)
         prazos_atrasados = int(prazos_atrasados or 0)
         prazos_7dias = int(prazos_7dias or 0)
@@ -291,36 +288,49 @@ def _fetch_kpis_cached(owner_user_id: int, tipo_val: str | None, hoje_iso: str) 
         stmt_ag_7d = _apply_tipo_filter(stmt_ag_7d, tipo_val)
         ag_7d = int(s.execute(stmt_ag_7d).scalar_one())
 
-        stmt_receitas = (
-            select(func.coalesce(func.sum(LancamentoFinanceiro.valor), 0))
-            .join(Processo, Processo.id == LancamentoFinanceiro.processo_id)
-            .where(
-                Processo.owner_user_id == owner_user_id,
-                LancamentoFinanceiro.tipo == "Receita",
+        stmt_fin = (
+            select(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                (LancamentoFinanceiro.tipo == "Receita"),
+                                LancamentoFinanceiro.valor,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("receitas"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                (LancamentoFinanceiro.tipo == "Despesa"),
+                                LancamentoFinanceiro.valor,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("despesas"),
             )
-        )
-        stmt_despesas = (
-            select(func.coalesce(func.sum(LancamentoFinanceiro.valor), 0))
+            .select_from(LancamentoFinanceiro)
             .join(Processo, Processo.id == LancamentoFinanceiro.processo_id)
-            .where(
-                Processo.owner_user_id == owner_user_id,
-                LancamentoFinanceiro.tipo == "Despesa",
-            )
+            .where(Processo.owner_user_id == owner_user_id)
         )
-        stmt_receitas = _apply_tipo_filter(stmt_receitas, tipo_val)
-        stmt_despesas = _apply_tipo_filter(stmt_despesas, tipo_val)
-
-        receitas = float(s.execute(stmt_receitas).scalar_one() or 0)
-        despesas = float(s.execute(stmt_despesas).scalar_one() or 0)
+        stmt_fin = _apply_tipo_filter(stmt_fin, tipo_val)
+        receitas, despesas = s.execute(stmt_fin).one()
+        receitas = float(receitas or 0)
+        despesas = float(despesas or 0)
 
     saldo = receitas - despesas
 
     return {
-        "now": now,
-        "now_n": now_n,
         "hoje_sp": hoje_sp,
         "start_today": start_today,
         "end_7d": end_7d,
+        "now_n": now_n,
         "total_proc": total_proc,
         "ativos": ativos,
         "prazos_abertos": prazos_abertos,
@@ -335,13 +345,17 @@ def _fetch_kpis_cached(owner_user_id: int, tipo_val: str | None, hoje_iso: str) 
 
 @st.cache_data(show_spinner=False, ttl=45)
 def _fetch_prazos_tables_cached(
-    owner_user_id: int, tipo_val: str | None, start_today_iso: str, end_7d_iso: str
+    owner_user_id: int,
+    tipo_val: str | None,
+    start_today_iso: str,
+    end_7d_iso: str,
+    version: int,
 ) -> tuple[list, list]:
     start_today = datetime.fromisoformat(start_today_iso)
     end_7d = datetime.fromisoformat(end_7d_iso)
 
     with get_session() as s:
-        stmt_atrasados = (
+        stmt_base = (
             select(
                 Prazo.id,
                 Prazo.evento,
@@ -353,48 +367,33 @@ def _fetch_prazos_tables_cached(
             .join(Processo, Processo.id == Prazo.processo_id)
             .where(
                 Processo.owner_user_id == owner_user_id,
-                Prazo.concluido == False,  # noqa
-                Prazo.data_limite < start_today,
+                Prazo.concluido.is_(False),
             )
             .order_by(Prazo.data_limite.asc())
             .limit(10)
         )
-        stmt_atrasados = _apply_tipo_filter(stmt_atrasados, tipo_val)
-        rows_atrasados = s.execute(stmt_atrasados).all()
+        stmt_base = _apply_tipo_filter(stmt_base, tipo_val)
 
-        stmt_7d = (
-            select(
-                Prazo.id,
-                Prazo.evento,
-                Prazo.data_limite,
-                Prazo.prioridade,
-                Processo.numero_processo,
-                Processo.tipo_acao,
+        rows_atrasados = s.execute(
+            stmt_base.where(Prazo.data_limite < start_today)
+        ).all()
+        rows_7d = s.execute(
+            stmt_base.where(
+                Prazo.data_limite >= start_today, Prazo.data_limite <= end_7d
             )
-            .join(Processo, Processo.id == Prazo.processo_id)
-            .where(
-                Processo.owner_user_id == owner_user_id,
-                Prazo.concluido == False,  # noqa
-                Prazo.data_limite >= start_today,
-                Prazo.data_limite <= end_7d,
-            )
-            .order_by(Prazo.data_limite.asc())
-            .limit(10)
-        )
-        stmt_7d = _apply_tipo_filter(stmt_7d, tipo_val)
-        rows_7d = s.execute(stmt_7d).all()
+        ).all()
 
     return rows_atrasados, rows_7d
 
 
 @st.cache_data(show_spinner=False, ttl=45)
 def _fetch_agendamentos_cached(
-    owner_user_id: int, tipo_val: str | None, now_n_iso: str
+    owner_user_id: int, tipo_val: str | None, now_n_iso: str, version: int
 ) -> tuple[list, list]:
     now_n = datetime.fromisoformat(now_n_iso)
 
     with get_session() as s:
-        stmt_24h = (
+        stmt_base = (
             select(
                 Agendamento.id,
                 Agendamento.tipo,
@@ -408,41 +407,26 @@ def _fetch_agendamentos_cached(
                 Processo.owner_user_id == owner_user_id,
                 Agendamento.status == "Agendado",
                 Agendamento.inicio >= now_n,
-                Agendamento.inicio <= now_n + timedelta(hours=24),
             )
             .order_by(Agendamento.inicio.asc())
             .limit(10)
         )
-        stmt_24h = _apply_tipo_filter(stmt_24h, tipo_val)
-        rows_24h = s.execute(stmt_24h).all()
+        stmt_base = _apply_tipo_filter(stmt_base, tipo_val)
 
-        stmt_7d = (
-            select(
-                Agendamento.id,
-                Agendamento.tipo,
-                Agendamento.inicio,
-                Agendamento.local,
-                Processo.numero_processo,
-                Processo.tipo_acao,
-            )
-            .join(Processo, Processo.id == Agendamento.processo_id)
-            .where(
-                Processo.owner_user_id == owner_user_id,
-                Agendamento.status == "Agendado",
-                Agendamento.inicio >= now_n,
-                Agendamento.inicio <= now_n + timedelta(days=7),
-            )
-            .order_by(Agendamento.inicio.asc())
-            .limit(10)
-        )
-        stmt_7d = _apply_tipo_filter(stmt_7d, tipo_val)
-        rows_7d = s.execute(stmt_7d).all()
+        rows_24h = s.execute(
+            stmt_base.where(Agendamento.inicio <= now_n + timedelta(hours=24))
+        ).all()
+        rows_7d = s.execute(
+            stmt_base.where(Agendamento.inicio <= now_n + timedelta(days=7))
+        ).all()
 
     return rows_24h, rows_7d
 
 
 @st.cache_data(show_spinner=False, ttl=60)
-def _fetch_ultimos_processos_cached(owner_user_id: int, tipo_val: str | None) -> list:
+def _fetch_ultimos_processos_cached(
+    owner_user_id: int, tipo_val: str | None, version: int
+) -> list:
     with get_session() as s:
         stmt = (
             select(
@@ -468,8 +452,10 @@ def _fetch_ultimos_processos_cached(owner_user_id: int, tipo_val: str | None) ->
 def render(owner_user_id: int):
     page_header("Painel de Controle", "Alertas, prazos, agenda e financeiro")
 
-    # Filtro Atuação (compacto)
-    with st.container(border=True):
+    # Filtro Atuação (UI)
+    with section(
+        "Filtros", subtitle="A atuação filtra indicadores e listas.", divider=False
+    ):
         c1, c2 = st.columns([0.42, 0.58], vertical_alignment="center")
         with c1:
             atuacao_label = st.selectbox(
@@ -479,94 +465,83 @@ def render(owner_user_id: int):
                 key="dash_atuacao_ui",
             )
         with c2:
-            st.caption("Filtra indicadores e listas conforme sua atuação.")
+            st.caption("Dica: use “(Todas)” para visão geral.")
     tipo_val = ATUACAO_UI[atuacao_label]
 
     hoje_sp = now_br().date()
-    hoje_iso, _ = _date_range_strings(hoje_sp)
-    k = _fetch_kpis_cached(owner_user_id, tipo_val, hoje_iso)
+    version = _cache_buster(owner_user_id)
 
-    # ------------------------------------------------------------
-    # 1) ALERTA (Prioridades)
-    # ------------------------------------------------------------
+    k = _fetch_kpis_cached(owner_user_id, tipo_val, hoje_sp.isoformat(), version)
+
+    spacer(0.4)
+
+    # 1) PRIORIDADES
     tone = _alert_tone(k["prazos_atrasados"], k["prazos_7dias"])
 
-    with st.container(border=True):
-        # Dá “cara de alerta” (borda esquerda) usando sua classe sp-tone-*
+    # CTA dinâmico
+    if k["prazos_atrasados"] > 0:
+        cta_label = "Abrir atrasados"
+        cta_action = lambda: navigate(
+            "Prazos",
+            state={
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Atrasados",
+            },
+        )
+        left_text = f"**🔴 {int(k['prazos_atrasados'])} prazo(s) atrasado(s)**"
+    elif k["prazos_7dias"] > 0:
+        cta_label = "Ver 7 dias"
+        cta_action = lambda: navigate(
+            "Prazos",
+            state={
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Vencem (7 dias)",
+            },
+        )
+        left_text = f"**🟠 {int(k['prazos_7dias'])} prazo(s) em até 7 dias**"
+    else:
+        cta_label = "Cadastrar prazo"
+        cta_action = lambda: navigate("Prazos", state={"prazos_section": "Cadastro"})
+        left_text = "**🟢 Nenhum prazo crítico**"
+
+    with section("Prioridades de hoje", subtitle=atuacao_label, divider=False):
         st.markdown(
             f"""
-            <div class="sp-card sp-tone-{tone}" style="margin-bottom:6px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-                <div>
-                  <div style="font-weight:900;font-size:1.05rem;">Prioridades de hoje</div>
-                  <div class="sp-muted" style="margin-top:4px;">
-                    {atuacao_label}
-                  </div>
-                </div>
-              </div>
+            <div class="sp-card sp-tone-{tone}" style="margin-bottom:10px;">
+              <div style="font-weight:900;font-size:1.05rem;">Status de prazos</div>
+              <div class="sp-muted" style="margin-top:4px;">Acompanhe o que precisa de ação imediata.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
         left, right = st.columns([0.72, 0.28], vertical_alignment="center")
+        with left:
+            st.markdown(left_text)
+        with right:
+            st.button(
+                cta_label,
+                use_container_width=True,
+                type="primary",
+                on_click=cta_action,
+                key="dash_cta",
+            )
 
-        if k["prazos_atrasados"] > 0:
-            with left:
-                st.markdown(f"**🔴 {int(k['prazos_atrasados'])} prazo(s) atrasado(s)**")
-            with right:
-                if st.button(
-                    "Abrir atrasados", use_container_width=True, type="primary"
-                ):
-                    navigate(
-                        "Prazos",
-                        state={
-                            "prazos_section": "Lista",
-                            "pz_nav_to": "Lista",
-                            "pz_list_nav_to": "Atrasados",
-                        },
-                    )
+    spacer(0.6)
 
-        elif k["prazos_7dias"] > 0:
-            with left:
-                st.markdown(f"**🟠 {int(k['prazos_7dias'])} prazo(s) em até 7 dias**")
-            with right:
-                if st.button("Ver 7 dias", use_container_width=True, type="primary"):
-                    navigate(
-                        "Prazos",
-                        state={
-                            "prazos_section": "Lista",
-                            "pz_nav_to": "Lista",
-                            "pz_list_nav_to": "Vencem (7 dias)",
-                        },
-                    )
-        else:
-            with left:
-                st.markdown("**🟢 Nenhum prazo crítico**")
-            with right:
-                if st.button(
-                    "Cadastrar prazo", use_container_width=True, type="primary"
-                ):
-                    navigate("Prazos", state={"prazos_section": "Cadastro"})
-
-    st.write("")
-
-    # ------------------------------------------------------------
-    # 2) RESUMO (separado: Operacional / Financeiro)
-    # ------------------------------------------------------------
+    # 2) RESUMO
     pct_atraso = _pct(k["prazos_atrasados"], k["prazos_abertos"])
     pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
 
-    # -------------------
-    # Operacional
-    # -------------------
-    with st.container(border=True):
-        st.subheader("Resumo operacional")
-
-        # Ordem mobile-first: Prazos → Ativos → Trabalhos → Agenda
-        # (Usar 2 colunas é ok no desktop; no mobile vira mais estreito, mas ainda funcional)
-        r1c1, r1c2 = st.columns(2)
-        with r1c1:
+    with section(
+        "Resumo operacional",
+        subtitle="Visão rápida do que está rodando.",
+        divider=False,
+    ):
+        c1, c2 = grid(2, columns_mobile=1)
+        with c1:
             tone_pz = (
                 "danger"
                 if k["prazos_atrasados"] > 0
@@ -579,45 +554,63 @@ def render(owner_user_id: int):
                 tone=tone_pz,
                 emphasize=(k["prazos_atrasados"] > 0),
             )
-            if st.button("Ver prazos", use_container_width=True, key="go_prazos"):
-                navigate(
+            st.button(
+                "Ver prazos",
+                use_container_width=True,
+                key="go_prazos",
+                on_click=lambda: navigate(
                     "Prazos",
                     state={
                         "prazos_section": "Lista",
                         "pz_nav_to": "Lista",
                         "pz_list_nav_to": "Abertos",
                     },
-                )
+                ),
+            )
 
-        with r1c2:
+        with c2:
             card("Ativos", f"{k['ativos']}", "em andamento", tone="neutral")
-            if st.button("Ver ativos", use_container_width=True, key="go_proc_ativos"):
-                navigate(
+            st.button(
+                "Ver ativos",
+                use_container_width=True,
+                key="go_proc_ativos",
+                on_click=lambda: navigate(
                     "Processos",
                     qp={"status": "Ativo"},
                     state={"processos_section": "Lista"},
-                )
+                ),
+            )
 
-        r2c1, r2c2 = st.columns(2)
-        with r2c1:
+        spacer(0.3)
+
+        c3, c4 = grid(2, columns_mobile=1)
+        with c3:
             card("Trabalhos", f"{k['total_proc']}", "cadastrados", tone="info")
-            if st.button("Ver todos", use_container_width=True, key="go_proc"):
-                navigate("Processos", state={"processos_section": "Lista"})
-
-        with r2c2:
+            st.button(
+                "Ver todos",
+                use_container_width=True,
+                key="go_proc",
+                on_click=lambda: navigate(
+                    "Processos", state={"processos_section": "Lista"}
+                ),
+            )
+        with c4:
             card("Agenda (7 dias)", f"{k['ag_7d']}", "agendados", tone="info")
-            if st.button("Ver agenda", use_container_width=True, key="go_agenda"):
-                navigate("Agendamentos")
+            st.button(
+                "Ver agenda",
+                use_container_width=True,
+                key="go_agenda",
+                on_click=lambda: navigate("Agendamentos"),
+            )
 
-    st.write("")
+    spacer(0.6)
 
-    # -------------------
-    # Financeiro
-    # -------------------
-    with st.container(border=True):
-        st.subheader("Resumo financeiro")
-
-        f1, f2 = st.columns(2)
+    with section(
+        "Resumo financeiro",
+        subtitle="Receitas, despesas e saldo acumulado.",
+        divider=False,
+    ):
+        f1, f2 = grid(2, columns_mobile=1)
         with f1:
             card(
                 "Receitas (R$)",
@@ -633,6 +626,8 @@ def render(owner_user_id: int):
                 tone="danger",
             )
 
+        spacer(0.3)
+
         card(
             "Saldo (R$)",
             _fmt_money_br(k["saldo"]),
@@ -641,16 +636,19 @@ def render(owner_user_id: int):
             emphasize=True,
         )
 
-        if st.button(
-            "Abrir financeiro", use_container_width=True, type="primary", key="go_fin"
-        ):
-            navigate("Financeiro", state={"financeiro_section": "Lançamentos"})
+        st.button(
+            "Abrir financeiro",
+            use_container_width=True,
+            type="primary",
+            key="go_fin",
+            on_click=lambda: navigate(
+                "Financeiro", state={"financeiro_section": "Lançamentos"}
+            ),
+        )
 
-    st.divider()
+    spacer(0.6)
 
-    # ------------------------------------------------------------
-    # 3) Listas Analíticas
-    # ------------------------------------------------------------
+    # 3) LISTAS ANALÍTICAS
     tab1, tab2, tab3 = st.tabs(["⏳ Prazos", "📅 Agenda", "🗂️ Trabalhos"])
 
     with tab1:
@@ -659,11 +657,13 @@ def render(owner_user_id: int):
             tipo_val,
             k["start_today"].isoformat(timespec="seconds"),
             k["end_7d"].isoformat(timespec="seconds"),
+            version,
         )
 
         _render_prazo_cards(
             rows_atrasados, "Prazos atrasados", "✅ Sem prazos atrasados."
         )
+        spacer(0.3)
         _render_prazo_cards(
             rows_7d, "Vencem em até 7 dias", "✅ Sem prazos vencendo em até 7 dias."
         )
@@ -693,12 +693,16 @@ def render(owner_user_id: int):
 
     with tab2:
         rows_24h, rows_ag_7d = _fetch_agendamentos_cached(
-            owner_user_id, tipo_val, k["now_n"].isoformat(timespec="seconds")
+            owner_user_id,
+            tipo_val,
+            k["now_n"].isoformat(timespec="seconds"),
+            version,
         )
 
         _render_agenda_cards(
             rows_24h, "Próximas 24 horas", "✅ Sem agendamentos nas próximas 24 horas."
         )
+        spacer(0.3)
         _render_agenda_cards(
             rows_ag_7d, "Próximos 7 dias", "✅ Sem agendamentos nos próximos 7 dias."
         )
@@ -725,12 +729,13 @@ def render(owner_user_id: int):
                     st.caption("—")
 
     with tab3:
-        procs = _fetch_ultimos_processos_cached(owner_user_id, tipo_val)
+        procs = _fetch_ultimos_processos_cached(owner_user_id, tipo_val, version)
 
-        with st.container(border=True):
-            st.subheader("Últimos trabalhos")
-            st.caption("Registros mais recentes cadastrados (respeita a atuação)")
-
+        with section(
+            "Últimos trabalhos",
+            subtitle="Registros mais recentes cadastrados (respeita a atuação)",
+            divider=False,
+        ):
             if not procs:
                 st.caption("Nenhum trabalho cadastrado ainda para esta atuação.")
                 return
