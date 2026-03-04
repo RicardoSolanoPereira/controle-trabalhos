@@ -16,6 +16,19 @@ from app.ui.theme import card
 from app.ui.page_header import page_header
 from app.ui_state import navigate, get_qp_str, bump_data_version
 
+# (Opcional) Se existir no seu projeto, ajuda a padronizar layout
+try:
+    from app.ui.layout import section, grid, spacer, is_mobile  # type: ignore
+except Exception:
+    section = None  # type: ignore
+    grid = None  # type: ignore
+
+    def spacer(_: float = 0.0) -> None:  # type: ignore
+        st.write("")
+
+    def is_mobile() -> bool:  # type: ignore
+        return False
+
 
 ATUACAO_UI = {
     "Perícia (Juízo)": "Perito Judicial",
@@ -58,6 +71,17 @@ def _clear_list_state() -> None:
         "proc_list_selected_id",
     ):
         st.session_state.pop(k, None)
+
+
+# ==================================================
+# MOBILE MODE (unificado)
+# ==================================================
+def _is_mobile_cards() -> bool:
+    return bool(
+        st.session_state.get(
+            "ui_mobile_cards", st.session_state.get("ui_mobile_mode", False)
+        )
+    )
 
 
 # ==================================================
@@ -160,10 +184,6 @@ def _pick_folder_dialog(initialdir: str | None = None) -> str | None:
         return str(folder) if folder else None
     except Exception:
         return None
-
-
-def _is_mobile_hint() -> bool:
-    return bool(st.session_state.get("ui_mobile_mode", False))
 
 
 # ==================================================
@@ -290,6 +310,13 @@ def _render_processo_card_row(r: dict) -> None:
     vara = (r.get("vara") or "").strip()
     pasta = (r.get("pasta_local") or "").strip()
 
+    # fallback UX: se não tem comarca, sinaliza (prazos/feriados)
+    comarca_chip = (
+        f"<span class='sp-chip'>🏛️ {comarca}</span>"
+        if comarca
+        else "<span class='sp-chip'>⚠️ Sem comarca</span>"
+    )
+
     st.markdown(
         f"""
         <div class="sp-surface" style="margin-bottom:12px;">
@@ -298,9 +325,9 @@ def _render_processo_card_row(r: dict) -> None:
             <span class="sp-chip">{atu}</span>
             <span class="sp-chip">{status}</span>
             {f"<span class='sp-chip'>🏷️ {cat}</span>" if cat else ""}
-            {f"<span class='sp-chip'>🏛️ {comarca}</span>" if comarca else "<span class='sp-chip'>⚠️ Sem comarca</span>"}
+            {comarca_chip}
           </div>
-          <div style="margin-top:8px; color: rgba(15,23,42,0.75);">
+          <div style="margin-top:8px; color: rgba(15,23,42,0.75); line-height:1.35;">
             {f"<b>Cliente:</b> {cli}<br/>" if cli else ""}
             {f"<b>Descrição:</b> {desc}<br/>" if desc else ""}
             {f"<b>Comarca:</b> {comarca} • <b>Vara:</b> {vara}<br/>" if (comarca or vara) else ""}
@@ -311,6 +338,7 @@ def _render_processo_card_row(r: dict) -> None:
         unsafe_allow_html=True,
     )
 
+    # Ações (2 + 2) – mais touch-friendly
     c1, c2 = st.columns(2)
     if c1.button(
         "Editar", key=f"m_edit_{pid}", use_container_width=True, type="primary"
@@ -348,10 +376,7 @@ def _render_processo_card_row(r: dict) -> None:
 def _segmented_or_radio(options: list[str], key: str) -> str:
     if hasattr(st, "segmented_control"):
         return st.segmented_control(
-            "Seção",
-            options=options,
-            key=key,
-            label_visibility="collapsed",
+            "Seção", options=options, key=key, label_visibility="collapsed"
         )
     return st.radio(
         "Seção", options, key=key, horizontal=True, label_visibility="collapsed"
@@ -362,16 +387,6 @@ def _segmented_or_radio(options: list[str], key: str) -> str:
 # RENDER (ENTRY)
 # ==================================================
 def render(owner_user_id: int):
-    st.markdown(
-        """
-        <style>
-          .sec-title { font-weight: 850; font-size: 1.05rem; margin: 0.1rem 0 0.35rem 0; }
-          .sec-cap { color: rgba(15,23,42,0.62); font-size: 0.90rem; margin-top: -0.25rem; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
     clicked = page_header(
         "Trabalhos",
         "Cadastro e gestão de atividades técnicas (judicial e particular).",
@@ -386,14 +401,9 @@ def render(owner_user_id: int):
     _apply_requested_tab()
     st.session_state.setdefault("proc_active_tab", "Lista")
 
-    with st.sidebar.expander("📱 Ajustes (UI)", expanded=False):
-        st.checkbox(
-            "Modo mobile (cards)", value=_is_mobile_hint(), key="ui_mobile_mode"
-        )
-
     options = ["Cadastrar", "Lista", "Editar / Excluir"]
 
-    if _is_mobile_hint():
+    if _is_mobile_cards():
         t1, t2, t3 = st.tabs(options)
         with t1:
             st.session_state["proc_active_tab"] = "Cadastrar"
@@ -457,7 +467,6 @@ def _render_cadastrar(owner_user_id: int) -> None:
             if c3.button("Prazos", use_container_width=True, key="proc_post_prazos"):
                 st.session_state["pref_processo_id"] = last_id
                 st.session_state["pref_processo_ref"] = last_ref
-                # Se já tivermos no estado, ótimo; senão mantém vazio (UI da tela seguinte avisa)
                 st.session_state.setdefault("pref_processo_comarca", "")
                 st.session_state.setdefault("pref_processo_vara", "")
                 navigate("Prazos", state={"prazos_section": "Cadastro"})
@@ -475,13 +484,8 @@ def _render_cadastrar(owner_user_id: int) -> None:
                 navigate("Financeiro", state={"financeiro_section": "Lançamentos"})
 
     with st.container(border=True):
-        st.markdown(
-            "<div class='sec-title'>Novo trabalho</div>", unsafe_allow_html=True
-        )
-        st.markdown(
-            "<div class='sec-cap'>Cadastre o essencial primeiro; detalhes você completa depois.</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("### Novo trabalho")
+        st.caption("Cadastre o essencial primeiro; detalhes você completa depois.")
         st.write("")
 
         st.session_state.setdefault("proc_create_pasta", "")
@@ -530,7 +534,6 @@ def _render_cadastrar(owner_user_id: int) -> None:
             with st.container(border=True):
                 st.markdown("**2) Classificação**")
                 st.caption("Ajuda a filtrar e organizar na lista.")
-
                 c4, c5 = st.columns([1.2, 1.8])
                 categoria = c4.selectbox(
                     "Categoria / Serviço",
@@ -559,7 +562,6 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     "Contratante / Cliente", key="proc_create_contratante"
                 )
 
-                # Aviso UX (não bloqueia): comarca é essencial p/ cálculo de prazos
                 if (status == "Ativo") and not (comarca or "").strip():
                     st.warning(
                         "Comarca não informada. Isso pode afetar o cálculo de prazos (CPC/TJSP) e feriados municipais.",
@@ -607,7 +609,6 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     )
                     st.session_state["proc_last_created_ref"] = numero.strip()
 
-                    # ✅ guarda contexto para telas seguintes (UX)
                     st.session_state["pref_processo_comarca"] = (comarca or "").strip()
                     st.session_state["pref_processo_vara"] = (vara or "").strip()
 
@@ -656,13 +657,11 @@ def _render_cadastrar(owner_user_id: int) -> None:
 # ==================================================
 def _render_lista(owner_user_id: int) -> None:
     with st.container(border=True):
-        st.markdown("<div class='sec-title'>Lista</div>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='sec-cap'>Filtre rápido. Use as ações para operar.</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("### Lista")
+        st.caption("Filtre rápido. Use as ações para operar.")
 
-        if _is_mobile_hint():
+        # filtros
+        if _is_mobile_cards():
             status_options = ["(Todos)"] + list(STATUS_VALIDOS)
             filtro_status = st.selectbox(
                 "Status", status_options, key="proc_list_status"
@@ -759,6 +758,7 @@ def _render_lista(owner_user_id: int) -> None:
     )
     susp = sum(1 for r in rows if (r.get("status", "") or "").lower() == "suspenso")
 
+    # KPIs (2 linhas)
     k1, k2 = st.columns(2)
     with k1:
         card("Trabalhos", f"{total}", "nos filtros", tone="info")
@@ -776,15 +776,18 @@ def _render_lista(owner_user_id: int) -> None:
     with k4:
         card("Suspensos", f"{susp}", "pausados", tone="warning" if susp else "neutral")
 
-    if _is_mobile_hint():
-        for r in rows[:50]:
+    # MOBILE: cards (mais operável)
+    if _is_mobile_cards():
+        limit = 50
+        for r in rows[:limit]:
             _render_processo_card_row(r)
-        if len(rows) > 50:
+        if len(rows) > limit:
             st.caption(
-                f"Mostrando 50 de {len(rows)} (mobile). Use filtros para reduzir."
+                f"Mostrando {limit} de {len(rows)} (mobile). Use filtros para reduzir."
             )
         return
 
+    # DESKTOP: tabela
     df = pd.DataFrame(
         [
             {
@@ -824,6 +827,7 @@ def _render_lista(owner_user_id: int) -> None:
             height=520,
         )
 
+    # Ações rápidas (desktop)
     with st.container(border=True):
         st.markdown("**Ações rápidas**")
 
@@ -845,7 +849,6 @@ def _render_lista(owner_user_id: int) -> None:
         )
         selected_ref = id_to_label.get(int(selected_id), "")
 
-        # ✅ guarda comarca/vara do selecionado para UX nas telas seguintes
         selected_row = next(
             (r for r in rows if int(r.get("id", 0)) == int(selected_id)), None
         )
@@ -887,13 +890,8 @@ def _render_lista(owner_user_id: int) -> None:
 # ==================================================
 def _render_editar(owner_user_id: int) -> None:
     with st.container(border=True):
-        st.markdown(
-            "<div class='sec-title'>Editar / Excluir</div>", unsafe_allow_html=True
-        )
-        st.markdown(
-            "<div class='sec-cap'>Selecione um trabalho e ajuste os campos necessários.</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("### Editar / Excluir")
+        st.caption("Selecione um trabalho e ajuste os campos necessários.")
 
         busca_editar = st.text_input(
             "Buscar (nº/código, cliente, descrição...)",
@@ -1049,7 +1047,6 @@ def _render_editar(owner_user_id: int) -> None:
             key=f"proc_edit_status_{selected_id}",
         )
 
-        # Aviso UX (não bloqueia): comarca é essencial p/ cálculo de prazos
         if (status_e == "Ativo") and not (comarca_e or "").strip():
             st.warning(
                 "Comarca não informada. Isso pode afetar o cálculo de prazos (CPC/TJSP) e feriados municipais.",
@@ -1092,7 +1089,6 @@ def _render_editar(owner_user_id: int) -> None:
                     )
                 bump_data_version(owner_user_id)
 
-                # ✅ mantém contexto atualizado para telas seguintes (UX)
                 st.session_state["pref_processo_comarca"] = (comarca_e or "").strip()
                 st.session_state["pref_processo_vara"] = (vara_e or "").strip()
 

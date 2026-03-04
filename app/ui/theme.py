@@ -4,8 +4,9 @@ from __future__ import annotations
 import html
 import streamlit as st
 
-
-_CSS_FLAG_KEY = "_sp_css_injected_v2"
+# Versão do CSS (mude para forçar reinjeção na sessão)
+_CSS_VERSION = "v3"
+_CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 
 def inject_global_css() -> None:
@@ -73,6 +74,7 @@ def inject_global_css() -> None:
             padding-top: 1.35rem;
             padding-bottom: 1.6rem;
             max-width: 1400px;
+            overflow: visible !important; /* ajuda com popovers/portais */
           }
 
           h1, h2, h3, h4{
@@ -92,11 +94,10 @@ def inject_global_css() -> None:
           /* ==================================================
              ✅ FIX: SELECTBOX / DROPDOWN (BaseWeb)
              Motivo: o menu do selectbox é renderizado em portal/popover.
-             Sem z-index/altura, ele pode “estourar” e ficar bizarro no mobile.
           ================================================== */
 
-          /* Evita clipping por containers */
-          section.main, section.main > div { overflow: visible !important; }
+          /* Evita clipping por containers (menos agressivo que section.main > div) */
+          section.main { overflow: visible !important; }
 
           /* O menu do selectbox usa role="listbox" */
           div[role="listbox"]{
@@ -110,7 +111,7 @@ def inject_global_css() -> None:
             padding-right: 6px;
           }
 
-          /* (Opcional) melhora toque e legibilidade dos itens */
+          /* melhora toque e legibilidade dos itens */
           div[role="listbox"] li{
             padding-top: 10px !important;
             padding-bottom: 10px !important;
@@ -291,6 +292,7 @@ def inject_global_css() -> None:
             border-color: rgba(51,65,85,0.45) !important;
           }
 
+          /* Primário (mantém compatibilidade atual) */
           .stButton > button[kind="primary"]{
             background: var(--primary) !important;
             border: 1px solid var(--primary) !important;
@@ -301,6 +303,15 @@ def inject_global_css() -> None:
           .stButton > button[kind="primary"]:hover{
             background: var(--primary-hover) !important;
             border-color: var(--primary-hover) !important;
+          }
+
+          /* Fallbacks (caso kind="primary" mude entre versões) */
+          .stButton > button[data-testid*="baseButton-primary"],
+          .stButton > button[class*="primary"]{
+            background: var(--primary) !important;
+            border: 1px solid var(--primary) !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
           }
 
           /* ==================================================
@@ -471,7 +482,7 @@ def inject_global_css() -> None:
               border-radius: 12px !important;
             }
 
-            /* dropdown no mobile: um pouco menor */
+            /* dropdown no mobile: um pouco maior */
             div[role="listbox"] ul{
               max-height: 50vh !important;
             }

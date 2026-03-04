@@ -11,7 +11,7 @@ Centraliza navegação e passagem de contexto entre telas.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterable
 
 import streamlit as st
 
@@ -53,6 +53,7 @@ _PAGE_STATE_KEYS: dict[str, set[str]] = {
 }
 
 _LAST_MENU_KEY = "__last_menu"
+_NAV_TARGET_KEY = "nav_target"
 
 
 # ------------------------------------------------------------
@@ -61,7 +62,7 @@ _LAST_MENU_KEY = "__last_menu"
 def _qp_get_all() -> dict[str, Any]:
     """Retorna todos os query params em formato dict (compatível)."""
     try:
-        # Streamlit novo
+        # Streamlit novo (st.query_params é mapping-like)
         return dict(st.query_params)  # type: ignore[attr-defined]
     except Exception:
         try:
@@ -72,13 +73,20 @@ def _qp_get_all() -> dict[str, Any]:
 
 
 def _qp_set_all(params: dict[str, Any]) -> None:
-    """Seta query params de uma vez (compatível)."""
+    """
+    Seta query params de uma vez (compatível).
+
+    Regras:
+    - valores podem ser str ou list[str]
+    """
     try:
+        # Streamlit novo
         st.query_params.clear()  # type: ignore[attr-defined]
         for k, v in params.items():
-            st.query_params[k] = v  # type: ignore[attr-defined]
+            st.query_params[str(k)] = v  # type: ignore[attr-defined]
     except Exception:
         try:
+            # Streamlit antigo
             st.experimental_set_query_params(**params)
         except Exception:
             pass
@@ -96,6 +104,7 @@ def _qp_get(key: str) -> Any:
 
 
 def get_qp_str(key: str, default: str = "") -> str:
+    """Lê query param como string (primeiro valor, se vier lista)."""
     v = _qp_get(key)
     if v is None:
         return default
@@ -105,11 +114,12 @@ def get_qp_str(key: str, default: str = "") -> str:
 
 
 def get_qp_list(key: str) -> list[str]:
+    """Lê query param como lista de strings (sem vazios)."""
     v = _qp_get(key)
     if v is None:
         return []
     if isinstance(v, list):
-        return [str(x) for x in v if x is not None and x != ""]
+        return [str(x) for x in v if x is not None and str(x).strip() != ""]
     s = str(v).strip()
     return [s] if s else []
 
@@ -117,6 +127,16 @@ def get_qp_list(key: str) -> list[str]:
 # ------------------------------------------------------------
 # Internals
 # ------------------------------------------------------------
+def _is_empty(v: Any) -> bool:
+    if v is None:
+        return True
+    if isinstance(v, str) and v.strip() == "":
+        return True
+    if isinstance(v, (list, tuple)) and len(v) == 0:
+        return True
+    return False
+
+
 def _normalize_qp_value(v: Any) -> Any:
     """
     Normaliza valores para query params:
@@ -124,11 +144,13 @@ def _normalize_qp_value(v: Any) -> Any:
     - list/tuple => lista de strings (sem vazios)
     - outros => string
     """
-    if v is None or v == "":
+    if _is_empty(v):
         return None
+
     if isinstance(v, (list, tuple)):
-        values = [str(x) for x in v if x is not None and x != ""]
+        values = [str(x) for x in v if not _is_empty(x)]
         return values if values else None
+
     return str(v)
 
 
@@ -162,10 +184,20 @@ def _set_query_params(
 
 
 def _set_state(state: dict[str, Any] | None) -> None:
+    """Seta chaves no session_state (sem limpar nada)."""
     if not state:
         return
     for k, v in state.items():
         st.session_state[k] = v
+
+
+def _clear_keys(keys: Iterable[str], *, keep: set[str] | None = None) -> None:
+    """Remove várias chaves do session_state (com allowlist)."""
+    keep = keep or set()
+    for k in keys:
+        if k in keep:
+            continue
+        st.session_state.pop(k, None)
 
 
 def _clear_page_state(menu_key: str, incoming_state: dict[str, Any] | None) -> None:
@@ -178,9 +210,7 @@ def _clear_page_state(menu_key: str, incoming_state: dict[str, Any] | None) -> N
         return
 
     incoming_state = incoming_state or {}
-    for k in keys:
-        if k not in incoming_state:
-            st.session_state.pop(k, None)
+    _clear_keys(keys, keep=set(incoming_state.keys()))
 
 
 # ------------------------------------------------------------
@@ -209,6 +239,21 @@ def bump_data_version(owner_user_id: int) -> int:
     return int(st.session_state[key])
 
 
+def consume_nav_target(default: str | None = None) -> str | None:
+    """
+    Lê e consome (remove) um alvo de navegação setado por navigate().
+    Útil no app.py para decidir qual página renderizar uma vez e evitar "loop".
+
+    Retorna:
+      - menu_key (str) se existir
+      - default se não existir
+    """
+    target = st.session_state.pop(_NAV_TARGET_KEY, None)
+    if target is None:
+        return default
+    return str(target)
+
+
 def navigate(
     menu_key: str,
     *,
@@ -218,11 +263,20 @@ def navigate(
 ) -> None:
     """
     Navega para `menu_key` carregando parâmetros.
+
+    - menu_key: chave do menu (ex: "Prazos")
+    - qp: query params (ex: {"q": "abc", "status": ["aberto","vencido"]})
+    - state: session_state (ex: {"prazos_section": "editar", "prazo_selected_id": 123})
+    - clear_qp: se True, limpa query params existentes antes de aplicar qp
+
+    Observação:
+    - Seta nav_target para o app principal decidir renderizar a página
+    - Faz rerun no final
     """
     _clear_page_state(menu_key, state)
     _set_query_params(qp, clear_existing=clear_qp)
     _set_state(state)
 
     st.session_state[_LAST_MENU_KEY] = menu_key
-    st.session_state["nav_target"] = menu_key
+    st.session_state[_NAV_TARGET_KEY] = menu_key
     st.rerun()

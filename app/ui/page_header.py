@@ -8,6 +8,11 @@ from typing import Optional
 
 import streamlit as st
 
+from app.ui.layout import (
+    actions_row,
+    grid_weights,
+)  # ✅ reaproveita helpers (não quebra nada)
+
 
 def _safe_key(text: str) -> str:
     """Gera uma key estável e segura (sem espaços/acentos/símbolos)."""
@@ -23,7 +28,6 @@ class HeaderAction:
     key: str
     help: Optional[str] = None
     type: str = "primary"  # "primary" | "secondary"
-    # Desktop compacto por padrão; pode virar full-width por ação
     use_container_width: bool = False
 
 
@@ -38,17 +42,19 @@ def page_header(
     # modo avançado (opcional)
     actions: list[HeaderAction] | None = None,
     divider: bool = True,
+    # novo: permite header compacto
+    compact: bool = False,
 ) -> bool:
     """
-    Header padrão.
+    Header padrão (UI/UX consistente).
 
     Desktop:
       - título à esquerda
-      - ações à direita, em linha quando possível
+      - ações à direita, com wrap
 
-    Mobile:
-      - empilha via CSS do theme.py (wrap)
-      - botões podem ficar maiores via CSS
+    Mobile (force_mobile):
+      - o grid do layout empilha
+      - ações quebram linha naturalmente
     """
     title_h = html.escape(title or "")
     subtitle_h = html.escape(subtitle or "") if subtitle else ""
@@ -73,38 +79,45 @@ def page_header(
 
     clicked_any = False
 
+    # ==========================================================
+    # Layout: com ações (usa grid_weights do layout.py)
+    # ==========================================================
     if normalized:
-        # Peso mais generoso na direita para não “apertar” botões em telas médias
-        left, right = st.columns([1, 0.45], vertical_alignment="center")
+        # Mais espaço para ações do que antes, mas sem “apertar” título
+        left, right = grid_weights((3.2, 1.8), weights_mobile=(1,), gap="small")
 
         with left:
-            st.markdown(f"## {title_h}")
+            if compact:
+                st.markdown(f"### {title_h}")
+            else:
+                st.markdown(f"## {title_h}")
             if subtitle_h:
                 st.caption(subtitle_h)
 
         with right:
-            # Container flex para ações (wrap no mobile por CSS do theme)
-            st.markdown(
-                "<div style='display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap'>",
-                unsafe_allow_html=True,
-            )
-
-            for act in normalized:
-                act_key = act.key or f"ph_act_{_safe_key(title)}_{_safe_key(act.label)}"
-                clicked = st.button(
-                    act.label,
-                    key=act_key,
-                    help=act.help,
-                    use_container_width=act.use_container_width,
-                    type=act.type,
-                )
-                clicked_any = clicked_any or bool(clicked)
-
-            st.markdown("</div>", unsafe_allow_html=True)
+            # usa actions_row (flex + wrap)
+            with actions_row(right=True, gap_px=8):
+                for act in normalized:
+                    act_key = (
+                        act.key or f"ph_act_{_safe_key(title)}_{_safe_key(act.label)}"
+                    )
+                    clicked = st.button(
+                        act.label,
+                        key=act_key,
+                        help=act.help,
+                        use_container_width=act.use_container_width,
+                        type=act.type,
+                    )
+                    clicked_any = clicked_any or bool(clicked)
 
     else:
-        # Sem ações: header simples (melhor responsividade)
-        st.markdown(f"## {title_h}")
+        # ==========================================================
+        # Layout: sem ações
+        # ==========================================================
+        if compact:
+            st.markdown(f"### {title_h}")
+        else:
+            st.markdown(f"## {title_h}")
         if subtitle_h:
             st.caption(subtitle_h)
 

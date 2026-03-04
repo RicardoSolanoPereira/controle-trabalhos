@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Sequence
+from typing import Callable, Sequence
 
 import streamlit as st
 
 
+# ==========================================================
+# Mobile / Responsivo
+# ==========================================================
 MOBILE_FLAG_KEY = "force_mobile"
 
 
@@ -30,6 +33,9 @@ def mobile_debug_toggle(*, label: str = "Forçar modo celular (teste)") -> None:
     )
 
 
+# ==========================================================
+# Espaçamento / Helpers básicos
+# ==========================================================
 def spacer(height_rem: float = 0.6) -> None:
     """Espaçamento vertical simples."""
     st.markdown(
@@ -63,6 +69,9 @@ def _wrap_columns(n: int, *, per_row: int, gap: str) -> list:
     return slots
 
 
+# ==========================================================
+# Grids responsivos
+# ==========================================================
 def grid(
     columns_desktop: int = 3,
     *,
@@ -112,12 +121,21 @@ def grid_weights(
     return list(st.columns(w_desktop, gap=gap))
 
 
+# ==========================================================
+# Linhas de ação / Surface / Seções
+# ==========================================================
 @contextmanager
 def actions_row(*, right: bool = True, gap_px: int = 8):
-    """Linha de ações (botões) com alinhamento e wrap — context manager correto."""
+    """Linha de ações (botões) com alinhamento e wrap — context manager."""
     justify = "flex-end" if right else "flex-start"
     st.markdown(
-        f"<div style='display:flex;justify-content:{justify};gap:{int(gap_px)}px;flex-wrap:wrap;align-items:center;'>",
+        (
+            "<div style='display:flex;"
+            f"justify-content:{justify};"
+            f"gap:{int(gap_px)}px;"
+            "flex-wrap:wrap;"
+            "align-items:center;'>"
+        ),
         unsafe_allow_html=True,
     )
     try:
@@ -128,7 +146,14 @@ def actions_row(*, right: bool = True, gap_px: int = 8):
 
 @contextmanager
 def surface(*, padding: bool = True):
-    """Surface padrão (usa CSS .sp-surface do theme.py)."""
+    """
+    Surface padrão (usa CSS .sp-surface do theme.py).
+
+    Observação:
+    - 'padding' é mantido para compatibilidade e extensões futuras.
+    - O padding real é controlado pelo CSS (.sp-surface).
+    """
+    _ = padding
     st.markdown('<div class="sp-surface">', unsafe_allow_html=True)
     try:
         yield
@@ -148,24 +173,26 @@ def section(
     *,
     subtitle: str | None = None,
     divider: bool = False,
-    header_actions: callable | None = None,
+    header_actions: Callable[[], None] | None = None,
     top_pad_rem: float | None = None,
+    bottom_pad_rem: float | None = None,
 ):
     """
-    Seção padrão com surface.
+    Seção padrão com header + surface.
 
     - header_actions: callable para renderizar ações no cabeçalho (lado direito)
     - top_pad_rem: respiro antes do header (ajuda dropdown perto do topo)
+    - bottom_pad_rem: respiro após a section (UX visual / separação)
     """
     if top_pad_rem is not None:
         spacer(top_pad_rem)
 
     if title:
         if header_actions:
-            left, right = grid_weights((3, 2), weights_mobile=(1,), gap="small")
+            left, right_col = grid_weights((3, 2), weights_mobile=(1,), gap="small")
             with left:
                 _section_header(title, subtitle)
-            with right:
+            with right_col:
                 with actions_row(right=True):
                     header_actions()
         else:
@@ -177,6 +204,9 @@ def section(
     with surface():
         yield
 
+    if bottom_pad_rem is not None:
+        spacer(bottom_pad_rem)
+
 
 @contextmanager
 def section_surface(
@@ -184,8 +214,9 @@ def section_surface(
     *,
     subtitle: str | None = None,
     divider: bool = False,
-    header_actions: callable | None = None,
+    header_actions: Callable[[], None] | None = None,
     top_pad_rem: float | None = None,
+    bottom_pad_rem: float | None = None,
 ):
     """Alias explícito para section(), mantido para compatibilidade."""
     with section(
@@ -194,5 +225,60 @@ def section_surface(
         divider=divider,
         header_actions=header_actions,
         top_pad_rem=top_pad_rem,
+        bottom_pad_rem=bottom_pad_rem,
     ):
         yield
+
+
+# ==========================================================
+# Novos helpers (não quebram nada existente)
+# ==========================================================
+@contextmanager
+def toolbar(*, right: bool = True, gap_px: int = 10):
+    """
+    Toolbar visual para filtros/ações rápidas.
+
+    Uso típico:
+      with toolbar():
+          st.selectbox(...)
+          st.button(...)
+
+    - Em desktop: alinha à direita por padrão
+    - Em mobile (force_mobile): mantém wrap e fica natural (stack se necessário)
+    """
+    justify = "flex-end" if right else "flex-start"
+    st.markdown(
+        (
+            "<div style='display:flex;"
+            "align-items:flex-end;"
+            f"justify-content:{justify};"
+            f"gap:{int(gap_px)}px;"
+            "flex-wrap:wrap;'>"
+        ),
+        unsafe_allow_html=True,
+    )
+    try:
+        yield
+    finally:
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+def empty_state(
+    title: str = "Nada por aqui ainda",
+    subtitle: str | None = "Quando você adicionar itens, eles vão aparecer aqui.",
+) -> None:
+    """Empty state leve para listas/sections vazias (UX)."""
+    subtitle_html = (
+        f"<div class='sp-muted' style='margin-top:6px'>{subtitle}</div>"
+        if subtitle
+        else ""
+    )
+    st.markdown(
+        f"""
+        <div class="sp-surface" style="text-align:center;padding:22px 16px;">
+          <div style="font-weight:800;font-size:1.02rem;">{title}</div>
+          {subtitle_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

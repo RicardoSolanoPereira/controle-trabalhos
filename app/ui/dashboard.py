@@ -15,6 +15,7 @@ from services.utils import now_br, ensure_br, format_date_br
 from app.ui_state import navigate
 from app.ui.page_header import page_header
 from app.ui.layout import section, grid, spacer, is_mobile
+from app.ui.theme import card
 
 
 ATUACAO_UI = {
@@ -26,7 +27,7 @@ ATUACAO_UI = {
 
 
 # -------------------------
-# Helpers
+# Helpers (tempo / formatação)
 # -------------------------
 def _naive(dt: datetime) -> datetime:
     """Remove tzinfo caso venha timezone-aware (evita comparação com dt naive)."""
@@ -38,6 +39,27 @@ def _naive(dt: datetime) -> datetime:
     return dt
 
 
+def _fmt_money_br(v: float) -> str:
+    try:
+        v = float(v or 0)
+    except Exception:
+        v = 0.0
+    return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _pct(a: int, b: int) -> str:
+    if b <= 0:
+        return "0%"
+    return f"{round((a / b) * 100)}%"
+
+
+def _apply_tipo_filter(stmt, tipo_val):
+    return stmt if not tipo_val else stmt.where(Processo.papel == tipo_val)
+
+
+# -------------------------
+# Helpers (prazos)
+# -------------------------
 def _dias_restantes(dt: Any) -> int:
     dt_br = ensure_br(dt)
     hoje = now_br().date()
@@ -54,22 +76,15 @@ def _status_prazo(dias: int) -> str:
     return "🟢 Ok"
 
 
-def _fmt_money_br(v: float) -> str:
-    try:
-        v = float(v or 0)
-    except Exception:
-        v = 0.0
-    return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def _apply_tipo_filter(stmt, tipo_val):
-    return stmt if not tipo_val else stmt.where(Processo.papel == tipo_val)
-
-
-def _pct(a: int, b: int) -> str:
-    if b <= 0:
-        return "0%"
-    return f"{round((a / b) * 100)}%"
+def _tone_from_prazo_status(dias: int) -> str:
+    """Mapeia o status do prazo para o tone do card/surface."""
+    if dias < 0:
+        return "danger"
+    if dias <= 5:
+        return "warning"
+    if dias <= 10:
+        return "info"
+    return "success"
 
 
 def _prior_badge(p: str | None) -> str:
@@ -81,6 +96,67 @@ def _prior_badge(p: str | None) -> str:
     return "⚖️ Média"
 
 
+# -------------------------
+# Helpers (agenda) — mesmo padrão visual de prazos ✅
+# -------------------------
+def _agenda_status(hours_left: float) -> tuple[str, str]:
+    """
+    Mesmo padrão de alertas dos prazos.
+    Retorna: (label, tone)
+    """
+    if hours_left < 0:
+        return "🔴 Atrasado", "danger"
+
+    # padrão: <=24h urgente; <=72h atenção
+    if hours_left <= 24:
+        return "🟠 Urgente", "warning"
+    if hours_left <= 72:
+        return "🟡 Atenção", "info"
+    return "🟢 Ok", "success"
+
+
+def _agenda_rest_chip(hours_left: float) -> str:
+    """Chip de tempo restante (h/d) para agenda."""
+    if hours_left < 0:
+        return "<span class='sp-chip'>⏳ —</span>"
+
+    if hours_left < 24:
+        rest_txt = f"{max(0, int(round(hours_left)))}h"
+    else:
+        rest_txt = f"{max(0, int(round(hours_left / 24)))}d"
+    return f"<span class='sp-chip'>⏳ {rest_txt}</span>"
+
+
+def _kpi_agenda_subtitle(ag_24h: int, ag_72h: int, ag_7d: int) -> str:
+    if ag_7d <= 0:
+        return "nenhum agendado"
+    if ag_24h > 0:
+        return f"{ag_24h} em 24h • {ag_7d} em 7d"
+    if ag_72h > 0:
+        return f"{ag_72h} em 72h • {ag_7d} em 7d"
+    return f"{ag_7d} em 7d"
+
+
+def _kpi_agenda_tone(ag_24h: int, ag_72h: int, ag_7d: int) -> tuple[str, bool]:
+    """
+    KPI Agenda no padrão pedido:
+    - 24h: danger (vermelho)
+    - 72h: info (atenção)
+    - 7d: success (ok)
+    - 0: neutral
+    """
+    if ag_24h > 0:
+        return "danger", True
+    if ag_72h > 0:
+        return "info", False
+    if ag_7d > 0:
+        return "success", False
+    return "neutral", False
+
+
+# -------------------------
+# Helpers (datas)
+# -------------------------
 def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
     """Retorna: start_today, end_7d, now_naive."""
     ate7 = hoje + timedelta(days=7)
@@ -90,6 +166,9 @@ def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
     return start_today, end_7d, now_n
 
 
+# -------------------------
+# Builders de tabelas
+# -------------------------
 def _build_prazos_df(rows) -> pd.DataFrame:
     data = []
     for _id, evento, data_limite, prioridade, numero_processo, tipo_acao in rows:
@@ -123,8 +202,11 @@ def _build_agenda_df(rows) -> pd.DataFrame:
     return pd.DataFrame(data) if data else pd.DataFrame()
 
 
+# -------------------------
+# Cards (listas)
+# -------------------------
 def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
-    """Cards (mobile-friendly)."""
+    """Cards (mobile-friendly) com mesmo tom do status."""
     with section(title, subtitle="Top 10 (resumo)", divider=False):
         if not rows:
             st.caption(empty_msg)
@@ -134,10 +216,11 @@ def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
             dias = int(_dias_restantes(data_limite))
             status = _status_prazo(dias)
             prior = _prior_badge(prioridade)
+            tone = _tone_from_prazo_status(dias)
 
             st.markdown(
                 f"""
-                <div class="sp-surface" style="margin-bottom:10px;">
+                <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
                   <div style="font-weight:850; font-size:0.98rem;">
                     {numero_processo} – {tipo_acao or "Sem tipo"}
                   </div>
@@ -168,23 +251,33 @@ def _render_prazo_cards(rows: list, title: str, empty_msg: str) -> None:
 
 
 def _render_agenda_cards(rows: list, title: str, empty_msg: str) -> None:
-    """Cards (mobile-friendly)."""
+    """Cards (mobile-friendly) com alerta no mesmo estilo de prazos."""
     with section(title, subtitle="Top 10 (resumo)", divider=False):
         if not rows:
             st.caption(empty_msg)
             return
 
+        now_n = _naive(now_br())
+
         for _id, tipo, inicio, local, numero_processo, tipo_acao in rows:
-            inicio_br = ensure_br(inicio).strftime("%d/%m/%Y %H:%M")
+            inicio_n = _naive(ensure_br(inicio))
+            inicio_br_txt = ensure_br(inicio).strftime("%d/%m/%Y %H:%M")
+
+            hours_left = (inicio_n - now_n).total_seconds() / 3600.0
+            alert_label, tone = _agenda_status(hours_left)
+            rest_chip = _agenda_rest_chip(hours_left)
+
             st.markdown(
                 f"""
-                <div class="sp-surface" style="margin-bottom:10px;">
+                <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
                   <div style="font-weight:850; font-size:0.98rem;">
                     {numero_processo} – {tipo_acao or "Sem tipo"}
                   </div>
                   <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
                     <span class="sp-chip">📌 {tipo}</span>
-                    <span class="sp-chip">🕒 {inicio_br}</span>
+                    <span class="sp-chip">🕒 {inicio_br_txt}</span>
+                    {rest_chip}
+                    <span class="sp-chip">{alert_label}</span>
                     {f"<span class='sp-chip'>📍 {local}</span>" if local else ""}
                   </div>
                 </div>
@@ -201,6 +294,9 @@ def _render_agenda_cards(rows: list, title: str, empty_msg: str) -> None:
         )
 
 
+# -------------------------
+# Tom do banner de prioridades (prazos)
+# -------------------------
 def _alert_tone(prazos_atrasados: int, prazos_7dias: int) -> str:
     if prazos_atrasados > 0:
         return "danger"
@@ -224,6 +320,7 @@ def _fetch_kpis_cached(
     start_today, end_7d, now_n = _dt_bounds(hoje_sp)
 
     with get_session() as s:
+        # Processos
         stmt_total = select(func.count(Processo.id)).where(
             Processo.owner_user_id == owner_user_id
         )
@@ -237,6 +334,7 @@ def _fetch_kpis_cached(
         stmt_ativos = _apply_tipo_filter(stmt_ativos, tipo_val)
         ativos = int(s.execute(stmt_ativos).scalar_one())
 
+        # Prazos (contagens)
         stmt_prazos_counts = (
             select(
                 func.count(Prazo.id).label("abertos"),
@@ -274,6 +372,7 @@ def _fetch_kpis_cached(
         prazos_atrasados = int(prazos_atrasados or 0)
         prazos_7dias = int(prazos_7dias or 0)
 
+        # Agenda (contagens) — para KPI com alerta igual prazos ✅
         stmt_ag_7d = (
             select(func.count(Agendamento.id))
             .join(Processo, Processo.id == Agendamento.processo_id)
@@ -287,6 +386,33 @@ def _fetch_kpis_cached(
         stmt_ag_7d = _apply_tipo_filter(stmt_ag_7d, tipo_val)
         ag_7d = int(s.execute(stmt_ag_7d).scalar_one())
 
+        stmt_ag_24h = (
+            select(func.count(Agendamento.id))
+            .join(Processo, Processo.id == Agendamento.processo_id)
+            .where(
+                Processo.owner_user_id == owner_user_id,
+                Agendamento.status == "Agendado",
+                Agendamento.inicio >= now_n,
+                Agendamento.inicio <= now_n + timedelta(hours=24),
+            )
+        )
+        stmt_ag_24h = _apply_tipo_filter(stmt_ag_24h, tipo_val)
+        ag_24h = int(s.execute(stmt_ag_24h).scalar_one())
+
+        stmt_ag_72h = (
+            select(func.count(Agendamento.id))
+            .join(Processo, Processo.id == Agendamento.processo_id)
+            .where(
+                Processo.owner_user_id == owner_user_id,
+                Agendamento.status == "Agendado",
+                Agendamento.inicio >= now_n,
+                Agendamento.inicio <= now_n + timedelta(hours=72),
+            )
+        )
+        stmt_ag_72h = _apply_tipo_filter(stmt_ag_72h, tipo_val)
+        ag_72h = int(s.execute(stmt_ag_72h).scalar_one())
+
+        # Financeiro
         stmt_fin = (
             select(
                 func.coalesce(
@@ -336,6 +462,8 @@ def _fetch_kpis_cached(
         "prazos_atrasados": prazos_atrasados,
         "prazos_7dias": prazos_7dias,
         "ag_7d": ag_7d,
+        "ag_24h": ag_24h,
+        "ag_72h": ag_72h,
         "receitas": receitas,
         "despesas": despesas,
         "saldo": saldo,
@@ -451,18 +579,11 @@ def _fetch_ultimos_processos_cached(
 def render(owner_user_id: int):
     page_header("Painel de Controle", "Alertas, prazos, agenda e financeiro")
 
-    # Filtro Atuação (UI) — responsivo
-    def _filters_actions():
-        # espaço pra filtros futuros (ex.: botão limpar / salvar visão)
-        pass
-
     with section(
         "Filtros",
         subtitle="A atuação filtra indicadores e listas.",
         divider=False,
-        header_actions=_filters_actions,
     ):
-        # Mobile: empilhado. Desktop: lado a lado.
         fc1, fc2 = grid(2, columns_mobile=1)
         with fc1:
             atuacao_label = st.selectbox(
@@ -482,7 +603,7 @@ def render(owner_user_id: int):
 
     spacer(0.4)
 
-    # 1) PRIORIDADES
+    # 1) PRIORIDADES (prazos)
     tone = _alert_tone(k["prazos_atrasados"], k["prazos_7dias"])
 
     if k["prazos_atrasados"] > 0:
@@ -538,7 +659,7 @@ def render(owner_user_id: int):
         )
         st.markdown(left_text)
 
-        # No mobile, reforça CTA também abaixo (melhor UX de toque)
+        # Mobile: reforça CTA abaixo (melhor toque)
         if is_mobile():
             spacer(0.25)
             st.button(
@@ -560,7 +681,6 @@ def render(owner_user_id: int):
         subtitle="Visão rápida do que está rodando.",
         divider=False,
     ):
-        # Bloco 1
         c1, c2 = grid(2, columns_mobile=1)
         with c1:
             tone_pz = (
@@ -568,9 +688,6 @@ def render(owner_user_id: int):
                 if k["prazos_atrasados"] > 0
                 else ("warning" if k["prazos_7dias"] > 0 else "success")
             )
-            from app.ui.theme import (
-                card,
-            )  # mantém import local (evita circular em refactors)
 
             card(
                 "Prazos abertos",
@@ -594,8 +711,6 @@ def render(owner_user_id: int):
             )
 
         with c2:
-            from app.ui.theme import card
-
             card("Ativos", f"{k['ativos']}", "em andamento", tone="neutral")
             st.button(
                 "Ver ativos",
@@ -610,11 +725,8 @@ def render(owner_user_id: int):
 
         spacer(0.25)
 
-        # Bloco 2
         c3, c4 = grid(2, columns_mobile=1)
         with c3:
-            from app.ui.theme import card
-
             card("Trabalhos", f"{k['total_proc']}", "cadastrados", tone="info")
             st.button(
                 "Ver todos",
@@ -624,10 +736,16 @@ def render(owner_user_id: int):
                     "Processos", state={"processos_section": "Lista"}
                 ),
             )
-        with c4:
-            from app.ui.theme import card
 
-            card("Agenda (7 dias)", f"{k['ag_7d']}", "agendados", tone="info")
+        with c4:
+            ag_tone, ag_emph = _kpi_agenda_tone(k["ag_24h"], k["ag_72h"], k["ag_7d"])
+            card(
+                "Agenda (7 dias)",
+                f"{k['ag_7d']}",
+                _kpi_agenda_subtitle(k["ag_24h"], k["ag_72h"], k["ag_7d"]),
+                tone=ag_tone,
+                emphasize=ag_emph,
+            )
             st.button(
                 "Ver agenda",
                 use_container_width=True,
@@ -637,6 +755,7 @@ def render(owner_user_id: int):
 
     spacer(0.6)
 
+    # 3) FINANCEIRO
     with section(
         "Resumo financeiro",
         subtitle="Receitas, despesas e saldo acumulado.",
@@ -644,8 +763,6 @@ def render(owner_user_id: int):
     ):
         f1, f2 = grid(2, columns_mobile=1)
         with f1:
-            from app.ui.theme import card
-
             card(
                 "Receitas (R$)",
                 _fmt_money_br(k["receitas"]),
@@ -653,8 +770,6 @@ def render(owner_user_id: int):
                 tone="success",
             )
         with f2:
-            from app.ui.theme import card
-
             card(
                 "Despesas (R$)",
                 _fmt_money_br(k["despesas"]),
@@ -663,8 +778,6 @@ def render(owner_user_id: int):
             )
 
         spacer(0.25)
-
-        from app.ui.theme import card
 
         card(
             "Saldo (R$)",
@@ -686,7 +799,7 @@ def render(owner_user_id: int):
 
     spacer(0.6)
 
-    # 3) LISTAS ANALÍTICAS
+    # 4) LISTAS ANALÍTICAS
     tab1, tab2, tab3 = st.tabs(["⏳ Prazos", "📅 Agenda", "🗂️ Trabalhos"])
 
     with tab1:

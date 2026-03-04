@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 # ------------------------------------------------------------
 # PATH / IMPORT FIX (root)
 # ------------------------------------------------------------
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT_DIR = str(Path(__file__).resolve().parents[1])
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
@@ -23,8 +23,9 @@ if ROOT_DIR not in sys.path:
 from app.db import init_db
 from app.db.connection import get_session
 from app.db.models import User
-from app.ui import dashboard, processos, prazos, agendamentos, andamentos, financeiro
+from app.ui import agendamentos, andamentos, dashboard, financeiro, prazos, processos
 from app.ui.theme import inject_global_css
+from app.ui_state import consume_nav_target, on_menu_change
 
 # ------------------------------------------------------------
 # LOCAL SETUP
@@ -60,7 +61,7 @@ def _bootstrap_db() -> None:
 
 @st.cache_resource
 def _bootstrap_theme() -> None:
-    # Injeta CSS 1x por sessão
+    # Injeta CSS 1x por sessão (e controlado por versão no theme.py)
     inject_global_css()
 
 
@@ -169,9 +170,10 @@ def render_sidebar() -> str:
     st.sidebar.markdown("## 📐 Gestão Técnica")
     st.sidebar.caption("Trabalhos • Prazos • Agenda • Financeiro")
 
-    # Deep-link interno (session_state)
-    if "nav_target" in st.session_state:
-        st.session_state["sidebar_menu"] = st.session_state.pop("nav_target")
+    # Deep-link interno (session_state) via ui_state.navigate()
+    target = consume_nav_target(default=None)
+    if target:
+        st.session_state["sidebar_menu"] = target
 
     st.sidebar.divider()
 
@@ -187,24 +189,32 @@ def render_sidebar() -> str:
         label_visibility="collapsed",
     )
 
+    # Limpa estado "grudado" quando o usuário troca pelo menu
+    on_menu_change(menu)
+
     st.sidebar.divider()
 
     # -------------------------
     # Ações rápidas (compactas)
-    # - só o essencial visível
-    # - resto fica recolhido em expanders
     # -------------------------
     st.sidebar.subheader("⚡ Ações rápidas")
 
     c1, c2 = st.sidebar.columns(2)
     with c1:
         if st.button(
-            "🔄 Sincronizar", use_container_width=True, key="sidebar_sync_btn"
+            "🔄 Sincronizar",
+            use_container_width=True,
+            key="sidebar_sync_btn",
+            type="primary",
+            help="Limpa caches de dados e recarrega a aplicação.",
         ):
             _sync_hard()
     with c2:
         if st.button(
-            "↻ Recarregar", use_container_width=True, key="sidebar_reload_btn"
+            "↻ Recarregar",
+            use_container_width=True,
+            key="sidebar_reload_btn",
+            help="Recarrega a interface sem limpar cache (mais rápido).",
         ):
             _rerun_soft()
 
@@ -234,16 +244,16 @@ def render_sidebar() -> str:
         st.caption("Backup/alertas serão retomados quando necessário.")
         st.caption("Objetivo atual: refatorar UI/UX (mobile).")
 
-        # Debug toggle só se você quiser usar no futuro
         st.checkbox(
             "Debug (UI)",
             value=bool(st.session_state.get("ui_debug", False)),
             key="ui_debug",
         )
 
-        # Botão extra (se quiser) para limpar caches manualmente
         if st.button(
-            "🧹 Limpar cache", use_container_width=True, key="sidebar_clear_cache_btn"
+            "🧹 Limpar cache",
+            use_container_width=True,
+            key="sidebar_clear_cache_btn",
         ):
             st.cache_data.clear()
             st.toast("Cache limpo.", icon="🧹")
