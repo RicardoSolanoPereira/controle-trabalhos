@@ -23,7 +23,10 @@ if ROOT_DIR not in sys.path:
 from app.db import init_db
 from app.db.connection import get_session
 from app.db.models import User
+
+# Suas páginas (mantendo nomes atuais dos módulos)
 from app.ui import agendamentos, andamentos, dashboard, financeiro, prazos, processos
+
 from app.ui.theme import inject_global_css
 from app.ui_state import consume_nav_target, on_menu_change
 
@@ -42,6 +45,10 @@ if DEFAULT_SIDEBAR_STATE not in {"expanded", "collapsed"}:
 
 BUILD_ID = os.getenv("BUILD_ID", "2026-02-28-DEF-1")
 
+# Exibir navegação no topo (melhor para mobile).
+# Pode deixar sempre True, ou usar env para controlar.
+TOP_NAV_DEFAULT = os.getenv("TOP_NAV_DEFAULT", "1").strip() == "1"
+
 st.set_page_config(
     page_title="Gestão Técnica",
     page_icon="📐",
@@ -55,13 +62,11 @@ st.set_page_config(
 # ------------------------------------------------------------
 @st.cache_resource
 def _bootstrap_db() -> None:
-    # Evita rodar init_db em todo rerun
     init_db()
 
 
 @st.cache_resource
 def _bootstrap_theme() -> None:
-    # Injeta CSS 1x por sessão (e controlado por versão no theme.py)
     inject_global_css()
 
 
@@ -76,10 +81,7 @@ DEFAULT_NAME = os.getenv("DEFAULT_USER_NAME", "Administrador").strip()
 
 
 def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
-    """
-    Busca usuário pelo email.
-    Se não existir, cria e retorna o id.
-    """
+    """Busca usuário pelo email. Se não existir, cria e retorna o id."""
     with get_session() as s:
         try:
             user = (
@@ -97,7 +99,6 @@ def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
             return user.id
 
         except IntegrityError:
-            # corrida: outro worker criou o mesmo email
             s.rollback()
             user = (
                 s.execute(select(User).where(User.email == default_email))
@@ -115,10 +116,7 @@ def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
 
 @st.cache_resource
 def _get_owner_user_id_cached(email: str, name: str) -> int:
-    """
-    Cache por sessão para não bater no DB a cada rerun.
-    Se você mudar DEFAULT_EMAIL/NAME e quiser refletir, reinicie a sessão.
-    """
+    """Cache por sessão para não bater no DB a cada rerun."""
     return get_or_create_owner_user_id(email, name)
 
 
@@ -131,159 +129,208 @@ except Exception as e:
     st.stop()
 
 # ------------------------------------------------------------
-# NAV / ROUTES
+# NAV / ROUTES (menu canônico: Painel → Trabalhos → ...)
 # ------------------------------------------------------------
+# Chaves que o ui_state deve conhecer (e que você vai ver na UI)
+MENU_KEYS = [
+    "Painel",
+    "Trabalhos",
+    "Prazos",
+    "Agenda",
+    "Andamentos",
+    "Financeiro",
+]
+
 MENU_LABELS = {
-    "Dashboard": "📊 Painel",
-    "Processos": "📁 Trabalhos",
+    "Painel": "📊 Painel",
+    "Trabalhos": "📁 Trabalhos",
     "Prazos": "⏳ Prazos",
-    "Agendamentos": "📅 Agenda",
+    "Agenda": "📅 Agenda",
     "Andamentos": "🧾 Andamentos",
     "Financeiro": "💰 Financeiro",
 }
 
+# Mantém os seus módulos atuais, mas com nomes de rota mais “humanos”
 ROUTES = {
-    "Dashboard": dashboard.render,
-    "Processos": processos.render,
+    "Painel": dashboard.render,
+    "Trabalhos": processos.render,  # módulo processos.py renderiza Trabalhos
     "Prazos": prazos.render,
-    "Agendamentos": agendamentos.render,
+    "Agenda": agendamentos.render,  # módulo agendamentos.py renderiza Agenda
     "Andamentos": andamentos.render,
     "Financeiro": financeiro.render,
 }
 
 
+# ------------------------------------------------------------
+# RERUN / SYNC helpers (compatíveis)
+# ------------------------------------------------------------
 def _rerun_soft() -> None:
-    """Recarrega UI sem limpar cache (útil quando só quer atualizar render)."""
-    st.rerun()
+    """Recarrega UI sem limpar cache."""
+    try:
+        st.rerun()
+    except Exception:
+        try:
+            st.experimental_rerun()
+        except Exception:
+            pass
 
 
 def _sync_hard() -> None:
     """Sincronizar: limpa caches e rerun."""
     st.cache_data.clear()
-    st.rerun()
+    _rerun_soft()
 
 
-def render_sidebar() -> str:
-    # -------------------------
-    # Header compacto (menos ruído)
-    # -------------------------
-    st.sidebar.markdown("## 📐 Gestão Técnica")
-    st.sidebar.caption("Trabalhos • Prazos • Agenda • Financeiro")
-
-    # Deep-link interno (session_state) via ui_state.navigate()
-    target = consume_nav_target(default=None)
-    if target:
-        st.session_state["sidebar_menu"] = target
-
-    st.sidebar.divider()
-
-    # -------------------------
-    # Menu (radio pill via CSS do theme.py)
-    # -------------------------
-    st.sidebar.subheader("Menu")
-    menu = st.sidebar.radio(
-        label="Menu",
-        options=list(MENU_LABELS.keys()),
-        format_func=lambda k: MENU_LABELS[k],
-        key="sidebar_menu",
-        label_visibility="collapsed",
+# ------------------------------------------------------------
+# Top nav (mobile-friendly)
+# ------------------------------------------------------------
+def _top_nav(current_menu: str) -> str:
+    """
+    Navegação no topo (ótima para mobile e também útil no desktop).
+    Usa session_state para manter seleção consistente com o sidebar.
+    """
+    # permite “forçar” mobile via sidebar, mas também pode ficar sempre ligado
+    force_mobile = bool(st.session_state.get("force_mobile", False))
+    show_top_nav = (
+        bool(st.session_state.get("ui_show_top_nav", TOP_NAV_DEFAULT)) or force_mobile
     )
 
-    # Limpa estado "grudado" quando o usuário troca pelo menu
-    on_menu_change(menu)
+    if not show_top_nav:
+        return current_menu
 
-    st.sidebar.divider()
-
-    # -------------------------
-    # Ações rápidas (compactas)
-    # -------------------------
-    st.sidebar.subheader("⚡ Ações rápidas")
-
-    c1, c2 = st.sidebar.columns(2)
+    # Barra compacta
+    c1, c2 = st.columns([3, 1], vertical_alignment="center")
     with c1:
-        if st.button(
-            "🔄 Sincronizar",
-            use_container_width=True,
-            key="sidebar_sync_btn",
-            type="primary",
-            help="Limpa caches de dados e recarrega a aplicação.",
-        ):
-            _sync_hard()
+        menu = st.selectbox(
+            "Navegação",
+            MENU_KEYS,
+            index=MENU_KEYS.index(current_menu) if current_menu in MENU_KEYS else 0,
+            format_func=lambda k: MENU_LABELS.get(k, k),
+            key="top_nav_menu",
+            label_visibility="collapsed",
+        )
     with c2:
+        # Um “botão rápido” bem mobile-friendly
         if st.button(
-            "↻ Recarregar",
-            use_container_width=True,
-            key="sidebar_reload_btn",
-            help="Recarrega a interface sem limpar cache (mais rápido).",
+            "↻", help="Recarregar", use_container_width=True, key="top_nav_reload"
         ):
             _rerun_soft()
 
-    # -------------------------
-    # Ajustes (UI) – recolhido
-    # -------------------------
-    with st.sidebar.expander("🎛️ Ajustes (UI)", expanded=False):
-        st.caption("Preferências visuais (não afetam dados).")
+    # Se mudou no top-nav, sincroniza com sidebar e aplica política de limpeza
+    if menu != current_menu:
+        st.session_state["sidebar_menu"] = menu
+        on_menu_change(menu)
 
+    st.divider()
+    return menu
+
+
+# ------------------------------------------------------------
+# Sidebar (desktop-friendly, mas funcionando no mobile também)
+# ------------------------------------------------------------
+def render_sidebar() -> str:
+    # Header minimalista (sem caption grande)
+    st.sidebar.markdown("### 📐 Gestão Técnica")
+
+    # Deep-link interno (session_state) via ui_state.navigate()
+    target = consume_nav_target(default=None)
+    if target and target in MENU_KEYS:
+        st.session_state["sidebar_menu"] = target
+        st.session_state["top_nav_menu"] = target
+
+    # Se top-nav estiver ligado ou forçando mobile, sidebar fica “utilitário”
+    force_mobile = bool(st.session_state.get("force_mobile", False))
+    show_top_nav = bool(st.session_state.get("ui_show_top_nav", TOP_NAV_DEFAULT))
+    sidebar_minimal = show_top_nav or force_mobile
+
+    # MENU (só quando NÃO estiver minimal)
+    if not sidebar_minimal:
+        menu = st.sidebar.radio(
+            label="Menu",
+            options=MENU_KEYS,
+            format_func=lambda k: MENU_LABELS.get(k, k),
+            key="sidebar_menu",
+            label_visibility="collapsed",
+        )
+        on_menu_change(menu)
+        st.sidebar.divider()
+    else:
+        # mantém seleção atual, mas não mostra menu (top-nav manda)
+        menu = str(st.session_state.get("sidebar_menu", "Painel"))
+
+    # AÇÕES (compactas)
+    st.sidebar.markdown("**Ações**")
+    c1, c2 = st.sidebar.columns(2)
+    with c1:
+        if c1.button(
+            "🔄 Sync", use_container_width=True, key="sidebar_sync_btn", type="primary"
+        ):
+            _sync_hard()
+    with c2:
+        if c2.button("↻ Atual", use_container_width=True, key="sidebar_reload_btn"):
+            _rerun_soft()
+
+    # CONFIG (uma única seção)
+    with st.sidebar.expander("⚙️ Config", expanded=False):
+        st.checkbox(
+            "Mostrar navegação no topo",
+            value=bool(st.session_state.get("ui_show_top_nav", TOP_NAV_DEFAULT)),
+            key="ui_show_top_nav",
+        )
         st.checkbox(
             "Modo mobile (cards)",
             value=bool(st.session_state.get("ui_mobile_cards", True)),
             key="ui_mobile_cards",
         )
-
         st.checkbox(
             "Forçar modo celular (teste)",
             value=bool(st.session_state.get("force_mobile", False)),
             key="force_mobile",
         )
 
-    # -------------------------
-    # Manutenção – recolhido e “técnico”
-    # -------------------------
-    with st.sidebar.expander("🧰 Manutenção", expanded=False):
-        st.caption("Área técnica (opcional).")
-        st.caption("Backup/alertas serão retomados quando necessário.")
-        st.caption("Objetivo atual: refatorar UI/UX (mobile).")
-
+        # Manutenção só aparece quando debug ligado (não polui o usuário comum)
+        st.divider()
         st.checkbox(
             "Debug (UI)",
             value=bool(st.session_state.get("ui_debug", False)),
             key="ui_debug",
         )
 
-        if st.button(
-            "🧹 Limpar cache",
-            use_container_width=True,
-            key="sidebar_clear_cache_btn",
-        ):
-            st.cache_data.clear()
-            st.toast("Cache limpo.", icon="🧹")
+        if st.session_state.get("ui_debug", False):
+            if st.button(
+                "🧹 Limpar cache",
+                use_container_width=True,
+                key="sidebar_clear_cache_btn",
+            ):
+                st.cache_data.clear()
+                st.toast("Cache limpo.", icon="🧹")
 
-    st.sidebar.divider()
-
-    # Rodapé discreto
+    # Rodapé discreto (sem muito espaço)
     st.sidebar.markdown(
-        f"<div style='font-size:0.78rem;opacity:0.68'>BUILD: {BUILD_ID}</div>",
+        f"<div style='font-size:0.72rem;opacity:0.55;margin-top:10px'>BUILD {BUILD_ID}</div>",
         unsafe_allow_html=True,
     )
 
     return menu
 
 
+# ------------------------------------------------------------
+# Shell / Router
+# ------------------------------------------------------------
 def render_shell(menu: str) -> None:
-    """
-    Shell base do app.
-    Mantém responsabilidades mínimas no main.
-    """
     render_fn = ROUTES.get(menu)
     if not render_fn:
         st.error("Rota inválida.")
         return
-
     render_fn(owner_user_id)
 
 
-# -------------------------
+# ------------------------------------------------------------
 # APP ENTRY
-# -------------------------
+# ------------------------------------------------------------
 selected_menu = render_sidebar()
+
+# Para mobile: top-nav pode prevalecer (e sincroniza com sidebar)
+selected_menu = _top_nav(selected_menu)
+
 render_shell(selected_menu)

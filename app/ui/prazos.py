@@ -338,8 +338,7 @@ def _render_contexto_trabalho(proc: dict[str, Any] | None) -> None:
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
             <div style="font-weight:900; font-size:1.02rem;">Contexto do trabalho</div>
             <div style="min-width:160px;">
-              <form>
-              </form>
+              <form></form>
             </div>
           </div>
           <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
@@ -350,7 +349,6 @@ def _render_contexto_trabalho(proc: dict[str, Any] | None) -> None:
         unsafe_allow_html=True,
     )
 
-    # Botão "Limpar" (opcional, mas útil no MVP)
     c1, c2 = st.columns([0.82, 0.18], vertical_alignment="center")
     with c2:
         if st.button("Limpar", key="pz_clear_pref_ctx", use_container_width=True):
@@ -659,6 +657,76 @@ def _editar_excluir_prazo(items: list[PrazoRow], owner_user_id: int) -> None:
 
 
 # ============================================================
+# UI EXTRA (mantém estilo do print sem mexer na lógica)
+# ============================================================
+def _top_prioridades_hoje(
+    filtered: list[PrazoRow],
+) -> None:
+    """
+    Bloco visual no topo da LISTA, parecido com o print (Prioridades de hoje).
+    Não altera filtros nem dados — apenas sugere ação (Abrir atrasados).
+    """
+    atrasados = [
+        r
+        for r in filtered
+        if (not r.concluido) and (_dias_restantes(r.data_limite) < 0)
+    ]
+
+    st.markdown("#### Prioridades de hoje")
+    c_left, c_right = st.columns([0.62, 0.38], vertical_alignment="center")
+    with c_right:
+        if st.button(
+            "Abrir atrasados", key="pz_btn_open_atrasados", use_container_width=True
+        ):
+            _request_list_tab("Atrasados")
+            st.rerun()
+
+    # card visual: “Status de prazos”
+    tone = "danger" if atrasados else "neutral"
+    with st.container(border=True):
+        st.markdown("**Status de prazos**")
+        st.caption("Acompanhe o que precisa de ação imediata.")
+        if atrasados:
+            st.markdown(f"🔴 **{len(atrasados)} prazo(s) atrasado(s)**")
+        else:
+            st.markdown("🟢 **Sem atrasos nos filtros atuais**")
+
+
+def _kpis_grid(abertos: int, atrasados: int, vencem7: int, concluidos: int) -> None:
+    """
+    KPIs em 2 linhas (estilo card do seu tema), com tons coerentes.
+    """
+    k1, k2 = st.columns(2)
+    with k1:
+        card("Abertos", f"{abertos}", "nos filtros", tone="info")
+    with k2:
+        card(
+            "Atrasados",
+            f"{atrasados}",
+            "urgente",
+            tone="danger" if atrasados else "neutral",
+        )
+
+    k3, k4 = st.columns(2)
+    with k3:
+        card(
+            "Vencem (7d)",
+            f"{vencem7}",
+            "atenção",
+            tone="warning" if vencem7 else "neutral",
+        )
+    with k4:
+        card("Concluídos", f"{concluidos}", "finalizados", tone="neutral")
+
+
+def _render_df(df: pd.DataFrame, cols: list[str], height: int) -> None:
+    """
+    Wrapper para manter consistência do layout (sem mexer no conteúdo).
+    """
+    st.dataframe(df[cols], use_container_width=True, hide_index=True, height=height)
+
+
+# ============================================================
 # RENDER (UI/UX refatorado, lógica intacta)
 # ============================================================
 def render(owner_user_id: int) -> None:
@@ -674,6 +742,7 @@ def render(owner_user_id: int) -> None:
     if clicked_refresh:
         st.rerun()
 
+    # Ferramentas (mantidas)
     with st.expander("Ferramentas", expanded=False):
         st.caption("Utilidades (não afetam os dados).")
         if st.button(
@@ -696,13 +765,11 @@ def render(owner_user_id: int) -> None:
     }
     proc_by_id = {int(p["id"]): p for p in processos}
 
-    # ------------------------------------------------------------
-    # CONTEXTO DO TRABALHO (vem de Processos/Dashboard)
-    # ------------------------------------------------------------
+    # Contexto do trabalho
     pref_proc = _get_pref_context(proc_by_id)
     _render_contexto_trabalho(pref_proc)
 
-    # Defaults estáveis (mantidos)
+    # Defaults estáveis
     hoje_sp = now_br().date()
     st.session_state.setdefault(KEY_C_MODE, "Manual")
     st.session_state.setdefault(KEY_C_DATA_LIM, hoje_sp)
@@ -730,6 +797,7 @@ def render(owner_user_id: int) -> None:
             )
             subtle_divider()
 
+            # trabalho
             sel_proc = st.selectbox("Trabalho *", proc_labels, index=0, key=KEY_C_PROC)
             processo_id = int(label_to_id[sel_proc])
             proc = proc_by_id.get(processo_id)
@@ -940,8 +1008,15 @@ def render(owner_user_id: int) -> None:
     elif section == "Lista":
         _apply_requested_list_tab()
 
+        # Dados (cacheado) — 1 vez só
+        version = _data_version(owner_user_id)
+        all_rows = _dicts_to_dataclass(_cached_prazos_list_all(owner_user_id, version))
+
+        # Filtros (card)
         with st.container(border=True):
             st.markdown("#### Filtros")
+            st.caption("A atuação filtra indicadores e listas.")
+            subtle_divider()
 
             f1, f2 = st.columns(2)
             filtro_tipo = f1.selectbox(
@@ -973,10 +1048,7 @@ def render(owner_user_id: int) -> None:
             None if filtro_proc == "(Todos)" else int(label_to_id[filtro_proc])
         )
 
-        # cacheado (serializável)
-        version = _data_version(owner_user_id)
-        all_rows = _dicts_to_dataclass(_cached_prazos_list_all(owner_user_id, version))
-
+        # Aplicar filtros
         filtered: list[PrazoRow] = []
         for r in all_rows:
             papel = (r.processo_papel or "").strip()
@@ -988,7 +1060,7 @@ def render(owner_user_id: int) -> None:
                 continue
             filtered.append(r)
 
-        # KPIs
+        # KPIs (estilo do painel)
         abertos = [r for r in filtered if not r.concluido]
         atrasados = [
             r
@@ -1002,37 +1074,24 @@ def render(owner_user_id: int) -> None:
         ]
         concluidos = [r for r in filtered if r.concluido]
 
-        k1, k2 = st.columns(2)
-        with k1:
-            card("Abertos", f"{len(abertos)}", "nos filtros", tone="info")
-        with k2:
-            card(
-                "Atrasados",
-                f"{len(atrasados)}",
-                "urgente",
-                tone="danger" if atrasados else "neutral",
-            )
+        _kpis_grid(len(abertos), len(atrasados), len(vencem7), len(concluidos))
 
-        k3, k4 = st.columns(2)
-        with k3:
-            card(
-                "Vencem (7d)",
-                f"{len(vencem7)}",
-                "atenção",
-                tone="warning" if vencem7 else "neutral",
-            )
-        with k4:
-            card("Concluídos", f"{len(concluidos)}", "finalizados", tone="neutral")
+        # Prioridades de hoje (estilo do print)
+        with st.container(border=True):
+            _top_prioridades_hoje(filtered)
 
+        # Ações rápidas
         with st.container(border=True):
             st.markdown("#### ⚡ Ações rápidas")
             st.caption("Concluir, reabrir ou excluir rapidamente.")
             _quick_actions(filtered, owner_user_id)
 
-        st.divider()
+        subtle_divider()
 
+        # Sub-abas (segmented)
         chosen_view = _list_tabs_selector()
 
+        # Tabelas
         if chosen_view == "Atrasados":
             items = [
                 r
@@ -1046,25 +1105,22 @@ def render(owner_user_id: int) -> None:
                 df = df.sort_values(
                     by=["dias_restantes", "_data_sort"], ascending=[True, True]
                 ).drop(columns=["_data_sort"], errors="ignore")
-                st.dataframe(
-                    df[
-                        [
-                            "prazo_id",
-                            "processo",
-                            "evento",
-                            "data_limite",
-                            "dias_restantes",
-                            "prioridade",
-                            "status",
-                        ]
+                _render_df(
+                    df,
+                    [
+                        "prazo_id",
+                        "processo",
+                        "evento",
+                        "data_limite",
+                        "dias_restantes",
+                        "prioridade",
+                        "status",
                     ],
-                    use_container_width=True,
-                    hide_index=True,
-                    height=340,
+                    height=360,
                 )
 
         elif chosen_view == "Vencem (7 dias)":
-            items = []
+            items: list[PrazoRow] = []
             for r in filtered:
                 if r.concluido:
                     continue
@@ -1079,39 +1135,37 @@ def render(owner_user_id: int) -> None:
                 df = df.sort_values(
                     by=["dias_restantes", "_data_sort"], ascending=[True, True]
                 ).drop(columns=["_data_sort"], errors="ignore")
-                st.dataframe(
-                    df[
-                        [
-                            "prazo_id",
-                            "processo",
-                            "evento",
-                            "data_limite",
-                            "dias_restantes",
-                            "prioridade",
-                            "status",
-                        ]
+                _render_df(
+                    df,
+                    [
+                        "prazo_id",
+                        "processo",
+                        "evento",
+                        "data_limite",
+                        "dias_restantes",
+                        "prioridade",
+                        "status",
                     ],
-                    use_container_width=True,
-                    hide_index=True,
-                    height=340,
+                    height=360,
                 )
 
         elif chosen_view == "Abertos":
-            c1, c2 = st.columns([2, 4])
-            filtro_janela = c1.selectbox(
-                "Janela",
-                ["Todos", "Atrasados", "0–7 dias", "0–15 dias", "0–30 dias"],
-                index=0,
-                key=KEY_OPEN_WINDOW,
-            )
-            ordem = c2.selectbox(
-                "Ordenar",
-                ["Mais urgentes primeiro", "Mais distantes primeiro"],
-                index=0,
-                key=KEY_OPEN_ORDER,
-            )
+            with st.container(border=True):
+                c1, c2 = st.columns([2, 4])
+                filtro_janela = c1.selectbox(
+                    "Janela",
+                    ["Todos", "Atrasados", "0–7 dias", "0–15 dias", "0–30 dias"],
+                    index=0,
+                    key=KEY_OPEN_WINDOW,
+                )
+                ordem = c2.selectbox(
+                    "Ordenar",
+                    ["Mais urgentes primeiro", "Mais distantes primeiro"],
+                    index=0,
+                    key=KEY_OPEN_ORDER,
+                )
 
-            items = []
+            items: list[PrazoRow] = []
             for r in filtered:
                 if r.concluido:
                     continue
@@ -1136,21 +1190,18 @@ def render(owner_user_id: int) -> None:
                 df = df.sort_values(
                     by=["dias_restantes", "_data_sort"], ascending=[asc, True]
                 ).drop(columns=["_data_sort"], errors="ignore")
-                st.dataframe(
-                    df[
-                        [
-                            "prazo_id",
-                            "processo",
-                            "evento",
-                            "data_limite",
-                            "dias_restantes",
-                            "prioridade",
-                            "status",
-                        ]
+                _render_df(
+                    df,
+                    [
+                        "prazo_id",
+                        "processo",
+                        "evento",
+                        "data_limite",
+                        "dias_restantes",
+                        "prioridade",
+                        "status",
                     ],
-                    use_container_width=True,
-                    hide_index=True,
-                    height=420,
+                    height=460,
                 )
 
         else:
@@ -1162,11 +1213,10 @@ def render(owner_user_id: int) -> None:
                 df = df.sort_values(by=["_data_sort"], ascending=False).drop(
                     columns=["_data_sort"], errors="ignore"
                 )
-                st.dataframe(
-                    df[["prazo_id", "processo", "evento", "data_limite", "prioridade"]],
-                    use_container_width=True,
-                    hide_index=True,
-                    height=360,
+                _render_df(
+                    df,
+                    ["prazo_id", "processo", "evento", "data_limite", "prioridade"],
+                    height=380,
                 )
 
     # ========================================================

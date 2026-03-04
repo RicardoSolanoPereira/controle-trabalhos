@@ -17,13 +17,13 @@ from services.andamentos_service import (
     AndamentoUpdate,
 )
 
-from app.ui.theme import inject_global_css, card
+from app.ui.theme import inject_global_css, card, subtle_divider
 from app.ui.page_header import page_header
 
 
-# -------------------------
+# ============================================================
 # Helpers / Models
-# -------------------------
+# ============================================================
 @dataclass(frozen=True)
 class ProcMaps:
     labels: List[str]
@@ -64,7 +64,15 @@ def _parse_andamento_id_from_label(label: str) -> int:
     return int(head.replace("[#", "").strip())
 
 
-def _load_processos(owner_user_id: int) -> List[Processo]:
+# ============================================================
+# Cache / Loaders
+# ============================================================
+def _data_version(owner_user_id: int) -> int:
+    return int(st.session_state.get(f"data_version_{owner_user_id}", 0))
+
+
+@st.cache_data(show_spinner=False, ttl=45)
+def _load_processos_cached(owner_user_id: int, version: int) -> List[Processo]:
     with get_session() as s:
         return (
             s.execute(
@@ -78,9 +86,16 @@ def _load_processos(owner_user_id: int) -> List[Processo]:
 
 
 def _build_proc_maps(processos: List[Processo]) -> ProcMaps:
-    labels = [_proc_label(p) for p in processos]
-    label_to_id = {_proc_label(p): int(p.id) for p in processos}
-    label_by_id = {int(p.id): _proc_label(p) for p in processos}
+    labels: List[str] = []
+    label_to_id: Dict[str, int] = {}
+    label_by_id: Dict[int, str] = {}
+
+    for p in processos:
+        lbl = _proc_label(p)
+        labels.append(lbl)
+        label_to_id[lbl] = int(p.id)
+        label_by_id[int(p.id)] = lbl
+
     return ProcMaps(labels=labels, label_to_id=label_to_id, label_by_id=label_by_id)
 
 
@@ -138,13 +153,18 @@ def _load_andamentos_for_edit_picker(owner_user_id: int, limit: int = 500):
         )
 
 
-# -------------------------
+def _bump_version(owner_user_id: int) -> None:
+    st.session_state[f"data_version_{owner_user_id}"] = _data_version(owner_user_id) + 1
+
+
+# ============================================================
 # Sections
-# -------------------------
+# ============================================================
 def _section_create(owner_user_id: int, proc_maps: ProcMaps) -> None:
     with st.container(border=True):
         st.markdown("#### ➕ Novo andamento")
         st.caption("Registre um evento vinculado a um trabalho (andamento).")
+        subtle_divider()
 
         with st.form("form_andamento_create", clear_on_submit=True):
             c1, c2, c3 = st.columns([3, 1, 1])
@@ -195,6 +215,7 @@ def _section_create(owner_user_id: int, proc_maps: ProcMaps) -> None:
             with get_session() as s:
                 AndamentosService.create(s, owner_user_id, payload)
 
+            _bump_version(owner_user_id)
             st.success("Andamento criado.")
             st.rerun()
 
@@ -209,6 +230,7 @@ def _section_list(
     with st.container(border=True):
         st.markdown("#### 📋 Lista")
         st.caption("Filtre e visualize rapidamente.")
+        subtle_divider()
 
         cF1, cF2, cF3 = st.columns([3, 2, 1])
         filtro_proc = cF1.selectbox(
@@ -236,11 +258,14 @@ def _section_list(
         total = len(andamentos or [])
         com_texto = sum(1 for a in (andamentos or []) if (a.descricao or "").strip())
 
-        k1, k2, k3 = st.columns(3)
+        # KPIs em 2 linhas (mais próximo do painel/prazos)
+        k1, k2 = st.columns(2)
         with k1:
             card("Total", f"{total}", "nos filtros", tone="info")
         with k2:
             card("Com descrição", f"{com_texto}", "detalhados", tone="neutral")
+
+        k3, k4 = st.columns(2)
         with k3:
             card(
                 "Sem descrição",
@@ -248,6 +273,9 @@ def _section_list(
                 "rápidos",
                 tone="neutral",
             )
+        with k4:
+            # espaço intencional (mantém grid), mas deixa pronto p/ futuro KPI (ex.: “Últimos 7 dias”)
+            card("—", "—", " ", tone="neutral")
 
         st.write("")
         if not andamentos:
@@ -288,6 +316,7 @@ def _section_edit_delete(
         st.caption(
             "Selecione um andamento e ajuste os campos. O seletor é independente da lista."
         )
+        subtle_divider()
 
         ands_for_edit = _load_andamentos_for_edit_picker(owner_user_id, limit=500)
         if not ands_for_edit:
@@ -377,6 +406,7 @@ def _section_edit_delete(
                         s, owner_user_id, int(andamento_id), payload
                     )
 
+                _bump_version(owner_user_id)
                 st.success("Andamento atualizado.")
                 st.rerun()
 
@@ -402,15 +432,16 @@ def _section_edit_delete(
             try:
                 with get_session() as s:
                     AndamentosService.delete(s, owner_user_id, int(andamento_id))
+                _bump_version(owner_user_id)
                 st.success("Andamento excluído.")
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao excluir: {e}")
 
 
-# -------------------------
+# ============================================================
 # Page render
-# -------------------------
+# ============================================================
 def render(owner_user_id: int) -> None:
     inject_global_css()
 
@@ -424,7 +455,8 @@ def render(owner_user_id: int) -> None:
     if clicked_refresh:
         st.rerun()
 
-    processos = _load_processos(owner_user_id)
+    version = _data_version(owner_user_id)
+    processos = _load_processos_cached(owner_user_id, version)
     if not processos:
         st.info("Cadastre um trabalho primeiro para registrar andamentos.")
         return

@@ -5,7 +5,7 @@ import html
 import streamlit as st
 
 # Versão do CSS (mude para forçar reinjeção na sessão)
-_CSS_VERSION = "v3"
+_CSS_VERSION = "v4"  # <-- bump
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 
@@ -16,7 +16,7 @@ def inject_global_css() -> None:
     - Padrão executivo / leve
     - Botões consistentes (primário grafite)
     - Tabs segmentadas
-    - Sidebar tipo "pill menu"
+    - Sidebar tipo "pill menu" (compacto)
     - Responsivo mobile
     - FIX dropdown do selectbox (BaseWeb)
     """
@@ -93,25 +93,19 @@ def inject_global_css() -> None:
 
           /* ==================================================
              ✅ FIX: SELECTBOX / DROPDOWN (BaseWeb)
-             Motivo: o menu do selectbox é renderizado em portal/popover.
           ================================================== */
-
-          /* Evita clipping por containers (menos agressivo que section.main > div) */
           section.main { overflow: visible !important; }
 
-          /* O menu do selectbox usa role="listbox" */
           div[role="listbox"]{
             z-index: 100000 !important;
           }
 
-          /* Limita altura e cria scroll */
           div[role="listbox"] ul{
             max-height: 45vh !important;
             overflow-y: auto !important;
             padding-right: 6px;
           }
 
-          /* melhora toque e legibilidade dos itens */
           div[role="listbox"] li{
             padding-top: 10px !important;
             padding-bottom: 10px !important;
@@ -144,23 +138,40 @@ def inject_global_css() -> None:
           }
 
           /* ==================================================
-             SIDEBAR
+             SIDEBAR (COMPACTO / MENOS POLUÍDO)
           ================================================== */
           section[data-testid="stSidebar"]{
             background-color: #f1f5f9; /* slate-100 */
             border-right: 1px solid var(--border);
           }
 
+          /* Menos padding no sidebar */
           section[data-testid="stSidebar"] .block-container{
-            padding-top: 1rem;
-            padding-bottom: 1rem;
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
           }
 
+          /* Menos “respiro” entre elementos NO SIDEBAR (sem afetar o main) */
+          section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
+            margin-bottom: 0.26rem !important;
+          }
+
+          /* Dividers mais discretos no sidebar */
           section[data-testid="stSidebar"] hr{
-            border-color: var(--border) !important;
+            border-color: rgba(15,23,42,0.10) !important;
+            margin: 0.55rem 0 !important;
           }
 
-          /* Radio -> pill menu */
+          /* Headers/labels do sidebar: compactar */
+          section[data-testid="stSidebar"] h1,
+          section[data-testid="stSidebar"] h2,
+          section[data-testid="stSidebar"] h3{
+            margin: 0.25rem 0 0.35rem 0 !important;
+          }
+
+          /* Radio -> pill menu (mais compacto) */
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           label[data-baseweb="radio"] > div:first-child{
@@ -172,13 +183,15 @@ def inject_global_css() -> None:
           label[data-baseweb="radio"]{
             display: block;
             width: 100%;
-            padding: 10px 14px;
+            padding: 8px 12px;              /* menor */
             border-radius: 12px;
-            margin-bottom: 6px;
+            margin-bottom: 5px;             /* menor */
             cursor: pointer;
             transition: all 0.12s ease;
             border: 1px solid rgba(15,23,42,0.10);
             background: rgba(255,255,255,0.78);
+            font-size: 0.92rem;             /* menor */
+            line-height: 1.15;
           }
 
           section[data-testid="stSidebar"]
@@ -194,34 +207,51 @@ def inject_global_css() -> None:
           label[data-baseweb="radio"][aria-checked="true"]{
             background: rgba(51,65,85,0.10);
             border: 1px solid rgba(51,65,85,0.22);
-            border-left: 5px solid var(--primary);
-            padding-left: 11px;
+            border-left: 4px solid var(--primary);
+            padding-left: 10px;
             font-weight: 760;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
             transform: none;
           }
 
+          /* Alguns temas do Streamlit renderizam o item selecionado em div[role=radio] */
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           div[role="radio"][aria-checked="true"]{
             background: rgba(51,65,85,0.10) !important;
             border: 1px solid rgba(51,65,85,0.22) !important;
-            border-left: 5px solid var(--primary) !important;
+            border-left: 4px solid var(--primary) !important;
             border-radius: 12px !important;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important;
           }
 
+          /* Expanders no SIDEBAR: mais “flat” e compacto */
+          section[data-testid="stSidebar"] details[data-testid="stExpander"]{
+            border-radius: 12px;
+            border: 1px solid rgba(15,23,42,0.12);
+            background: rgba(255,255,255,0.85);
+            box-shadow: none;
+            overflow: hidden;
+          }
+          section[data-testid="stSidebar"] details[data-testid="stExpander"] summary{
+            padding: 8px 10px !important;
+          }
+          section[data-testid="stSidebar"] details[data-testid="stExpander"] summary p{
+            font-size: 0.92rem !important;
+            font-weight: 700 !important;
+          }
+
           /* ==================================================
-             EXPANDER
+             EXPANDER (fora do sidebar mantém seu estilo anterior)
           ================================================== */
-          details[data-testid="stExpander"]{
+          section.main details[data-testid="stExpander"]{
             border-radius: 14px;
             border: 1px solid rgba(15,23,42,0.14);
             background: #ffffff;
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
             overflow: hidden;
           }
-          details[data-testid="stExpander"] summary{
+          section.main details[data-testid="stExpander"] summary{
             padding: 10px 12px;
           }
 
@@ -292,7 +322,6 @@ def inject_global_css() -> None:
             border-color: rgba(51,65,85,0.45) !important;
           }
 
-          /* Primário (mantém compatibilidade atual) */
           .stButton > button[kind="primary"]{
             background: var(--primary) !important;
             border: 1px solid var(--primary) !important;
@@ -305,13 +334,18 @@ def inject_global_css() -> None:
             border-color: var(--primary-hover) !important;
           }
 
-          /* Fallbacks (caso kind="primary" mude entre versões) */
           .stButton > button[data-testid*="baseButton-primary"],
           .stButton > button[class*="primary"]{
             background: var(--primary) !important;
             border: 1px solid var(--primary) !important;
             color: #ffffff !important;
             box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+          }
+
+          /* Sidebar buttons: ligeiramente mais compactos (sem perder usabilidade) */
+          section[data-testid="stSidebar"] .stButton > button{
+            padding: 0.52rem 0.8rem !important;
+            font-size: 0.92rem !important;
           }
 
           /* ==================================================
@@ -338,7 +372,6 @@ def inject_global_css() -> None:
             box-shadow: 0 0 0 3px rgba(51,65,85,0.12) !important;
           }
 
-          /* seta do selectbox */
           div[data-baseweb="select"] svg{
             transform: none !important;
           }
@@ -434,8 +467,10 @@ def inject_global_css() -> None:
             }
 
             section[data-testid="stSidebar"] .block-container{
-              padding-top: 0.85rem !important;
-              padding-bottom: 0.85rem !important;
+              padding-top: 0.70rem !important;
+              padding-bottom: 0.70rem !important;
+              padding-left: 0.70rem !important;
+              padding-right: 0.70rem !important;
             }
 
             .sp-card{
@@ -450,7 +485,7 @@ def inject_global_css() -> None:
               font-size: 1.45rem !important;
             }
 
-            /* Botões touch-friendly */
+            /* Botões touch-friendly (no mobile mantém 44px no main) */
             .stButton > button{
               min-height: 44px !important;
               padding: 0.72rem 1rem !important;
@@ -482,7 +517,6 @@ def inject_global_css() -> None:
               border-radius: 12px !important;
             }
 
-            /* dropdown no mobile: um pouco maior */
             div[role="listbox"] ul{
               max-height: 50vh !important;
             }

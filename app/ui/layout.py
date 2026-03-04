@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Callable, Sequence
 
 import streamlit as st
@@ -15,12 +16,14 @@ MOBILE_FLAG_KEY = "force_mobile"
 
 def is_mobile() -> bool:
     """
-    Heurística estável:
-    - por padrão: desktop
-    - permite override manual via st.session_state["force_mobile"] = True/False
+    Heurística estável e prática para Streamlit:
+
+    - Se o usuário forçou: st.session_state["force_mobile"] == True => mobile
+    - Caso contrário: mantém desktop por padrão (Streamlit não expõe viewport de forma confiável)
+    - Você pode acoplar outras heurísticas depois (JS, cookie, etc.)
     """
     forced = st.session_state.get(MOBILE_FLAG_KEY, None)
-    return True if forced is True else False
+    return bool(forced is True)
 
 
 def mobile_debug_toggle(*, label: str = "Forçar modo celular (teste)") -> None:
@@ -39,7 +42,8 @@ def mobile_debug_toggle(*, label: str = "Forçar modo celular (teste)") -> None:
 def spacer(height_rem: float = 0.6) -> None:
     """Espaçamento vertical simples."""
     st.markdown(
-        f"<div style='height:{float(height_rem)}rem'></div>", unsafe_allow_html=True
+        f"<div style='height:{float(height_rem)}rem'></div>",
+        unsafe_allow_html=True,
     )
 
 
@@ -125,26 +129,6 @@ def grid_weights(
 # Linhas de ação / Surface / Seções
 # ==========================================================
 @contextmanager
-def actions_row(*, right: bool = True, gap_px: int = 8):
-    """Linha de ações (botões) com alinhamento e wrap — context manager."""
-    justify = "flex-end" if right else "flex-start"
-    st.markdown(
-        (
-            "<div style='display:flex;"
-            f"justify-content:{justify};"
-            f"gap:{int(gap_px)}px;"
-            "flex-wrap:wrap;"
-            "align-items:center;'>"
-        ),
-        unsafe_allow_html=True,
-    )
-    try:
-        yield
-    finally:
-        st.markdown("</div>", unsafe_allow_html=True)
-
-
-@contextmanager
 def surface(*, padding: bool = True):
     """
     Surface padrão (usa CSS .sp-surface do theme.py).
@@ -181,22 +165,26 @@ def section(
     Seção padrão com header + surface.
 
     - header_actions: callable para renderizar ações no cabeçalho (lado direito)
-    - top_pad_rem: respiro antes do header (ajuda dropdown perto do topo)
-    - bottom_pad_rem: respiro após a section (UX visual / separação)
+    - top_pad_rem: respiro antes do header
+    - bottom_pad_rem: respiro após a section
     """
     if top_pad_rem is not None:
         spacer(top_pad_rem)
 
     if title:
-        if header_actions:
-            left, right_col = grid_weights((3, 2), weights_mobile=(1,), gap="small")
+        if header_actions and not is_mobile():
+            # Alinhamento REAL com colunas (Streamlit widgets respeitam)
+            left, right = st.columns([3, 2], gap="small")
             with left:
                 _section_header(title, subtitle)
-            with right_col:
-                with actions_row(right=True):
-                    header_actions()
+            with right:
+                # ações alinhadas naturalmente pela coluna
+                header_actions()
         else:
+            # Mobile ou sem ações: stack natural
             _section_header(title, subtitle)
+            if header_actions:
+                header_actions()
 
     if divider:
         st.divider()
@@ -231,38 +219,47 @@ def section_surface(
 
 
 # ==========================================================
-# Novos helpers (não quebram nada existente)
+# Toolbar (real) para filtros/ações
 # ==========================================================
 @contextmanager
-def toolbar(*, right: bool = True, gap_px: int = 10):
+def toolbar(*, right: bool = True, gap: str = "small"):
     """
-    Toolbar visual para filtros/ações rápidas.
+    Toolbar para filtros/ações rápidas.
 
-    Uso típico:
-      with toolbar():
-          st.selectbox(...)
-          st.button(...)
+    Em desktop, você normalmente quer:
+      - filtros à esquerda
+      - ações à direita
 
-    - Em desktop: alinha à direita por padrão
-    - Em mobile (force_mobile): mantém wrap e fica natural (stack se necessário)
+    Como widgets Streamlit não respeitam <div> flex, usamos colunas.
     """
-    justify = "flex-end" if right else "flex-start"
-    st.markdown(
-        (
-            "<div style='display:flex;"
-            "align-items:flex-end;"
-            f"justify-content:{justify};"
-            f"gap:{int(gap_px)}px;"
-            "flex-wrap:wrap;'>"
-        ),
-        unsafe_allow_html=True,
-    )
-    try:
+    if is_mobile():
+        # Mobile: stack natural
         yield
-    finally:
-        st.markdown("</div>", unsafe_allow_html=True)
+        return
+
+    if right:
+        left, right_col = st.columns([3, 2], gap=gap)
+        with left:
+            yield  # o chamador coloca filtros aqui
+        # não abrimos right_col automaticamente (senão vira confuso)
+        # use toolbar_actions() abaixo para ações na coluna direita
+    else:
+        yield
 
 
+def toolbar_actions(actions: Callable[[], None], *, gap: str = "small") -> None:
+    """Ações na direita (desktop). Em mobile vira stack natural."""
+    if is_mobile():
+        actions()
+        return
+    _, right_col = st.columns([3, 2], gap=gap)
+    with right_col:
+        actions()
+
+
+# ==========================================================
+# Empty state
+# ==========================================================
 def empty_state(
     title: str = "Nada por aqui ainda",
     subtitle: str | None = "Quando você adicionar itens, eles vão aparecer aqui.",
@@ -282,3 +279,39 @@ def empty_state(
         """,
         unsafe_allow_html=True,
     )
+
+
+# ==========================================================
+# Page header (novo helper: você vai usar no Painel/Trabalhos)
+# ==========================================================
+@dataclass(frozen=True)
+class PageMeta:
+    title: str
+    subtitle: str | None = None
+
+
+def page_header(
+    meta: PageMeta, *, right_actions: Callable[[], None] | None = None
+) -> None:
+    """
+    Cabeçalho padrão de página:
+    - Desktop: título à esquerda, ações à direita
+    - Mobile: stack natural
+    """
+    if not meta.title:
+        return
+
+    if right_actions and not is_mobile():
+        left, right = st.columns([3, 2], gap="small", vertical_alignment="center")
+        with left:
+            st.markdown(f"## {meta.title}")
+            if meta.subtitle:
+                st.caption(meta.subtitle)
+        with right:
+            right_actions()
+    else:
+        st.markdown(f"## {meta.title}")
+        if meta.subtitle:
+            st.caption(meta.subtitle)
+        if right_actions:
+            right_actions()
