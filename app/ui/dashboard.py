@@ -12,10 +12,9 @@ from app.db.connection import get_session
 from app.db.models import Processo, Prazo, LancamentoFinanceiro, Agendamento
 from services.utils import now_br, ensure_br, format_date_br
 
-from app.ui.theme import card
 from app.ui_state import navigate
 from app.ui.page_header import page_header
-from app.ui.layout import section, grid, spacer
+from app.ui.layout import section, grid, spacer, is_mobile
 
 
 ATUACAO_UI = {
@@ -193,13 +192,13 @@ def _render_agenda_cards(rows: list, title: str, empty_msg: str) -> None:
                 unsafe_allow_html=True,
             )
 
-        if st.button(
+        st.button(
             "Abrir agenda",
             use_container_width=True,
             type="primary",
             key=f"btn_open_{title}_agenda",
-        ):
-            navigate("Agendamentos")
+            on_click=lambda: navigate("Agendamentos"),
+        )
 
 
 def _alert_tone(prazos_atrasados: int, prazos_7dias: int) -> str:
@@ -452,25 +451,33 @@ def _fetch_ultimos_processos_cached(
 def render(owner_user_id: int):
     page_header("Painel de Controle", "Alertas, prazos, agenda e financeiro")
 
-    # Filtro Atuação (UI)
+    # Filtro Atuação (UI) — responsivo
+    def _filters_actions():
+        # espaço pra filtros futuros (ex.: botão limpar / salvar visão)
+        pass
+
     with section(
-        "Filtros", subtitle="A atuação filtra indicadores e listas.", divider=False
+        "Filtros",
+        subtitle="A atuação filtra indicadores e listas.",
+        divider=False,
+        header_actions=_filters_actions,
     ):
-        c1, c2 = st.columns([0.42, 0.58], vertical_alignment="center")
-        with c1:
+        # Mobile: empilhado. Desktop: lado a lado.
+        fc1, fc2 = grid(2, columns_mobile=1)
+        with fc1:
             atuacao_label = st.selectbox(
                 "Atuação",
                 list(ATUACAO_UI.keys()),
                 index=0,
                 key="dash_atuacao_ui",
             )
-        with c2:
+        with fc2:
             st.caption("Dica: use “(Todas)” para visão geral.")
+
     tipo_val = ATUACAO_UI[atuacao_label]
 
     hoje_sp = now_br().date()
     version = _cache_buster(owner_user_id)
-
     k = _fetch_kpis_cached(owner_user_id, tipo_val, hoje_sp.isoformat(), version)
 
     spacer(0.4)
@@ -478,7 +485,6 @@ def render(owner_user_id: int):
     # 1) PRIORIDADES
     tone = _alert_tone(k["prazos_atrasados"], k["prazos_7dias"])
 
-    # CTA dinâmico
     if k["prazos_atrasados"] > 0:
         cta_label = "Abrir atrasados"
         cta_action = lambda: navigate(
@@ -506,7 +512,21 @@ def render(owner_user_id: int):
         cta_action = lambda: navigate("Prazos", state={"prazos_section": "Cadastro"})
         left_text = "**🟢 Nenhum prazo crítico**"
 
-    with section("Prioridades de hoje", subtitle=atuacao_label, divider=False):
+    def _prio_actions():
+        st.button(
+            cta_label,
+            use_container_width=True,
+            type="primary",
+            on_click=cta_action,
+            key="dash_cta",
+        )
+
+    with section(
+        "Prioridades de hoje",
+        subtitle=atuacao_label,
+        divider=False,
+        header_actions=_prio_actions,
+    ):
         st.markdown(
             f"""
             <div class="sp-card sp-tone-{tone}" style="margin-bottom:10px;">
@@ -516,17 +536,17 @@ def render(owner_user_id: int):
             """,
             unsafe_allow_html=True,
         )
+        st.markdown(left_text)
 
-        left, right = st.columns([0.72, 0.28], vertical_alignment="center")
-        with left:
-            st.markdown(left_text)
-        with right:
+        # No mobile, reforça CTA também abaixo (melhor UX de toque)
+        if is_mobile():
+            spacer(0.25)
             st.button(
                 cta_label,
                 use_container_width=True,
                 type="primary",
                 on_click=cta_action,
-                key="dash_cta",
+                key="dash_cta_mobile_dup",
             )
 
     spacer(0.6)
@@ -540,6 +560,7 @@ def render(owner_user_id: int):
         subtitle="Visão rápida do que está rodando.",
         divider=False,
     ):
+        # Bloco 1
         c1, c2 = grid(2, columns_mobile=1)
         with c1:
             tone_pz = (
@@ -547,6 +568,10 @@ def render(owner_user_id: int):
                 if k["prazos_atrasados"] > 0
                 else ("warning" if k["prazos_7dias"] > 0 else "success")
             )
+            from app.ui.theme import (
+                card,
+            )  # mantém import local (evita circular em refactors)
+
             card(
                 "Prazos abertos",
                 f"{k['prazos_abertos']}",
@@ -569,6 +594,8 @@ def render(owner_user_id: int):
             )
 
         with c2:
+            from app.ui.theme import card
+
             card("Ativos", f"{k['ativos']}", "em andamento", tone="neutral")
             st.button(
                 "Ver ativos",
@@ -581,10 +608,13 @@ def render(owner_user_id: int):
                 ),
             )
 
-        spacer(0.3)
+        spacer(0.25)
 
+        # Bloco 2
         c3, c4 = grid(2, columns_mobile=1)
         with c3:
+            from app.ui.theme import card
+
             card("Trabalhos", f"{k['total_proc']}", "cadastrados", tone="info")
             st.button(
                 "Ver todos",
@@ -595,6 +625,8 @@ def render(owner_user_id: int):
                 ),
             )
         with c4:
+            from app.ui.theme import card
+
             card("Agenda (7 dias)", f"{k['ag_7d']}", "agendados", tone="info")
             st.button(
                 "Ver agenda",
@@ -612,6 +644,8 @@ def render(owner_user_id: int):
     ):
         f1, f2 = grid(2, columns_mobile=1)
         with f1:
+            from app.ui.theme import card
+
             card(
                 "Receitas (R$)",
                 _fmt_money_br(k["receitas"]),
@@ -619,6 +653,8 @@ def render(owner_user_id: int):
                 tone="success",
             )
         with f2:
+            from app.ui.theme import card
+
             card(
                 "Despesas (R$)",
                 _fmt_money_br(k["despesas"]),
@@ -626,7 +662,9 @@ def render(owner_user_id: int):
                 tone="danger",
             )
 
-        spacer(0.3)
+        spacer(0.25)
+
+        from app.ui.theme import card
 
         card(
             "Saldo (R$)",
@@ -663,21 +701,18 @@ def render(owner_user_id: int):
         _render_prazo_cards(
             rows_atrasados, "Prazos atrasados", "✅ Sem prazos atrasados."
         )
-        spacer(0.3)
+        spacer(0.25)
         _render_prazo_cards(
             rows_7d, "Vencem em até 7 dias", "✅ Sem prazos vencendo em até 7 dias."
         )
 
         with st.expander("Ver em tabela", expanded=False):
-            colA, colB = st.columns(2, vertical_alignment="top")
-
+            colA, colB = grid(2, columns_mobile=1)
             with colA:
                 st.caption("Atrasados (Top 10)")
                 if rows_atrasados:
                     df = _build_prazos_df(rows_atrasados)
-                    st.dataframe(
-                        df, use_container_width=True, hide_index=True, height=320
-                    )
+                    st.dataframe(df, use_container_width=True, hide_index=True)
                 else:
                     st.caption("—")
 
@@ -685,9 +720,7 @@ def render(owner_user_id: int):
                 st.caption("7 dias (Top 10)")
                 if rows_7d:
                     df = _build_prazos_df(rows_7d)
-                    st.dataframe(
-                        df, use_container_width=True, hide_index=True, height=320
-                    )
+                    st.dataframe(df, use_container_width=True, hide_index=True)
                 else:
                     st.caption("—")
 
@@ -702,29 +735,25 @@ def render(owner_user_id: int):
         _render_agenda_cards(
             rows_24h, "Próximas 24 horas", "✅ Sem agendamentos nas próximas 24 horas."
         )
-        spacer(0.3)
+        spacer(0.25)
         _render_agenda_cards(
             rows_ag_7d, "Próximos 7 dias", "✅ Sem agendamentos nos próximos 7 dias."
         )
 
         with st.expander("Ver em tabela", expanded=False):
-            col1, col2 = st.columns(2, vertical_alignment="top")
+            col1, col2 = grid(2, columns_mobile=1)
             with col1:
                 st.caption("24 horas (Top 10)")
                 if rows_24h:
                     dfa = _build_agenda_df(rows_24h)
-                    st.dataframe(
-                        dfa, use_container_width=True, hide_index=True, height=320
-                    )
+                    st.dataframe(dfa, use_container_width=True, hide_index=True)
                 else:
                     st.caption("—")
             with col2:
                 st.caption("7 dias (Top 10)")
                 if rows_ag_7d:
                     dfa = _build_agenda_df(rows_ag_7d)
-                    st.dataframe(
-                        dfa, use_container_width=True, hide_index=True, height=320
-                    )
+                    st.dataframe(dfa, use_container_width=True, hide_index=True)
                 else:
                     st.caption("—")
 

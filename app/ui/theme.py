@@ -5,7 +5,7 @@ import html
 import streamlit as st
 
 
-_CSS_FLAG_KEY = "_sp_css_injected_v1"
+_CSS_FLAG_KEY = "_sp_css_injected_v2"
 
 
 def inject_global_css() -> None:
@@ -17,6 +17,7 @@ def inject_global_css() -> None:
     - Tabs segmentadas
     - Sidebar tipo "pill menu"
     - Responsivo mobile
+    - FIX dropdown do selectbox (BaseWeb)
     """
     if st.session_state.get(_CSS_FLAG_KEY):
         return
@@ -89,6 +90,33 @@ def inject_global_css() -> None:
           }
 
           /* ==================================================
+             ✅ FIX: SELECTBOX / DROPDOWN (BaseWeb)
+             Motivo: o menu do selectbox é renderizado em portal/popover.
+             Sem z-index/altura, ele pode “estourar” e ficar bizarro no mobile.
+          ================================================== */
+
+          /* Evita clipping por containers */
+          section.main, section.main > div { overflow: visible !important; }
+
+          /* O menu do selectbox usa role="listbox" */
+          div[role="listbox"]{
+            z-index: 100000 !important;
+          }
+
+          /* Limita altura e cria scroll */
+          div[role="listbox"] ul{
+            max-height: 45vh !important;
+            overflow-y: auto !important;
+            padding-right: 6px;
+          }
+
+          /* (Opcional) melhora toque e legibilidade dos itens */
+          div[role="listbox"] li{
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+          }
+
+          /* ==================================================
              UTILITIES
           ================================================== */
           .sp-muted{ color: rgba(15,23,42,0.60); }
@@ -131,10 +159,7 @@ def inject_global_css() -> None:
             border-color: var(--border) !important;
           }
 
-          /* Radio -> pill menu:
-             - Esconde bolinha
-             - Estiliza label como "pill"
-             Obs: em algumas versões o estado checked pode estar em div[role="radio"] */
+          /* Radio -> pill menu */
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           label[data-baseweb="radio"] > div:first-child{
@@ -163,7 +188,6 @@ def inject_global_css() -> None:
             transform: translateY(-1px);
           }
 
-          /* checked (quando aria-checked estiver no label) */
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           label[data-baseweb="radio"][aria-checked="true"]{
@@ -176,7 +200,6 @@ def inject_global_css() -> None:
             transform: none;
           }
 
-          /* checked (fallback: quando aria-checked estiver em div role=radio) */
           section[data-testid="stSidebar"]
           div[role="radiogroup"]
           div[role="radio"][aria-checked="true"]{
@@ -304,6 +327,11 @@ def inject_global_css() -> None:
             box-shadow: 0 0 0 3px rgba(51,65,85,0.12) !important;
           }
 
+          /* seta do selectbox */
+          div[data-baseweb="select"] svg{
+            transform: none !important;
+          }
+
           /* ==================================================
              ALERTAS
           ================================================== */
@@ -351,7 +379,6 @@ def inject_global_css() -> None:
             margin-top: 6px;
           }
 
-          /* tons (bordas laterais) */
           .sp-tone-danger{ border-left: 6px solid var(--danger); padding-left: 12px; }
           .sp-tone-warning{ border-left: 6px solid var(--warning); padding-left: 12px; }
           .sp-tone-success{ border-left: 6px solid var(--success); padding-left: 12px; }
@@ -381,7 +408,7 @@ def inject_global_css() -> None:
           @media (prefers-reduced-motion: reduce){
             *{
               transition: none !important;
-              transform: none !important;
+              animation: none !important;
               scroll-behavior: auto !important;
             }
           }
@@ -442,6 +469,11 @@ def inject_global_css() -> None:
 
             div[data-testid="stDataFrame"]{
               border-radius: 12px !important;
+            }
+
+            /* dropdown no mobile: um pouco menor */
+            div[role="listbox"] ul{
+              max-height: 50vh !important;
             }
           }
         </style>

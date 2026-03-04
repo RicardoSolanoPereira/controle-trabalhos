@@ -151,21 +151,33 @@ ROUTES = {
 }
 
 
+def _rerun_soft() -> None:
+    """Recarrega UI sem limpar cache (útil quando só quer atualizar render)."""
+    st.rerun()
+
+
+def _sync_hard() -> None:
+    """Sincronizar: limpa caches e rerun."""
+    st.cache_data.clear()
+    st.rerun()
+
+
 def render_sidebar() -> str:
-    # Cabeçalho mais compacto (melhor no mobile)
+    # -------------------------
+    # Header compacto (menos ruído)
+    # -------------------------
     st.sidebar.markdown("## 📐 Gestão Técnica")
     st.sidebar.caption("Trabalhos • Prazos • Agenda • Financeiro")
-    st.sidebar.markdown(
-        f"<div style='font-size:0.80rem;opacity:0.72;margin-top:2px'>BUILD: {BUILD_ID}</div>",
-        unsafe_allow_html=True,
-    )
-    st.sidebar.divider()
 
-    # Navegação segura (deep-link interno via session_state)
+    # Deep-link interno (session_state)
     if "nav_target" in st.session_state:
         st.session_state["sidebar_menu"] = st.session_state.pop("nav_target")
 
-    # MENU
+    st.sidebar.divider()
+
+    # -------------------------
+    # Menu (radio pill via CSS do theme.py)
+    # -------------------------
     st.sidebar.subheader("Menu")
     menu = st.sidebar.radio(
         label="Menu",
@@ -177,29 +189,72 @@ def render_sidebar() -> str:
 
     st.sidebar.divider()
 
-    # AÇÕES RÁPIDAS
+    # -------------------------
+    # Ações rápidas (compactas)
+    # - só o essencial visível
+    # - resto fica recolhido em expanders
+    # -------------------------
     st.sidebar.subheader("⚡ Ações rápidas")
 
-    sync_clicked = st.sidebar.button(
-        "🔄 Sincronizar", use_container_width=True, key="sidebar_sync_btn"
-    )
-    if sync_clicked:
-        # Sincronizar = limpar cache de dados + recarregar UI
-        st.cache_data.clear()
-        st.rerun()
+    c1, c2 = st.sidebar.columns(2)
+    with c1:
+        if st.button(
+            "🔄 Sincronizar", use_container_width=True, key="sidebar_sync_btn"
+        ):
+            _sync_hard()
+    with c2:
+        if st.button(
+            "↻ Recarregar", use_container_width=True, key="sidebar_reload_btn"
+        ):
+            _rerun_soft()
 
-    # Área técnica escondida (não polui o uso no celular)
-    with st.sidebar.expander("🧰 Manutenção", expanded=False):
-        st.caption("Área técnica (opcional).")
-        st.caption("Backup/alertas serão retomados quando necessário.")
-        st.caption("Objetivo atual: refatorar UI/UX (mobile).")
+    # -------------------------
+    # Ajustes (UI) – recolhido
+    # -------------------------
+    with st.sidebar.expander("🎛️ Ajustes (UI)", expanded=False):
+        st.caption("Preferências visuais (não afetam dados).")
 
-        # Toggle opcional pra facilitar testes de mobile (não quebra nada)
+        st.checkbox(
+            "Modo mobile (cards)",
+            value=bool(st.session_state.get("ui_mobile_cards", True)),
+            key="ui_mobile_cards",
+        )
+
         st.checkbox(
             "Forçar modo celular (teste)",
             value=bool(st.session_state.get("force_mobile", False)),
             key="force_mobile",
         )
+
+    # -------------------------
+    # Manutenção – recolhido e “técnico”
+    # -------------------------
+    with st.sidebar.expander("🧰 Manutenção", expanded=False):
+        st.caption("Área técnica (opcional).")
+        st.caption("Backup/alertas serão retomados quando necessário.")
+        st.caption("Objetivo atual: refatorar UI/UX (mobile).")
+
+        # Debug toggle só se você quiser usar no futuro
+        st.checkbox(
+            "Debug (UI)",
+            value=bool(st.session_state.get("ui_debug", False)),
+            key="ui_debug",
+        )
+
+        # Botão extra (se quiser) para limpar caches manualmente
+        if st.button(
+            "🧹 Limpar cache", use_container_width=True, key="sidebar_clear_cache_btn"
+        ):
+            st.cache_data.clear()
+            st.toast("Cache limpo.", icon="🧹")
+
+    st.sidebar.divider()
+
+    # Rodapé discreto
+    st.sidebar.markdown(
+        f"<div style='font-size:0.78rem;opacity:0.68'>BUILD: {BUILD_ID}</div>",
+        unsafe_allow_html=True,
+    )
 
     return menu
 
