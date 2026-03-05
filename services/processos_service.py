@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
-from sqlalchemy import select, update
+from sqlalchemy import select, func, or_, case
 from sqlalchemy.orm import Session
 
-from db.models import Processo
+from app.db.models import Processo
 
 
+# ==================================================
+# DTOs
+# ==================================================
 @dataclass
 class ProcessoCreate:
     numero_processo: str
@@ -16,7 +19,7 @@ class ProcessoCreate:
     comarca: Optional[str] = None
     tipo_acao: Optional[str] = None
     contratante: Optional[str] = None
-    categoria_servico: Optional[str] = None  # ✅
+    categoria_servico: Optional[str] = None
 
     papel: str = "Assistente Técnico"
     status: str = "Ativo"
@@ -32,7 +35,7 @@ class ProcessoUpdate:
     comarca: Optional[str] = None
     tipo_acao: Optional[str] = None
     contratante: Optional[str] = None
-    categoria_servico: Optional[str] = None  # ✅
+    categoria_servico: Optional[str] = None
 
     papel: Optional[str] = None
     status: Optional[str] = None
@@ -41,6 +44,9 @@ class ProcessoUpdate:
     observacoes: Optional[str] = None
 
 
+# ==================================================
+# Helpers
+# ==================================================
 def _clean_str(v: Optional[str]) -> Optional[str]:
     if v is None:
         return None
@@ -77,6 +83,19 @@ def _remove_categoria_prefix(obs: str) -> str:
     return s[end + 1 :].lstrip()
 
 
+def _status_rank_expr():
+    status_lower = func.lower(Processo.status)
+    return case(
+        (status_lower == "ativo", 3),
+        (status_lower == "suspenso", 2),
+        (status_lower.in_(["concluido", "concluído"]), 1),
+        else_=0,
+    )
+
+
+# ==================================================
+# Service
+# ==================================================
 class ProcessosService:
     @staticmethod
     def create(
@@ -117,32 +136,46 @@ class ProcessosService:
     ) -> List[Processo]:
         stmt = select(Processo).where(Processo.owner_user_id == owner_user_id)
 
-        if status:
-            stmt = stmt.where(Processo.status == status)
-        if papel:
-            stmt = stmt.where(Processo.papel == papel)
-        if categoria_servico:
-            stmt = stmt.where(Processo.categoria_servico == categoria_servico)
+        status_v = _clean_str(status)
+        papel_v = _clean_str(papel)
+        cat_v = _clean_str(categoria_servico)
+
+        if status_v:
+            stmt = stmt.where(Processo.status == status_v)
+        if papel_v:
+            stmt = stmt.where(Processo.papel == papel_v)
+        if cat_v:
+            stmt = stmt.where(Processo.categoria_servico == cat_v)
 
         qv = _clean_str(q)
         if qv:
             like = _like(qv)
             stmt = stmt.where(
-                (Processo.numero_processo.like(like))
-                | (Processo.comarca.like(like))
-                | (Processo.vara.like(like))
-                | (Processo.contratante.like(like))
-                | (Processo.tipo_acao.like(like))
-                | (Processo.categoria_servico.like(like))
-                | (Processo.papel.like(like))
-                | (Processo.status.like(like))
-                | (Processo.observacoes.like(like))
+                or_(
+                    Processo.numero_processo.ilike(like),
+                    Processo.comarca.ilike(like),
+                    Processo.vara.ilike(like),
+                    Processo.contratante.ilike(like),
+                    Processo.tipo_acao.ilike(like),
+                    Processo.categoria_servico.ilike(like),
+                    Processo.papel.ilike(like),
+                    Processo.status.ilike(like),
+                    Processo.observacoes.ilike(like),
+                )
             )
 
-        stmt = stmt.order_by(Processo.id.desc() if order_desc else Processo.id.asc())
+        status_rank = _status_rank_expr()
 
-        if limit and limit > 0:
-            stmt = stmt.limit(int(limit))
+        # ✅ CORRIGIDO: "Mais antigos" inverte rank também
+        if order_desc:
+            stmt = stmt.order_by(status_rank.desc(), Processo.id.desc())
+        else:
+            stmt = stmt.order_by(status_rank.asc(), Processo.id.asc())
+
+        if limit is not None:
+            lim = int(limit)
+            if lim > 0:
+                stmt = stmt.limit(lim)
 
         return list(session.execute(stmt).scalars().all())
 
@@ -151,19 +184,20 @@ class ProcessosService:
         session: Session, owner_user_id: int, processo_id: int
     ) -> Optional[Processo]:
         stmt = select(Processo).where(
-            Processo.id == processo_id, Processo.owner_user_id == owner_user_id
+            Processo.id == int(processo_id),
+            Processo.owner_user_id == int(owner_user_id),
         )
         return session.execute(stmt).scalars().first()
 
     @staticmethod
     def update(
         session: Session, owner_user_id: int, processo_id: int, payload: ProcessoUpdate
-    ) -> None:
+    ) -> Processo:
         proc = ProcessosService.get(session, owner_user_id, processo_id)
         if not proc:
             raise ValueError("Processo não encontrado")
 
-        data = {}
+        data: Dict[str, Any] = {}
         for field, val in payload.__dict__.items():
             if val is None:
                 continue
@@ -174,15 +208,19 @@ class ProcessosService:
         if "numero_processo" in data and not data["numero_processo"]:
             raise ValueError("numero_processo não pode ficar vazio")
 
+        # defaults de segurança
+        if "papel" in data and not data["papel"]:
+            data["papel"] = "Assistente Técnico"
+        if "status" in data and not data["status"]:
+            data["status"] = "Ativo"
+
         if data:
-            session.execute(
-                update(Processo)
-                .where(
-                    Processo.id == processo_id, Processo.owner_user_id == owner_user_id
-                )
-                .values(**data)
-            )
+            for k, v in data.items():
+                setattr(proc, k, v)
             session.commit()
+            session.refresh(proc)
+
+        return proc
 
     @staticmethod
     def delete(session: Session, owner_user_id: int, processo_id: int) -> None:
@@ -213,24 +251,10 @@ class ProcessosService:
             if not cat:
                 continue
 
-            new_obs = (
-                _remove_categoria_prefix(obs)
-                if remove_prefix
-                else (p.observacoes or None)
-            )
+            if remove_prefix:
+                p.observacoes = _clean_str(_remove_categoria_prefix(obs))
+            p.categoria_servico = _clean_str(cat)
 
-            session.execute(
-                update(Processo)
-                .where(Processo.id == p.id, Processo.owner_user_id == owner_user_id)
-                .values(
-                    categoria_servico=cat,
-                    observacoes=(
-                        _clean_str(new_obs)
-                        if remove_prefix
-                        else (p.observacoes or None)
-                    ),
-                )
-            )
             changed += 1
 
         if changed:
