@@ -10,8 +10,11 @@ import pandas as pd
 import streamlit as st
 
 from app.db.connection import get_session
-from services.processos_service import ProcessosService, ProcessoCreate, ProcessoUpdate
-
+from app.services.processos_service import (
+    ProcessosService,
+    ProcessoCreate,
+    ProcessoUpdate,
+)
 from app.ui.theme import card
 from app.ui.page_header import page_header, HeaderAction
 from app.ui_state import navigate, get_qp_str, bump_data_version

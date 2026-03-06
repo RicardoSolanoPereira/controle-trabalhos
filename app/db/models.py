@@ -14,14 +14,15 @@ from sqlalchemy import (
     UniqueConstraint,
     Index,
 )
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .connection import Base
 
 
-# ------------------------------------------------------------
+# =========================================================
 # USERS
-# ------------------------------------------------------------
+# =========================================================
 class User(Base):
     __tablename__ = "users"
 
@@ -39,16 +40,22 @@ class User(Base):
     processos: Mapped[list["Processo"]] = relationship(
         back_populates="owner",
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
-# ------------------------------------------------------------
+# =========================================================
 # PROCESSOS
-# ------------------------------------------------------------
+# =========================================================
 class Processo(Base):
     __tablename__ = "processos"
+
     __table_args__ = (
-        UniqueConstraint("owner_user_id", "numero_processo", name="uq_owner_numero"),
+        UniqueConstraint(
+            "owner_user_id",
+            "numero_processo",
+            name="uq_owner_numero",
+        ),
         Index("ix_processos_owner_status", "owner_user_id", "status"),
         Index("ix_processos_owner_papel", "owner_user_id", "papel"),
         Index("ix_processos_owner_categoria", "owner_user_id", "categoria_servico"),
@@ -62,18 +69,31 @@ class Processo(Base):
         index=True,
     )
 
-    numero_processo: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    numero_processo: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+        index=True,
+    )
 
     vara: Mapped[str | None] = mapped_column(String(120))
     comarca: Mapped[str | None] = mapped_column(String(120))
     tipo_acao: Mapped[str | None] = mapped_column(String(180))
     contratante: Mapped[str | None] = mapped_column(String(180))
 
-    # ✅ novo campo (já existe no SQLite)
-    categoria_servico: Mapped[str | None] = mapped_column(String(120), index=True)
+    categoria_servico: Mapped[str | None] = mapped_column(
+        String(120),
+        index=True,
+    )
 
-    papel: Mapped[str] = mapped_column(String(40), default="Assistente Técnico")
-    status: Mapped[str] = mapped_column(String(40), default="Ativo")
+    papel: Mapped[str] = mapped_column(
+        String(40),
+        default="Assistente Técnico",
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(40),
+        default="Ativo",
+    )
 
     pasta_local: Mapped[str | None] = mapped_column(String(300))
     observacoes: Mapped[str | None] = mapped_column(Text)
@@ -83,6 +103,7 @@ class Processo(Base):
         default=datetime.utcnow,
         nullable=False,
     )
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
@@ -90,31 +111,43 @@ class Processo(Base):
         nullable=False,
     )
 
-    owner: Mapped["User"] = relationship(back_populates="processos")
+    owner: Mapped["User"] = relationship(
+        back_populates="processos",
+        lazy="joined",
+    )
 
     andamentos: Mapped[list["Andamento"]] = relationship(
         back_populates="processo",
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
+
     prazos: Mapped[list["Prazo"]] = relationship(
         back_populates="processo",
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
+
     agendamentos: Mapped[list["Agendamento"]] = relationship(
         back_populates="processo",
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
+
     lancamentos: Mapped[list["LancamentoFinanceiro"]] = relationship(
         back_populates="processo",
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
-# ------------------------------------------------------------
+# =========================================================
 # ANDAMENTOS
-# ------------------------------------------------------------
+# =========================================================
 class Andamento(Base):
+
     __tablename__ = "andamentos"
+
     __table_args__ = (
         Index("ix_andamentos_processo_data", "processo_id", "data_evento"),
     )
@@ -127,8 +160,17 @@ class Andamento(Base):
         index=True,
     )
 
-    data_evento: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    titulo: Mapped[str] = mapped_column(String(180), nullable=False)
+    data_evento: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        index=True,
+    )
+
+    titulo: Mapped[str] = mapped_column(
+        String(180),
+        nullable=False,
+    )
+
     descricao: Mapped[str | None] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -137,14 +179,19 @@ class Andamento(Base):
         nullable=False,
     )
 
-    processo: Mapped["Processo"] = relationship(back_populates="andamentos")
+    processo: Mapped["Processo"] = relationship(
+        back_populates="andamentos",
+        lazy="joined",
+    )
 
 
-# ------------------------------------------------------------
+# =========================================================
 # PRAZOS
-# ------------------------------------------------------------
+# =========================================================
 class Prazo(Base):
+
     __tablename__ = "prazos"
+
     __table_args__ = (
         Index(
             "ix_prazos_processo_concluido_data",
@@ -162,13 +209,28 @@ class Prazo(Base):
         index=True,
     )
 
-    evento: Mapped[str] = mapped_column(String(180), nullable=False)
-    data_limite: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    evento: Mapped[str] = mapped_column(
+        String(180),
+        nullable=False,
+    )
 
-    prioridade: Mapped[str] = mapped_column(String(20), default="Média")
-    concluido: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    data_limite: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        index=True,
+    )
 
-    # rastreabilidade/origem do prazo
+    prioridade: Mapped[str] = mapped_column(
+        String(20),
+        default="Média",
+    )
+
+    concluido: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        index=True,
+    )
+
     origem: Mapped[str | None] = mapped_column(String(40))
     referencia: Mapped[str | None] = mapped_column(String(120))
 
@@ -180,14 +242,19 @@ class Prazo(Base):
         nullable=False,
     )
 
-    processo: Mapped["Processo"] = relationship(back_populates="prazos")
+    processo: Mapped["Processo"] = relationship(
+        back_populates="prazos",
+        lazy="joined",
+    )
 
 
-# ------------------------------------------------------------
+# =========================================================
 # AGENDAMENTOS
-# ------------------------------------------------------------
+# =========================================================
 class Agendamento(Base):
+
     __tablename__ = "agendamentos"
+
     __table_args__ = (
         Index("ix_agendamentos_status_inicio", "status", "inicio"),
         Index("ix_agendamentos_alertas", "alerta_24h_enviado", "alerta_2h_enviado"),
@@ -201,9 +268,16 @@ class Agendamento(Base):
         index=True,
     )
 
-    tipo: Mapped[str] = mapped_column(String(40), nullable=False)
+    tipo: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+    )
 
-    inicio: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    inicio: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+    )
+
     fim: Mapped[datetime | None] = mapped_column(DateTime)
 
     local: Mapped[str | None] = mapped_column(String(220))
@@ -220,6 +294,7 @@ class Agendamento(Base):
         default=False,
         nullable=False,
     )
+
     alerta_2h_enviado: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
@@ -232,17 +307,21 @@ class Agendamento(Base):
         nullable=False,
     )
 
-    # Mantido por compatibilidade
     atualizado_em: Mapped[datetime | None] = mapped_column(DateTime)
 
-    processo: Mapped["Processo"] = relationship(back_populates="agendamentos")
+    processo: Mapped["Processo"] = relationship(
+        back_populates="agendamentos",
+        lazy="joined",
+    )
 
 
-# ------------------------------------------------------------
+# =========================================================
 # FINANCEIRO
-# ------------------------------------------------------------
+# =========================================================
 class LancamentoFinanceiro(Base):
+
     __tablename__ = "financeiro"
+
     __table_args__ = (
         Index("ix_financeiro_processo_data", "processo_id", "data_lancamento"),
     )
@@ -256,14 +335,23 @@ class LancamentoFinanceiro(Base):
     )
 
     data_lancamento: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, index=True
+        DateTime,
+        nullable=False,
+        index=True,
     )
-    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    tipo: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
 
     categoria: Mapped[str | None] = mapped_column(String(120))
     descricao: Mapped[str | None] = mapped_column(Text)
 
-    valor: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    valor: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -271,38 +359,48 @@ class LancamentoFinanceiro(Base):
         nullable=False,
     )
 
-    processo: Mapped["Processo"] = relationship(back_populates="lancamentos")
+    processo: Mapped["Processo"] = relationship(
+        back_populates="lancamentos",
+        lazy="joined",
+    )
 
 
-# ------------------------------------------------------------
-# FERIADOS / CALENDÁRIO
-# ------------------------------------------------------------
+# =========================================================
+# FERIADOS
+# =========================================================
 class Feriado(Base):
+
     __tablename__ = "feriados"
+
     __table_args__ = (
-        # evita duplicidade (mesmo dia + mesmo escopo + mesmo local)
         UniqueConstraint(
-            "data", "escopo", "local", name="uq_feriados_data_escopo_local"
+            "data",
+            "escopo",
+            "local",
+            name="uq_feriados_data_escopo_local",
         ),
         Index("ix_feriados_escopo_local_data", "escopo", "local", "data"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    # Mantido como DateTime (00:00) por compatibilidade com o banco atual.
-    # (o CalendarioService deve consultar com fim exclusivo para não perder registros)
-    data: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    data: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        index=True,
+    )
 
-    # NACIONAL | ESTADUAL_SP | MUNICIPAL | TJSP_GERAL | TJSP_COMARCA
-    escopo: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    escopo: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+        index=True,
+    )
 
-    # Para MUNICIPAL: "Ilhabela"
-    # Para TJSP_COMARCA: "Ilhabela" (ou "São Sebastião" etc.)
-    #
-    # SQLite: UNIQUE permite duplicidade quando local é NULL.
-    # Por isso, no ORM definimos default="" para reduzir inserções com NULL,
-    # especialmente nos escopos FIXOS (NACIONAL/ESTADUAL_SP/TJSP_GERAL).
-    local: Mapped[str | None] = mapped_column(String(120), index=True, default="")
+    local: Mapped[str | None] = mapped_column(
+        String(120),
+        index=True,
+        default="",
+    )
 
     descricao: Mapped[str | None] = mapped_column(String(180))
     fonte: Mapped[str | None] = mapped_column(String(300))
