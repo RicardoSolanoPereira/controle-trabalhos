@@ -1,45 +1,61 @@
 from __future__ import annotations
 
 import json
+from typing import Any, Iterable
+
 import streamlit as st
 
+MENU_DEFAULT = "Painel"
 
-# =========================
-# Inicialização
-# =========================
+STATE_DEFAULTS: dict[str, Any] = {
+    "sidebar_menu": MENU_DEFAULT,
+    "top_nav_menu": MENU_DEFAULT,
+    "_last_menu": MENU_DEFAULT,
+    "nav_target": None,
+    "data_version": 0,
+    "_qp_applied": None,
+    "ui_show_top_nav": True,
+    "ui_mobile_cards": True,
+    "force_mobile": False,
+    "ui_debug": False,
+}
+
+
 def init_state() -> None:
-    defaults = {
-        "sidebar_menu": "Painel",
-        "top_nav_menu": "Painel",
-        "data_version": 0,
-        "nav_target": None,
-        "_last_menu": "Painel",
-        "_qp_applied": None,
-    }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
+    for key, value in STATE_DEFAULTS.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 
-# =========================
-# Query Params
-# =========================
 def _get_qp():
     return st.query_params
 
 
-def _normalize_value(v):
-    if isinstance(v, dict):
-        return json.dumps(v)
-    if isinstance(v, (list, tuple)):
-        return [str(x) for x in v]
-    return str(v)
+def _normalize_qp_value(value: Any):
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value]
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return str(value)
 
 
-def _set_qp(**params):
-    qp = st.query_params
-    for k, v in params.items():
-        qp[k] = _normalize_value(v)
+def _set_qp(**params: Any) -> None:
+    qp = _get_qp()
+    for key, value in params.items():
+        normalized = _normalize_qp_value(value)
+
+        if normalized is None:
+            try:
+                del qp[key]
+            except Exception:
+                pass
+            continue
+
+        qp[key] = normalized
 
 
 def get_qp_str(key: str, default: str | None = None) -> str | None:
@@ -47,72 +63,81 @@ def get_qp_str(key: str, default: str | None = None) -> str | None:
     if key not in qp:
         return default
 
-    val = qp[key]
-    if isinstance(val, list):
-        return val[0]
-    return val
+    value = qp[key]
+    if isinstance(value, list):
+        return str(value[0]) if value else default
+    if value is None:
+        return default
+    return str(value)
 
 
-def get_qp_json(key: str, default=None):
-    val = get_qp_str(key)
-    if val is None:
+def get_qp_json(key: str, default: Any = None) -> Any:
+    value = get_qp_str(key)
+    if value is None:
         return default
     try:
-        return json.loads(val)
+        return json.loads(value)
     except Exception:
         return default
 
 
-# =========================
-# Navegação
-# =========================
-def navigate(menu: str | None = None, **params):
-    """
-    Deep-link interno.
+def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> bool:
+    if not isinstance(menu, str) or not menu.strip():
+        return False
+    if allowed is None:
+        return True
+    return menu in set(allowed)
 
-    Não altera diretamente chaves de widgets já instanciados.
-    Apenas agenda a navegação e atualiza query params.
-    O main.py aplicará o target ANTES de renderizar os widgets.
-    """
-    if menu:
+
+def get_current_menu(default: str = MENU_DEFAULT) -> str:
+    value = st.session_state.get("_last_menu", default)
+    if not isinstance(value, str) or not value.strip():
+        return default
+    return value
+
+
+def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
+    if not isinstance(menu, str) or not menu.strip():
+        return
+
+    st.session_state["_last_menu"] = menu
+    st.session_state["sidebar_menu"] = menu
+    st.session_state["top_nav_menu"] = menu
+
+    if update_qp:
+        _set_qp(menu=menu)
+
+
+def navigate(menu: str | None = None, **params: Any) -> None:
+    if menu is not None:
         st.session_state["nav_target"] = menu
         params["menu"] = menu
     _set_qp(**params)
 
 
-def consume_nav_target(default: str | None = None):
+def consume_nav_target(default: str | None = None) -> str | None:
     target = st.session_state.get("nav_target")
-    if target is None:
-        return default
     st.session_state["nav_target"] = None
-    return target
+    return target if target is not None else default
 
 
-def on_menu_change(menu: str):
-    """
-    Atualiza somente o estado canônico de navegação e a URL.
-
-    IMPORTANTE:
-    - não altera top_nav_menu
-    - não altera sidebar_menu
-
-    Essas chaves pertencem aos widgets e não devem ser sobrescritas
-    depois da instanciação.
-    """
-    prev = st.session_state.get("_last_menu")
-    if prev == menu:
-        return
-
-    st.session_state["_last_menu"] = menu
-    _set_qp(menu=menu)
+def on_top_nav_change() -> None:
+    menu = st.session_state.get("top_nav_menu", MENU_DEFAULT)
+    if menu != st.session_state.get("_last_menu"):
+        set_current_menu(menu)
 
 
-# =========================
-# Controle de atualização
-# =========================
-def bump_data_version():
-    st.session_state["data_version"] = int(st.session_state.get("data_version", 0)) + 1
+def on_sidebar_menu_change() -> None:
+    menu = st.session_state.get("sidebar_menu", MENU_DEFAULT)
+    if menu != st.session_state.get("_last_menu"):
+        set_current_menu(menu)
 
 
-def get_data_version():
+def bump_data_version() -> int:
+    current = int(st.session_state.get("data_version", 0)) + 1
+    st.session_state["data_version"] = current
+    return current
+
+
+def get_data_version() -> int:
     return int(st.session_state.get("data_version", 0))

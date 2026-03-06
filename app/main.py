@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Callable
 
 import streamlit as st
 from dotenv import load_dotenv
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-# ------------------------------------------------------------
-# APP IMPORTS
-# ------------------------------------------------------------
 from app.db.connection import session_scope
 from app.db.init_db import init_db
 from app.db.models import User
@@ -18,25 +16,27 @@ from app.db.models import User
 from app.ui import agendamentos, andamentos, dashboard, financeiro, prazos, processos
 from app.ui.theme import inject_global_css
 from app.ui_state import (
+    MENU_DEFAULT,
     consume_nav_target,
+    get_current_menu,
     get_qp_str,
     init_state,
-    on_menu_change,
+    is_valid_menu,
+    on_sidebar_menu_change,
+    on_top_nav_change,
+    set_current_menu,
 )
 
-# ------------------------------------------------------------
-# LOCAL SETUP
-# ------------------------------------------------------------
 Path("data").mkdir(parents=True, exist_ok=True)
 load_dotenv()
 
-DEBUG = os.getenv("DEBUG", "0") == "1"
+DEBUG = os.getenv("DEBUG", "0").strip() == "1"
 
 DEFAULT_SIDEBAR_STATE = os.getenv("SIDEBAR_STATE", "collapsed").strip().lower()
 if DEFAULT_SIDEBAR_STATE not in {"expanded", "collapsed"}:
     DEFAULT_SIDEBAR_STATE = "collapsed"
 
-BUILD_ID = os.getenv("BUILD_ID", "2026-02-28-DEF-1")
+BUILD_ID = os.getenv("BUILD_ID", "2026-02-28-DEF-1").strip()
 TOP_NAV_DEFAULT = os.getenv("TOP_NAV_DEFAULT", "1").strip() == "1"
 
 st.set_page_config(
@@ -46,78 +46,6 @@ st.set_page_config(
     initial_sidebar_state=DEFAULT_SIDEBAR_STATE,
 )
 
-# Estado base
-init_state()
-
-
-# ------------------------------------------------------------
-# BOOTSTRAP DB + THEME
-# ------------------------------------------------------------
-@st.cache_resource
-def _bootstrap_db() -> bool:
-    init_db()
-    return True
-
-
-@st.cache_resource
-def _bootstrap_theme() -> bool:
-    inject_global_css()
-    return True
-
-
-_bootstrap_db()
-_bootstrap_theme()
-
-# ------------------------------------------------------------
-# DEFAULT USER (BOOTSTRAP)
-# ------------------------------------------------------------
-DEFAULT_EMAIL = os.getenv("DEFAULT_USER_EMAIL", "admin@local").strip()
-DEFAULT_NAME = os.getenv("DEFAULT_USER_NAME", "Administrador").strip()
-
-
-def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
-    with session_scope() as s:
-        user = (
-            s.execute(select(User).where(User.email == default_email)).scalars().first()
-        )
-        if user:
-            return user.id
-
-        try:
-            user = User(name=default_name, email=default_email)
-            s.add(user)
-            s.flush()
-            s.refresh(user)
-            return user.id
-
-        except IntegrityError:
-            s.rollback()
-            user = (
-                s.execute(select(User).where(User.email == default_email))
-                .scalars()
-                .first()
-            )
-            if not user:
-                raise
-            return user.id
-
-
-@st.cache_resource
-def _get_owner_user_id_cached(email: str, name: str) -> int:
-    return get_or_create_owner_user_id(email, name)
-
-
-try:
-    owner_user_id = _get_owner_user_id_cached(DEFAULT_EMAIL, DEFAULT_NAME)
-except Exception as e:
-    st.error(f"Falha ao inicializar usuário padrão: {type(e).__name__}: {e}")
-    if DEBUG:
-        st.exception(e)
-    st.stop()
-
-# ------------------------------------------------------------
-# NAV / ROUTES
-# ------------------------------------------------------------
 MENU_KEYS = [
     "Painel",
     "Trabalhos",
@@ -136,7 +64,7 @@ MENU_LABELS = {
     "Financeiro": "💰 Financeiro",
 }
 
-ROUTES = {
+ROUTES: dict[str, Callable] = {
     "Painel": dashboard.render,
     "Trabalhos": processos.render,
     "Prazos": prazos.render,
@@ -145,42 +73,88 @@ ROUTES = {
     "Financeiro": financeiro.render,
 }
 
+init_state()
 
-# ------------------------------------------------------------
-# Query param / nav target sync
-# ------------------------------------------------------------
+
+@st.cache_resource
+def _bootstrap_db() -> bool:
+    init_db()
+    return True
+
+
+@st.cache_resource
+def _bootstrap_theme() -> bool:
+    inject_global_css()
+    return True
+
+
+_bootstrap_db()
+_bootstrap_theme()
+
+DEFAULT_EMAIL = os.getenv("DEFAULT_USER_EMAIL", "admin@local").strip()
+DEFAULT_NAME = os.getenv("DEFAULT_USER_NAME", "Administrador").strip()
+
+
+def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
+    with session_scope() as s:
+        user = (
+            s.execute(select(User).where(User.email == default_email)).scalars().first()
+        )
+        if user:
+            return int(user.id)
+
+        try:
+            user = User(name=default_name, email=default_email)
+            s.add(user)
+            s.flush()
+            s.refresh(user)
+            return int(user.id)
+        except IntegrityError:
+            s.rollback()
+            user = (
+                s.execute(select(User).where(User.email == default_email))
+                .scalars()
+                .first()
+            )
+            if not user:
+                raise
+            return int(user.id)
+
+
+@st.cache_resource
+def _get_owner_user_id_cached(email: str, name: str) -> int:
+    return get_or_create_owner_user_id(email, name)
+
+
+try:
+    owner_user_id = _get_owner_user_id_cached(DEFAULT_EMAIL, DEFAULT_NAME)
+except Exception as e:
+    st.error(f"Falha ao inicializar usuário padrão: {type(e).__name__}: {e}")
+    if DEBUG:
+        st.exception(e)
+    st.stop()
+
+
 def _apply_initial_route_sync() -> None:
-    """
-    Aplica sincronização ANTES de renderizar widgets de navegação.
-    Isso evita conflito com session_state de widgets já instanciados.
-    """
-    qp_menu = get_qp_str("menu")
     nav_target = consume_nav_target(default=None)
+    qp_menu = get_qp_str("menu")
 
-    target = None
-    if nav_target in MENU_KEYS:
-        target = nav_target
-    elif qp_menu in MENU_KEYS:
-        target = qp_menu
+    if is_valid_menu(nav_target, MENU_KEYS):
+        set_current_menu(str(nav_target), update_qp=False)
+        return
 
-    if not target:
-        target = st.session_state.get("_last_menu", "Painel")
-        if target not in MENU_KEYS:
-            target = "Painel"
+    if is_valid_menu(qp_menu, MENU_KEYS):
+        set_current_menu(str(qp_menu), update_qp=False)
+        return
 
-    st.session_state["sidebar_menu"] = target
-    st.session_state["top_nav_menu"] = target
-
-    if st.session_state.get("_last_menu") != target:
-        on_menu_change(target)
+    current = get_current_menu(default=MENU_DEFAULT)
+    if not is_valid_menu(current, MENU_KEYS):
+        set_current_menu(MENU_DEFAULT, update_qp=False)
 
 
 _apply_initial_route_sync()
 
 
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
 def _rerun_soft() -> None:
     try:
         st.rerun()
@@ -196,9 +170,6 @@ def _sync_hard() -> None:
     _rerun_soft()
 
 
-# ------------------------------------------------------------
-# Top nav
-# ------------------------------------------------------------
 def _top_nav(current_menu: str) -> str:
     force_mobile = bool(st.session_state.get("force_mobile", False))
     show_top_nav = (
@@ -211,12 +182,12 @@ def _top_nav(current_menu: str) -> str:
     c1, c2 = st.columns([3, 1], vertical_alignment="center")
 
     with c1:
-        menu = st.selectbox(
+        st.selectbox(
             "Navegação",
             MENU_KEYS,
-            index=MENU_KEYS.index(current_menu) if current_menu in MENU_KEYS else 0,
             format_func=lambda k: MENU_LABELS.get(k, k),
             key="top_nav_menu",
+            on_change=on_top_nav_change,
             label_visibility="collapsed",
         )
 
@@ -229,18 +200,11 @@ def _top_nav(current_menu: str) -> str:
         ):
             _rerun_soft()
 
-    if menu != current_menu:
-        st.session_state["sidebar_menu"] = menu
-        on_menu_change(menu)
-
     st.divider()
-    return menu
+    return get_current_menu()
 
 
-# ------------------------------------------------------------
-# Sidebar
-# ------------------------------------------------------------
-def render_sidebar() -> str:
+def render_sidebar(current_menu: str) -> str:
     st.sidebar.markdown("### 📐 Gestão Técnica")
 
     force_mobile = bool(st.session_state.get("force_mobile", False))
@@ -248,20 +212,15 @@ def render_sidebar() -> str:
     sidebar_minimal = show_top_nav or force_mobile
 
     if not sidebar_minimal:
-        menu = st.sidebar.radio(
+        st.sidebar.radio(
             label="Menu",
             options=MENU_KEYS,
             format_func=lambda k: MENU_LABELS.get(k, k),
             key="sidebar_menu",
+            on_change=on_sidebar_menu_change,
             label_visibility="collapsed",
         )
-
-        if menu != st.session_state.get("_last_menu"):
-            on_menu_change(menu)
-
         st.sidebar.divider()
-    else:
-        menu = str(st.session_state.get("sidebar_menu", "Painel"))
 
     st.sidebar.markdown("**Ações**")
     c1, c2 = st.sidebar.columns(2)
@@ -284,31 +243,15 @@ def render_sidebar() -> str:
             _rerun_soft()
 
     with st.sidebar.expander("⚙️ Config", expanded=False):
-        st.checkbox(
-            "Mostrar navegação no topo",
-            value=bool(st.session_state.get("ui_show_top_nav", TOP_NAV_DEFAULT)),
-            key="ui_show_top_nav",
-        )
-        st.checkbox(
-            "Modo mobile (cards)",
-            value=bool(st.session_state.get("ui_mobile_cards", True)),
-            key="ui_mobile_cards",
-        )
-        st.checkbox(
-            "Forçar modo celular (teste)",
-            value=bool(st.session_state.get("force_mobile", False)),
-            key="force_mobile",
-        )
+        st.checkbox("Mostrar navegação no topo", key="ui_show_top_nav")
+        st.checkbox("Modo mobile (cards)", key="ui_mobile_cards")
+        st.checkbox("Forçar modo celular (teste)", key="force_mobile")
 
         st.divider()
 
-        st.checkbox(
-            "Debug (UI)",
-            value=bool(st.session_state.get("ui_debug", False)),
-            key="ui_debug",
-        )
+        st.checkbox("Debug (UI)", key="ui_debug")
 
-        if st.session_state.get("ui_debug", False):
+        if bool(st.session_state.get("ui_debug", False)):
             if st.button(
                 "🧹 Limpar cache",
                 use_container_width=True,
@@ -322,12 +265,9 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
 
-    return menu
+    return get_current_menu()
 
 
-# ------------------------------------------------------------
-# Shell / Router
-# ------------------------------------------------------------
 def render_shell(menu: str) -> None:
     render_fn = ROUTES.get(menu)
     if not render_fn:
@@ -340,17 +280,13 @@ def render_shell(menu: str) -> None:
         render_fn()
     except Exception as e:
         st.error(f"Erro ao abrir a página '{menu}'.")
-        st.exception(e)
+        if DEBUG:
+            st.exception(e)
+        else:
+            st.caption(f"{type(e).__name__}: {e}")
 
 
-# ------------------------------------------------------------
-# APP ENTRY
-# ------------------------------------------------------------
-selected_menu = render_sidebar()
-selected_menu = _top_nav(selected_menu)
-
-# garante consistência final do estado canônico
-if selected_menu != st.session_state.get("_last_menu"):
-    on_menu_change(selected_menu)
-
-render_shell(selected_menu)
+current_menu = get_current_menu()
+current_menu = render_sidebar(current_menu)
+current_menu = _top_nav(current_menu)
+render_shell(current_menu)
