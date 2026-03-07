@@ -18,8 +18,8 @@ from services.agendamentos_service import (
     TIPOS_VALIDOS,
     STATUS_VALIDOS,
 )
-from app.ui.theme import inject_global_css, card
-from app.ui.page_header import page_header
+from ui.theme import inject_global_css, card
+from ui.page_header import page_header
 
 
 # -------------------------

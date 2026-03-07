@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 import streamlit as st
 
-from app.ui.layout import grid_weights, is_mobile
+from ui.layout import grid_weights, is_mobile
 
 
 # ---------------------------------------------------------

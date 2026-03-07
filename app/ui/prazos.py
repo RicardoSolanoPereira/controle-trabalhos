@@ -9,15 +9,15 @@ import pandas as pd
 import streamlit as st
 from sqlalchemy import select
 
-from app.db.connection import get_session
-from app.db.models import Processo
+from db.connection import get_session
+from db.models import Processo
 from services.prazos_service import PrazosService, PrazoCreate, PrazoUpdate
 from services.utils import now_br, ensure_br, format_date_br, date_to_br_datetime
 from services.calendario_service import CalendarioService, RegrasCalendario
 
-from app.ui.theme import card, subtle_divider
-from app.ui.page_header import page_header
-from app.ui_state import bump_data_version
+from ui.theme import card, subtle_divider
+from ui.page_header import page_header
+from ui_state import bump_data_version
 
 
 # ============================================================

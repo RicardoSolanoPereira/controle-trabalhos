@@ -7,12 +7,12 @@ import pandas as pd
 import streamlit as st
 from sqlalchemy import case, func, select
 
-from app.db.connection import get_session
-from app.db.models import Agendamento, LancamentoFinanceiro, Prazo, Processo
-from app.ui.layout import grid, section, spacer
-from app.ui.page_header import HeaderAction, page_header
-from app.ui.theme import card
-from app.ui_state import navigate
+from db.connection import get_session
+from db.models import Agendamento, LancamentoFinanceiro, Prazo, Processo
+from ui.layout import grid, section, spacer
+from ui.page_header import HeaderAction, page_header
+from ui.theme import card
+from ui_state import navigate
 from services.utils import ensure_br, format_date_br, now_br
 
 ATUACAO_UI = {
