@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy import select, func, or_, case
 from sqlalchemy.orm import Session
 
-from app.db.models import Processo
+from db.models import Processo
 
 
 # ==================================================
