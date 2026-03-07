@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.db.connection import session_scope
-from app.db.init_db import init_db
-from app.db.models import User
+from db.connection import session_scope
+from db.init_db import init_db
+from db.models import User
 
-from app.ui import agendamentos, andamentos, dashboard, financeiro, prazos, processos
-from app.ui.theme import inject_global_css
-from app.ui_state import (
+from ui import agendamentos, andamentos, dashboard, financeiro, prazos, processos
+from ui.theme import inject_global_css
+from ui_state import (
     MENU_DEFAULT,
     consume_nav_target,
     get_current_menu,
