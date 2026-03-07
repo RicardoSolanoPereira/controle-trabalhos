@@ -17,8 +17,8 @@ from services.andamentos_service import (
     AndamentoUpdate,
 )
 
-from app.ui.theme import inject_global_css, card, subtle_divider
-from app.ui.page_header import page_header
+from ui.theme import inject_global_css, card, subtle_divider
+from ui.page_header import page_header
 
 
 # ============================================================
