@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import html
-
 import streamlit as st
 
-_CSS_VERSION = "v6"
+_CSS_VERSION = "v13"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 
@@ -23,82 +22,199 @@ def inject_global_css() -> None:
     st.markdown(
         """
 <style>
-:root{
-  --bg:#ffffff;
-  --surface:#ffffff;
-  --surface-soft:#f8fafc;
 
-  --border:#e5e7eb;
+/* ======================================================
+ROOT VARIABLES
+====================================================== */
+
+:root{
+
+  --bg:#f8fafb;
+
+  --surface:#ffffff;
+  --surface-soft:#fbfcfd;
+  --surface-muted:#f1f5f4;
+  --surface-elevated:#ffffff;
+
+  --border:#e2e8e5;
+  --border-strong:#cfd8d3;
+  --border-soft:rgba(15,23,42,0.06);
 
   --text:#0f172a;
-  --muted:#64748b;
+  --muted:#667085;
+  --muted-strong:#475467;
 
-  --primary:#334155;
-  --primary-hover:#1e293b;
+  --primary:#3f5f5a;
+  --primary-hover:#344e4a;
+  --primary-soft:rgba(63,95,90,0.08);
 
   --danger:#dc2626;
-  --warning:#f59e0b;
-  --success:#16a34a;
-  --info:#2563eb;
+  --warning:#d97706;
+  --success:#15803d;
+  --info:#3f5f5a;
 
+  --danger-bg:rgba(220,38,38,0.07);
+  --warning-bg:rgba(217,119,6,0.10);
+  --success-bg:rgba(21,128,61,0.08);
+  --info-bg:rgba(63,95,90,0.08);
+  --neutral-bg:rgba(15,23,42,0.04);
+
+  --radius-xl:22px;
   --radius-lg:18px;
   --radius-md:14px;
+  --radius-sm:12px;
+  --radius-xs:10px;
 
-  --shadow:0 1px 2px rgba(0,0,0,0.05);
-  --shadow-soft:0 4px 10px rgba(0,0,0,0.06);
-  --shadow-strong:0 8px 18px rgba(0,0,0,0.10);
+  --shadow:0 1px 2px rgba(15,23,42,0.04);
+  --shadow-soft:0 4px 12px rgba(15,23,42,0.05);
+  --shadow-strong:0 8px 20px rgba(15,23,42,0.07);
+
+  --transition:all .15s ease;
 }
+
 
 /* ======================================================
 BASE
 ====================================================== */
 
-.stApp{
-  background:var(--bg);
+html, body, [class*="css"]{
   color:var(--text);
+}
+
+html{
+  scroll-behavior:smooth;
+}
+
+body{
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+.stApp{
+  background:
+    radial-gradient(circle at top right, rgba(63,95,90,0.03), transparent 22%),
+    var(--bg);
 }
 
 header[data-testid="stHeader"]{
   background:transparent;
+  height:0px;
 }
 
+
+/* ======================================================
+LAYOUT COMPACTO
+====================================================== */
+
 .block-container{
-  padding-top:1.2rem;
-  padding-bottom:1.6rem;
-  max-width:1400px;
+  padding-top:0.65rem;
+  padding-bottom:1.05rem;
+  padding-left:1.10rem;
+  padding-right:1.10rem;
+  max-width:1380px;
   overflow:visible !important;
 }
 
-h1,h2,h3,h4{
-  letter-spacing:-0.015em;
-  color:var(--text);
-}
-
-.stCaption{
-  color:var(--muted) !important;
-}
+/* remove espaços exagerados */
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.42rem;
+  margin-bottom:0.25rem;
 }
-
-/* ======================================================
-SELECT / POPOVER FIX
-====================================================== */
 
 section.main{
   overflow:visible !important;
 }
 
-div[role="listbox"]{
-  z-index:99999 !important;
+
+/* ======================================================
+TYPOGRAPHY
+====================================================== */
+
+h1,h2,h3,h4{
+  letter-spacing:-0.02em;
+  color:var(--text);
+  margin-bottom:0.15rem;
 }
 
-div[role="listbox"] ul{
-  max-height:45vh !important;
-  overflow-y:auto !important;
-  padding-right:6px;
+h1{
+  font-size:1.80rem;
+  line-height:1.08;
+  font-weight:820;
 }
+
+h2{
+  font-size:1.34rem;
+  line-height:1.12;
+  font-weight:760;
+}
+
+h3{
+  font-size:1.04rem;
+  line-height:1.2;
+  font-weight:720;
+}
+
+h4{
+  font-size:0.96rem;
+  line-height:1.25;
+  font-weight:700;
+}
+
+p, li, label{
+  color:var(--text);
+}
+
+small,
+.stCaption{
+  color:var(--muted) !important;
+}
+
+
+/* ======================================================
+PAGE HEADER
+====================================================== */
+
+.sp-page-header{
+  padding:0.05rem 0 0.02rem 0;
+}
+
+.sp-page-title{
+  font-size:1.70rem;
+  font-weight:860;
+  line-height:1.05;
+  letter-spacing:-0.025em;
+  color:var(--text);
+}
+
+.sp-page-subtitle{
+  margin-top:0.15rem;
+  font-size:0.94rem;
+  line-height:1.42;
+  color:var(--muted);
+  max-width:76ch;
+}
+
+
+/* ======================================================
+SECTION HEADER
+====================================================== */
+
+.sp-section-header{
+  margin-bottom:0.08rem;
+}
+
+.sp-section-title{
+  font-size:1rem;
+  font-weight:800;
+  letter-spacing:-0.01em;
+}
+
+.sp-section-subtitle{
+  margin-top:0.05rem;
+  font-size:0.90rem;
+  color:var(--muted);
+}
+
 
 /* ======================================================
 SURFACE
@@ -109,16 +225,14 @@ SURFACE
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   padding:14px 16px;
-  box-shadow:var(--shadow);
+  box-shadow:var(--shadow-soft);
+  transition:var(--transition);
 }
 
-/* ======================================================
-MUTED UTILS
-====================================================== */
-
-.sp-muted{
-  color:var(--muted);
+.sp-surface:hover{
+  border-color:var(--border-strong);
 }
+
 
 /* ======================================================
 CHIPS
@@ -130,32 +244,34 @@ CHIPS
   gap:6px;
   padding:6px 10px;
   border-radius:999px;
-  background:rgba(15,23,42,0.04);
-  border:1px solid rgba(15,23,42,0.12);
-  font-size:0.82rem;
-  color:rgba(15,23,42,0.85);
-  white-space:nowrap;
+  background:var(--neutral-bg);
+  border:1px solid rgba(15,23,42,0.08);
+  font-size:0.80rem;
+  font-weight:600;
+  line-height:1;
 }
+
 
 /* ======================================================
 SIDEBAR
 ====================================================== */
 
 section[data-testid="stSidebar"]{
-  background:#f1f5f9;
-  border-right:1px solid var(--border);
+  background:#f4f7f6;
+  border-right:1px solid #dce4e1;
 }
 
 section[data-testid="stSidebar"] .block-container{
-  padding:0.75rem !important;
+  padding:0.78rem !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.28rem !important;
+  margin-bottom:0.22rem !important;
 }
 
+
 /* ======================================================
-SIDEBAR MENU (pill)
+SIDEBAR MENU
 ====================================================== */
 
 section[data-testid="stSidebar"]
@@ -167,119 +283,92 @@ label[data-baseweb="radio"] > div:first-child{
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"]{
+
   display:block;
   width:100%;
-  padding:8px 12px;
+  padding:9px 12px;
+
   border-radius:12px;
-  margin-bottom:5px;
+
+  margin-bottom:4px;
+
   cursor:pointer;
-  border:1px solid rgba(15,23,42,0.10);
-  background:rgba(255,255,255,0.78);
+
+  border:1px solid rgba(15,23,42,0.08);
+
+  background:rgba(255,255,255,0.92);
+
   font-size:0.92rem;
-  transition:all .12s ease;
+
+  transition:var(--transition);
 }
 
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"]:hover{
-  background:rgba(15,23,42,0.05);
-  border-color:rgba(15,23,42,0.20);
+
+  background:#ffffff;
+
+  border-color:rgba(15,23,42,0.14);
 }
 
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"][aria-checked="true"]{
-  background:rgba(51,65,85,0.10);
+
+  background:var(--primary-soft);
+
   border-left:4px solid var(--primary);
+
   font-weight:750;
 }
 
-/* ======================================================
-EXPANDERS
-====================================================== */
-
-section.main details[data-testid="stExpander"]{
-  border-radius:14px;
-  border:1px solid rgba(15,23,42,0.14);
-  background:#ffffff;
-  box-shadow:var(--shadow);
-}
-
-section.main details[data-testid="stExpander"] summary{
-  padding:10px 12px;
-}
-
-/* ======================================================
-TABS
-====================================================== */
-
-div[data-baseweb="tab-list"]{
-  background:#ffffff;
-  border:1px solid rgba(15,23,42,0.16);
-  border-radius:14px;
-  padding:6px;
-  gap:6px;
-  box-shadow:var(--shadow);
-}
-
-button[data-baseweb="tab"]{
-  border-radius:12px;
-  padding:9px 12px;
-  font-weight:700;
-  background:var(--surface-soft);
-  border:1px solid rgba(15,23,42,0.12);
-  color:rgba(15,23,42,0.86);
-  transition:all .12s ease;
-}
-
-button[data-baseweb="tab"]:hover{
-  background:#ffffff;
-  border-color:rgba(15,23,42,0.22);
-}
-
-button[data-baseweb="tab"][aria-selected="true"]{
-  background:var(--primary);
-  border-color:var(--primary);
-  color:#ffffff;
-  box-shadow:var(--shadow-strong);
-}
-
-div[data-baseweb="tab-highlight"]{
-  display:none !important;
-}
 
 /* ======================================================
 BUTTONS
 ====================================================== */
 
 .stButton > button{
+
   border-radius:12px;
-  padding:0.6rem 1rem;
-  font-weight:600;
-  border:1px solid rgba(15,23,42,0.15);
-  background:transparent;
-  transition:all .15s ease;
+
+  padding:0.55rem 0.95rem;
+
+  font-weight:650;
+
+  border:1px solid rgba(15,23,42,0.10);
+
+  background:#ffffff;
+
+  color:var(--text);
+
+  transition:var(--transition);
 }
 
 .stButton > button:hover{
-  background:rgba(15,23,42,0.05);
-  border-color:rgba(15,23,42,0.25);
+
+  background:rgba(15,23,42,0.025);
+
+  border-color:rgba(15,23,42,0.18);
+
   transform:translateY(-1px);
 }
 
 .stButton > button[kind="primary"],
 .stButton > button[class*="primary"]{
+
   background:var(--primary) !important;
+
   border:1px solid var(--primary) !important;
+
   color:#fff !important;
-  box-shadow:var(--shadow-soft);
 }
 
-.stButton > button[kind="primary"]:hover,
-.stButton > button[class*="primary"]:hover{
+.stButton > button[kind="primary"]:hover{
+
   background:var(--primary-hover) !important;
-  border-color:var(--primary-hover) !important;
 }
+
 
 /* ======================================================
 INPUTS
@@ -288,107 +377,180 @@ INPUTS
 div[data-baseweb="input"] > div,
 div[data-baseweb="textarea"] > div,
 div[data-baseweb="select"] > div{
+
   border-radius:var(--radius-md) !important;
-  border-color:rgba(15,23,42,0.14) !important;
+
+  border-color:rgba(15,23,42,0.10) !important;
+
   background:#ffffff !important;
+
+  min-height:42px;
 }
 
 div[data-baseweb="input"] > div:focus-within,
 div[data-baseweb="textarea"] > div:focus-within,
 div[data-baseweb="select"] > div:focus-within{
-  border-color:rgba(51,65,85,0.52) !important;
-  box-shadow:0 0 0 3px rgba(51,65,85,0.12) !important;
+
+  border-color:rgba(63,95,90,0.35) !important;
+
+  box-shadow:0 0 0 0.16rem rgba(63,95,90,0.09) !important;
 }
+
 
 /* ======================================================
 DATAFRAME
 ====================================================== */
 
 div[data-testid="stDataFrame"]{
+
   border-radius:14px;
+
   overflow:hidden;
+
   border:1px solid var(--border);
+
+  background:#ffffff;
 }
+
 
 /* ======================================================
 CARD KPI
 ====================================================== */
 
 .sp-card{
-  background:var(--surface);
+
+  background:#ffffff;
+
   border:1px solid var(--border);
+
   border-radius:var(--radius-lg);
+
   padding:14px 16px;
-  box-shadow:var(--shadow);
+
+  box-shadow:var(--shadow-soft);
+
+  transition:var(--transition);
+
+  min-height:100px;
+}
+
+.sp-card:hover{
+
+  border-color:var(--border-strong);
+
+  transform:translateY(-1px);
 }
 
 .sp-card-title{
+
   font-size:0.78rem;
-  color:rgba(15,23,42,0.62);
-  margin-bottom:6px;
-  font-weight:720;
+
+  color:rgba(15,23,42,0.58);
+
+  margin-bottom:7px;
+
+  font-weight:760;
+
+  text-transform:uppercase;
+
+  letter-spacing:0.03em;
 }
 
 .sp-card-value{
-  font-size:1.42rem;
-  font-weight:840;
+
+  font-size:1.40rem;
+
+  font-weight:850;
+
   color:var(--text);
+
+  line-height:1.1;
 }
 
 .sp-card-value.emph{
-  font-size:1.8rem;
+
+  font-size:1.72rem;
+
   font-weight:900;
 }
 
 .sp-card-sub{
-  color:rgba(15,23,42,0.58);
-  font-size:0.82rem;
-  margin-top:6px;
+
+  color:rgba(15,23,42,0.56);
+
+  font-size:0.84rem;
+
+  margin-top:8px;
 }
+
 
 /* ======================================================
 TONES
 ====================================================== */
 
-.sp-tone-danger{border-left:6px solid var(--danger);padding-left:12px;}
-.sp-tone-warning{border-left:6px solid var(--warning);padding-left:12px;}
-.sp-tone-success{border-left:6px solid var(--success);padding-left:12px;}
-.sp-tone-info{border-left:6px solid var(--info);padding-left:12px;}
-.sp-tone-neutral{border-left:6px solid #cbd5e1;padding-left:12px;}
+.sp-tone-danger{border-left:5px solid var(--danger);padding-left:13px;}
+.sp-tone-warning{border-left:5px solid var(--warning);padding-left:13px;}
+.sp-tone-success{border-left:5px solid var(--success);padding-left:13px;}
+.sp-tone-info{border-left:5px solid var(--info);padding-left:13px;}
+.sp-tone-neutral{border-left:5px solid #cbd5e1;padding-left:13px;}
+
+
+/* ======================================================
+DIVIDER
+====================================================== */
+
+.sp-divider{
+
+  border:0;
+
+  border-top:1px solid #e5e7eb;
+
+  margin:0.55rem 0;
+}
+
 
 /* ======================================================
 MOBILE
 ====================================================== */
 
 @media (max-width:768px){
-  .block-container{
-    padding:1rem !important;
-    max-width:100% !important;
-  }
 
-  .sp-card,
-  .sp-surface{
-    padding:12px;
-  }
+.block-container{
 
-  .sp-card-value{
-    font-size:1.2rem;
-  }
+padding:0.90rem !important;
 
-  .sp-card-value.emph{
-    font-size:1.45rem;
-  }
+max-width:100% !important;
 
-  .stButton > button{
-    min-height:44px !important;
-    padding:0.75rem 1rem !important;
-  }
-
-  div[data-baseweb="input"] input,
-  div[data-baseweb="textarea"] textarea{
-    font-size:16px !important;
-  }
 }
+
+.sp-page-title{
+
+font-size:1.45rem;
+
+}
+
+.sp-card{
+
+min-height:auto;
+
+}
+
+.sp-card-value{
+
+font-size:1.15rem;
+
+}
+
+.stButton > button{
+
+min-height:44px !important;
+
+padding:0.72rem 1rem !important;
+
+}
+
+}
+
 </style>
 """,
         unsafe_allow_html=True,
@@ -398,7 +560,6 @@ MOBILE
 # ==========================================================
 # Componentes Python
 # ==========================================================
-
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
 
@@ -440,11 +601,44 @@ def card(
 
 
 def section_title(text: str) -> None:
-    st.markdown(f"#### {html.escape(text or '')}")
+    text_html = html.escape(text or "")
+
+    st.markdown(
+        f"""
+        <div class="sp-section-header">
+          <div class="sp-section-title">{text_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def subtle_divider() -> None:
+    st.markdown("<hr class='sp-divider'>", unsafe_allow_html=True)
+
+
+def app_error(
+    title: str,
+    message: str,
+    *,
+    technical_details: str | None = None,
+    details_expanded: bool = False,
+) -> None:
+    """Exibe erro amigável para a aplicação."""
+    title_html = html.escape(title or "Erro")
+    message_html = html.escape(message or "")
+    details_html = html.escape(technical_details or "")
+
     st.markdown(
-        "<hr style='border:0;border-top:1px solid #e5e7eb;margin:0.8rem 0;'>",
+        f"""
+        <div class="sp-app-error">
+          <div class="sp-app-error-title">{title_html}</div>
+          <div class="sp-app-error-subtitle">{message_html}</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
+
+    if details_html:
+        with st.expander("Detalhes técnicos", expanded=details_expanded):
+            st.code(details_html, language="text")

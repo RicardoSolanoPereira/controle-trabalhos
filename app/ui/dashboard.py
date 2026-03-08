@@ -29,7 +29,6 @@ ATUACAO_UI = {
 
 
 def _naive(dt: datetime) -> datetime:
-    """Remove tzinfo caso venha timezone-aware."""
     try:
         if getattr(dt, "tzinfo", None) is not None:
             return dt.replace(tzinfo=None)
@@ -57,10 +56,6 @@ def _apply_tipo_filter(stmt, tipo_val: str | None):
 
 
 def _cache_buster(owner_user_id: int) -> int:
-    """
-    Usa a versão global de dados da sessão.
-    Mantido por compatibilidade com o mecanismo atual.
-    """
     _ = owner_user_id
     return int(st.session_state.get("data_version", 0))
 
@@ -71,6 +66,34 @@ def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
     end_7d = datetime.combine(ate_7_dias, time.max)
     now_n = _naive(now_br())
     return start_today, end_7d, now_n
+
+
+def _greeting() -> str:
+    hora = now_br().hour
+    if hora < 12:
+        return "Bom dia"
+    if hora < 18:
+        return "Boa tarde"
+    return "Boa noite"
+
+
+def _today_label() -> str:
+    dias = [
+        "segunda-feira",
+        "terça-feira",
+        "quarta-feira",
+        "quinta-feira",
+        "sexta-feira",
+        "sábado",
+        "domingo",
+    ]
+    agora = now_br()
+    return f"{dias[agora.weekday()]}, {agora.strftime('%d/%m/%Y')}"
+
+
+def _safe_html_text(value: Any, fallback: str = "—") -> str:
+    text = str(value).strip() if value is not None else ""
+    return text if text else fallback
 
 
 # ==========================================================
@@ -113,44 +136,45 @@ def _prior_badge(prioridade: str | None) -> str:
     return "⚖️ Média"
 
 
-def _alert_tone(prazos_atrasados: int, prazos_7dias: int) -> str:
-    if prazos_atrasados > 0:
-        return "danger"
-    if prazos_7dias > 0:
-        return "warning"
-    return "success"
-
-
 def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str, Any]:
     if prazos_atrasados > 0:
         return {
             "tone": "danger",
+            "title": "Pendências críticas exigem ação imediata",
+            "left_text": f"Você tem <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s).",
+            "helper": "Priorize o que está vencido antes de novos cadastros ou revisões secundárias.",
             "cta_label": "Ver atrasados",
+            "cta_page": "Prazos",
             "cta_state": {
                 "prazos_section": "Lista",
                 "pz_nav_to": "Lista",
                 "pz_list_nav_to": "Atrasados",
             },
-            "left_text": f"🔴 **{int(prazos_atrasados)} prazo(s) atrasado(s)**",
         }
 
     if prazos_7dias > 0:
         return {
             "tone": "warning",
-            "cta_label": "Ver 7 dias",
+            "title": "Há vencimentos próximos no radar",
+            "left_text": f"Você tem <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias.",
+            "helper": "Vale revisar documentos, agenda, visitas e pendências associadas.",
+            "cta_label": "Ver próximos 7 dias",
+            "cta_page": "Prazos",
             "cta_state": {
                 "prazos_section": "Lista",
                 "pz_nav_to": "Lista",
                 "pz_list_nav_to": "Vencem (7 dias)",
             },
-            "left_text": f"🟠 **{int(prazos_7dias)} prazo(s) em até 7 dias**",
         }
 
     return {
         "tone": "success",
+        "title": "Tudo sob controle no momento",
+        "left_text": "Não há prazos críticos no painel.",
+        "helper": "Bom momento para organizar agenda, financeiro e novos cadastros.",
         "cta_label": "Novo prazo",
+        "cta_page": "Prazos",
         "cta_state": {"prazos_section": "Cadastro"},
-        "left_text": "🟢 **Nenhum prazo crítico**",
     }
 
 
@@ -245,8 +269,327 @@ def _build_agenda_df(rows: Iterable[tuple]) -> pd.DataFrame:
 
 
 # ==========================================================
-# Render de cards/listas
+# Navegação rápida
 # ==========================================================
+
+
+def _go_prazos_lista() -> None:
+    navigate("Prazos", state={"prazos_section": "Lista"})
+
+
+def _go_trabalhos_lista() -> None:
+    navigate("Trabalhos", state={"trabalhos_section": "Lista"})
+
+
+def _go_financeiro_lancamentos() -> None:
+    navigate("Financeiro", state={"financeiro_section": "Lançamentos"})
+
+
+def _go_agenda() -> None:
+    navigate("Agenda")
+
+
+def _go_prazos_cadastro() -> None:
+    navigate("Prazos", state={"prazos_section": "Cadastro"})
+
+
+def _go_trabalhos_cadastro() -> None:
+    navigate("Trabalhos", state={"trabalhos_section": "Cadastro"})
+
+
+def _make_nav_callback(page: str, state: dict[str, Any] | None = None):
+    def _callback() -> None:
+        navigate(page, state=state)
+
+    return _callback
+
+
+# ==========================================================
+# Render utilitário
+# ==========================================================
+
+
+def _render_dataframe_or_caption(df: pd.DataFrame, empty_text: str = "—") -> None:
+    if df.empty:
+        st.caption(empty_text)
+        return
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+
+def _render_nav_button(
+    label: str,
+    *,
+    page: str,
+    state: dict[str, Any] | None = None,
+    key: str,
+    type: str = "secondary",
+) -> None:
+    st.button(
+        label,
+        use_container_width=True,
+        key=key,
+        type=type,
+        on_click=_make_nav_callback(page, state),
+    )
+
+
+def _render_info_strip(k: dict[str, Any], atuacao_label: str) -> None:
+    st.markdown(
+        f"""
+        <div class="sp-surface" style="padding:14px 16px;">
+          <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:flex-start;">
+            <div>
+              <div style="font-weight:900; font-size:1.02rem;">{_greeting()}</div>
+              <div class="sp-muted" style="margin-top:2px;">
+                {_today_label()} • atuação: <b>{atuacao_label}</b>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <span class="sp-chip">⏳ {k["prazos_atrasados"]} atrasado(s)</span>
+              <span class="sp-chip">📅 {k["ag_24h"]} em 24h</span>
+              <span class="sp-chip">💰 saldo R$ {_fmt_money_br(k["saldo"])}</span>
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_priority_banner(k: dict[str, Any]) -> None:
+    banner = _priority_banner_data(k["prazos_atrasados"], k["prazos_7dias"])
+
+    left, right = grid(2, columns_mobile=1)
+
+    with left:
+        st.markdown(
+            f"""
+            <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
+              <div style="font-size:1.04rem; font-weight:900;">{banner['title']}</div>
+              <div style="margin-top:8px;">{banner['left_text']}</div>
+              <div class="sp-muted" style="margin-top:6px;">{banner['helper']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with right:
+        with section("Próxima ação", subtitle="Atalho recomendado", divider=False):
+            _render_nav_button(
+                banner["cta_label"],
+                page=banner["cta_page"],
+                state=banner["cta_state"],
+                key="dash_priority_cta",
+                type="primary",
+            )
+            spacer(0.10)
+            _render_nav_button(
+                "Abrir prazos",
+                page="Prazos",
+                state={"prazos_section": "Lista"},
+                key="dash_priority_open_prazos",
+                type="secondary",
+            )
+
+
+def _render_kpi_section(k: dict[str, Any]) -> None:
+    pct_atraso = _pct(k["prazos_atrasados"], k["prazos_abertos"])
+    pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
+
+    with section("Visão geral", subtitle="Resumo operacional do painel", divider=False):
+        c1, c2, c3, c4 = grid(4, columns_mobile=1)
+
+        with c1:
+            card(
+                "Trabalhos ativos",
+                f"{k['ativos']}",
+                f"{k['total_proc']} cadastrados",
+                tone="neutral",
+            )
+
+        with c2:
+            tone_pz = (
+                "danger"
+                if k["prazos_atrasados"] > 0
+                else ("warning" if k["prazos_7dias"] > 0 else "success")
+            )
+            card(
+                "Prazos",
+                f"{k['prazos_abertos']}",
+                f"{pct_atraso} atrasados • {pct_7d} em 7d",
+                tone=tone_pz,
+                emphasize=(k["prazos_atrasados"] > 0),
+            )
+
+        with c3:
+            ag_tone, ag_emph = _kpi_agenda_tone(k["ag_24h"], k["ag_72h"], k["ag_7d"])
+            card(
+                "Agenda",
+                f"{k['ag_7d']}",
+                _kpi_agenda_subtitle(k["ag_24h"], k["ag_72h"], k["ag_7d"]),
+                tone=ag_tone,
+                emphasize=ag_emph,
+            )
+
+        with c4:
+            card(
+                "Saldo",
+                f"R$ {_fmt_money_br(k['saldo'])}",
+                "receitas - despesas",
+                tone=("success" if k["saldo"] >= 0 else "danger"),
+                emphasize=True,
+            )
+
+
+def _render_quick_actions() -> None:
+    with section(
+        "Ações rápidas",
+        subtitle="Atalhos para tarefas frequentes",
+        divider=False,
+    ):
+        c1, c2, c3, c4 = grid(4, columns_mobile=1)
+
+        with c1:
+            st.button(
+                "⏳ Novo prazo",
+                key="dash_quick_new_prazo",
+                type="primary",
+                use_container_width=True,
+                on_click=_go_prazos_cadastro,
+            )
+
+        with c2:
+            st.button(
+                "📁 Novo trabalho",
+                key="dash_quick_new_trabalho",
+                use_container_width=True,
+                on_click=_go_trabalhos_cadastro,
+            )
+
+        with c3:
+            st.button(
+                "📅 Ver agenda",
+                key="dash_quick_agenda",
+                use_container_width=True,
+                on_click=_go_agenda,
+            )
+
+        with c4:
+            st.button(
+                "💰 Lançamentos",
+                key="dash_quick_financeiro",
+                use_container_width=True,
+                on_click=_go_financeiro_lancamentos,
+            )
+
+
+def _summary_surface(title: str, value: Any, subtitle: str, tone: str) -> None:
+    value_txt = _safe_html_text(value, "0")
+    title_txt = _safe_html_text(title)
+    subtitle_txt = _safe_html_text(subtitle)
+
+    st.markdown(
+        f"""
+        <div class="sp-surface sp-tone-{tone}">
+          <div style="font-weight:900;">{title_txt}</div>
+          <div style="font-size:1.8rem; font-weight:900; margin-top:6px;">{value_txt}</div>
+          <div class="sp-muted" style="margin-top:4px;">{subtitle_txt}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_operational_summary(k: dict[str, Any]) -> None:
+    with section(
+        "Radar do dia",
+        subtitle="O que merece atenção imediata",
+        divider=False,
+    ):
+        c1, c2, c3 = grid(3, columns_mobile=1)
+
+        with c1:
+            _summary_surface(
+                "Prazos atrasados",
+                k["prazos_atrasados"],
+                "precisam de ação imediata",
+                "danger" if k["prazos_atrasados"] > 0 else "success",
+            )
+
+        with c2:
+            _summary_surface(
+                "Próximos 7 dias",
+                k["prazos_7dias"],
+                "vencimentos no curto prazo",
+                "warning" if k["prazos_7dias"] > 0 else "success",
+            )
+
+        with c3:
+            agenda_tone = (
+                "danger"
+                if k["ag_24h"] > 0
+                else ("info" if k["ag_72h"] > 0 else "success")
+            )
+            texto = (
+                f"{k['ag_24h']} em 24h"
+                if k["ag_24h"] > 0
+                else (f"{k['ag_72h']} em 72h" if k["ag_72h"] > 0 else "sem urgência")
+            )
+            _summary_surface("Agenda próxima", k["ag_7d"], texto, agenda_tone)
+
+
+def _render_finance_section(k: dict[str, Any]) -> None:
+    with section(
+        "Financeiro",
+        subtitle="Receitas, despesas e posição acumulada",
+        divider=False,
+    ):
+        col1, col2, col3 = grid(3, columns_mobile=1)
+
+        with col1:
+            card(
+                "Receitas",
+                f"R$ {_fmt_money_br(k['receitas'])}",
+                "acumulado",
+                tone="success",
+            )
+
+        with col2:
+            card(
+                "Despesas",
+                f"R$ {_fmt_money_br(k['despesas'])}",
+                "acumulado",
+                tone="danger",
+            )
+
+        with col3:
+            card(
+                "Saldo",
+                f"R$ {_fmt_money_br(k['saldo'])}",
+                "posição atual",
+                tone=("success" if k["saldo"] >= 0 else "danger"),
+                emphasize=True,
+            )
+
+        spacer(0.16)
+
+        c1, c2 = grid(2, columns_mobile=1)
+        with c1:
+            st.button(
+                "Abrir financeiro",
+                key="go_fin_open",
+                type="primary",
+                use_container_width=True,
+                on_click=_go_financeiro_lancamentos,
+            )
+        with c2:
+            st.button(
+                "Ver trabalhos",
+                key="go_fin_jobs",
+                type="secondary",
+                use_container_width=True,
+                on_click=_go_trabalhos_lista,
+            )
 
 
 def _render_prazo_cards(rows: list, empty_msg: str) -> None:
@@ -260,14 +603,18 @@ def _render_prazo_cards(rows: list, empty_msg: str) -> None:
         prior = _prior_badge(prioridade)
         tone = _tone_from_prazo_status(dias)
 
+        numero_processo_txt = _safe_html_text(numero_processo, "Sem referência")
+        tipo_acao_txt = _safe_html_text(tipo_acao, "Sem tipo")
+        evento_txt = _safe_html_text(evento, "Sem evento")
+
         st.markdown(
             f"""
             <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
               <div style="font-weight:850; font-size:0.98rem;">
-                {numero_processo} – {tipo_acao or "Sem tipo"}
+                {numero_processo_txt} – {tipo_acao_txt}
               </div>
-              <div style="margin-top:6px; color: rgba(15,23,42,0.75);">
-                <b>Evento:</b> {evento}
+              <div style="margin-top:6px; color:rgba(15,23,42,0.75);">
+                <b>Evento:</b> {evento_txt}
               </div>
               <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
                 <span class="sp-chip">📅 {format_date_br(data_limite)}</span>
@@ -296,16 +643,24 @@ def _render_agenda_cards(rows: list, empty_msg: str) -> None:
         alert_label, tone = _agenda_status(hours_left)
         rest_chip = _agenda_rest_chip(hours_left)
 
-        local_chip = f"<span class='sp-chip'>📍 {local}</span>" if local else ""
+        numero_processo_txt = _safe_html_text(numero_processo, "Sem referência")
+        tipo_acao_txt = _safe_html_text(tipo_acao, "Sem tipo")
+        tipo_txt = _safe_html_text(tipo, "Sem tipo")
+
+        local_chip = (
+            f"<span class='sp-chip'>📍 {_safe_html_text(local, 'Local não informado')}</span>"
+            if local
+            else ""
+        )
 
         st.markdown(
             f"""
             <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
               <div style="font-weight:850; font-size:0.98rem;">
-                {numero_processo} – {tipo_acao or "Sem tipo"}
+                {numero_processo_txt} – {tipo_acao_txt}
               </div>
               <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
-                <span class="sp-chip">📌 {tipo}</span>
+                <span class="sp-chip">📌 {tipo_txt}</span>
                 <span class="sp-chip">🕒 {inicio_br_txt}</span>
                 {rest_chip}
                 <span class="sp-chip">{alert_label}</span>
@@ -315,31 +670,6 @@ def _render_agenda_cards(rows: list, empty_msg: str) -> None:
             """,
             unsafe_allow_html=True,
         )
-
-
-def _render_dataframe_or_caption(df: pd.DataFrame, empty_text: str = "—") -> None:
-    if df.empty:
-        st.caption(empty_text)
-        return
-
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-
-def _render_nav_button(
-    label: str,
-    *,
-    page: str,
-    state: dict[str, Any] | None = None,
-    key: str,
-    type: str = "secondary",
-) -> None:
-    st.button(
-        label,
-        use_container_width=True,
-        key=key,
-        type=type,
-        on_click=lambda: navigate(page, state=state),
-    )
 
 
 # ==========================================================
@@ -621,36 +951,43 @@ def _fetch_ultimos_processos_cached(
 
 
 # ==========================================================
-# Blocos de render
+# Header / filtros
 # ==========================================================
 
 
 def _render_header_actions() -> None:
-    actions = [
-        HeaderAction("⏳ Prazos", key="dash_hdr_prazos", type="secondary"),
-        HeaderAction("📁 Trabalhos", key="dash_hdr_trabalhos", type="secondary"),
-        HeaderAction("💰 Financeiro", key="dash_hdr_fin", type="secondary"),
-    ]
     page_header(
         "Painel de Controle",
-        "Alertas, prazos, agenda e financeiro",
-        actions=actions,
+        "Visão geral dos trabalhos, prazos, agenda e financeiro",
+        actions=[
+            HeaderAction(
+                "Prazos",
+                key="dash_hdr_prazos",
+                type="secondary",
+                on_click=_go_prazos_lista,
+            ),
+            HeaderAction(
+                "Trabalhos",
+                key="dash_hdr_trabalhos",
+                type="secondary",
+                on_click=_go_trabalhos_lista,
+            ),
+            HeaderAction(
+                "Financeiro",
+                key="dash_hdr_fin",
+                type="secondary",
+                on_click=_go_financeiro_lancamentos,
+            ),
+        ],
         compact=False,
         divider=True,
     )
 
-    if st.session_state.get("dash_hdr_prazos"):
-        navigate("Prazos", state={"prazos_section": "Lista"})
-
-    if st.session_state.get("dash_hdr_trabalhos"):
-        navigate("Trabalhos", state={"trabalhos_section": "Lista"})
-
-    if st.session_state.get("dash_hdr_fin"):
-        navigate("Financeiro", state={"financeiro_section": "Lançamentos"})
-
 
 def _render_filters() -> str | None:
-    with section(None, divider=False):
+    with section(
+        "Filtros", subtitle="Refine o painel por tipo de atuação", divider=False
+    ):
         col1, col2 = grid(2, columns_mobile=1)
 
         with col1:
@@ -662,148 +999,16 @@ def _render_filters() -> str | None:
             )
 
         with col2:
-            st.caption("Dica: use “(Todas)” para visão geral.")
+            st.caption(
+                "Use “(Todas)” para visão geral ou selecione uma atuação para focar o painel."
+            )
 
     return ATUACAO_UI[atuacao_label]
 
 
-def _render_priority_section(k: dict[str, Any], atuacao_label: str) -> None:
-    banner = _priority_banner_data(k["prazos_atrasados"], k["prazos_7dias"])
-
-    def _actions():
-        _render_nav_button(
-            banner["cta_label"],
-            page="Prazos",
-            state=banner["cta_state"],
-            key="dash_cta",
-            type="primary",
-        )
-
-    with section(
-        "Prioridades",
-        subtitle=atuacao_label,
-        divider=False,
-        header_actions=_actions,
-    ):
-        st.markdown(
-            f"""
-            <div class="sp-card sp-tone-{banner['tone']}">
-              <div style="font-weight:900;font-size:1.02rem;">Status de prazos</div>
-              <div class="sp-muted" style="margin-top:4px;">O que precisa de ação agora.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        spacer(0.15)
-        st.markdown(banner["left_text"])
-
-
-def _render_kpi_section(k: dict[str, Any]) -> None:
-    pct_atraso = _pct(k["prazos_atrasados"], k["prazos_abertos"])
-    pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
-
-    with section("Resumo", subtitle="Visão rápida do operacional", divider=False):
-        row1_col1, row1_col2 = grid(2, columns_mobile=1)
-
-        with row1_col1:
-            tone_pz = (
-                "danger"
-                if k["prazos_atrasados"] > 0
-                else ("warning" if k["prazos_7dias"] > 0 else "success")
-            )
-            card(
-                "Prazos abertos",
-                f"{k['prazos_abertos']}",
-                f"{pct_atraso} atrasados • {pct_7d} em 7d",
-                tone=tone_pz,
-                emphasize=(k["prazos_atrasados"] > 0),
-            )
-
-        with row1_col2:
-            card("Ativos", f"{k['ativos']}", "em andamento", tone="neutral")
-
-        spacer(0.15)
-
-        row2_col1, row2_col2 = grid(2, columns_mobile=1)
-
-        with row2_col1:
-            card("Trabalhos", f"{k['total_proc']}", "cadastrados", tone="info")
-
-        with row2_col2:
-            ag_tone, ag_emph = _kpi_agenda_tone(k["ag_24h"], k["ag_72h"], k["ag_7d"])
-            card(
-                "Agenda (7 dias)",
-                f"{k['ag_7d']}",
-                _kpi_agenda_subtitle(k["ag_24h"], k["ag_72h"], k["ag_7d"]),
-                tone=ag_tone,
-                emphasize=ag_emph,
-            )
-
-        spacer(0.25)
-
-        cta1, cta2, cta3 = grid(3, columns_mobile=1)
-
-        with cta1:
-            _render_nav_button(
-                "⏳ Ver prazos",
-                page="Prazos",
-                state={"prazos_section": "Lista"},
-                key="go_prazos",
-            )
-
-        with cta2:
-            _render_nav_button(
-                "📁 Ver trabalhos",
-                page="Trabalhos",
-                state={"trabalhos_section": "Lista"},
-                key="go_trabalhos",
-            )
-
-        with cta3:
-            _render_nav_button(
-                "📅 Ver agenda",
-                page="Agenda",
-                key="go_agenda",
-            )
-
-
-def _render_finance_section(k: dict[str, Any]) -> None:
-    with section("Financeiro", subtitle="Receitas, despesas e saldo", divider=False):
-        col1, col2 = grid(2, columns_mobile=1)
-
-        with col1:
-            card(
-                "Receitas (R$)",
-                _fmt_money_br(k["receitas"]),
-                "acumulado",
-                tone="success",
-            )
-
-        with col2:
-            card(
-                "Despesas (R$)",
-                _fmt_money_br(k["despesas"]),
-                "acumulado",
-                tone="danger",
-            )
-
-        spacer(0.15)
-
-        card(
-            "Saldo (R$)",
-            _fmt_money_br(k["saldo"]),
-            "receitas - despesas",
-            tone=("success" if k["saldo"] >= 0 else "danger"),
-            emphasize=True,
-        )
-
-        _render_nav_button(
-            "Abrir financeiro",
-            page="Financeiro",
-            state={"financeiro_section": "Lançamentos"},
-            key="go_fin",
-            type="primary",
-        )
+# ==========================================================
+# Tabs
+# ==========================================================
 
 
 def _render_tab_prazos(
@@ -820,8 +1025,9 @@ def _render_tab_prazos(
         version,
     )
 
-    with section("Atrasados (Top 10)", subtitle=None, divider=False):
+    with section("Atrasados", subtitle="Top 10 com maior urgência", divider=False):
         _render_prazo_cards(rows_atrasados, "✅ Sem prazos atrasados.")
+        spacer(0.10)
         _render_nav_button(
             "Abrir lista completa",
             page="Prazos",
@@ -830,9 +1036,13 @@ def _render_tab_prazos(
             type="primary",
         )
 
-    spacer(0.25)
+    spacer(0.20)
 
-    with section("Vencem em até 7 dias (Top 10)", subtitle=None, divider=False):
+    with section(
+        "Vencem em até 7 dias",
+        subtitle="Top 10 no curto prazo",
+        divider=False,
+    ):
         _render_prazo_cards(rows_7d, "✅ Sem prazos vencendo em até 7 dias.")
 
     with st.expander("Ver em tabela", expanded=False):
@@ -843,7 +1053,7 @@ def _render_tab_prazos(
             _render_dataframe_or_caption(_build_prazos_df(rows_atrasados))
 
         with col2:
-            st.caption("7 dias")
+            st.caption("Próximos 7 dias")
             _render_dataframe_or_caption(_build_prazos_df(rows_7d))
 
 
@@ -860,8 +1070,13 @@ def _render_tab_agenda(
         version,
     )
 
-    with section("Próximas 24 horas (Top 10)", divider=False):
+    with section(
+        "Próximas 24 horas",
+        subtitle="Compromissos mais imediatos",
+        divider=False,
+    ):
         _render_agenda_cards(rows_24h, "✅ Sem agendamentos nas próximas 24 horas.")
+        spacer(0.10)
         _render_nav_button(
             "Abrir agenda",
             page="Agenda",
@@ -869,9 +1084,9 @@ def _render_tab_agenda(
             type="primary",
         )
 
-    spacer(0.25)
+    spacer(0.20)
 
-    with section("Próximos 7 dias (Top 10)", divider=False):
+    with section("Próximos 7 dias", subtitle="Planejamento da semana", divider=False):
         _render_agenda_cards(rows_ag_7d, "✅ Sem agendamentos nos próximos 7 dias.")
 
     with st.expander("Ver em tabela", expanded=False):
@@ -895,7 +1110,7 @@ def _render_tab_trabalhos(
 
     with section(
         "Últimos trabalhos",
-        subtitle="Registros mais recentes (respeita a atuação)",
+        subtitle="Registros mais recentes conforme o filtro de atuação",
         divider=False,
     ):
         if not procs:
@@ -932,6 +1147,7 @@ def _render_tab_trabalhos(
 
         st.dataframe(dfp, use_container_width=True, hide_index=True, height=420)
 
+        spacer(0.10)
         _render_nav_button(
             "Abrir trabalhos",
             page="Trabalhos",
@@ -962,16 +1178,25 @@ def render(owner_user_id: int) -> None:
         version=version,
     )
 
-    spacer(0.25)
-    _render_priority_section(k, atuacao_label)
+    spacer(0.10)
+    _render_info_strip(k, atuacao_label)
 
-    spacer(0.45)
+    spacer(0.18)
+    _render_priority_banner(k)
+
+    spacer(0.22)
     _render_kpi_section(k)
 
-    spacer(0.45)
+    spacer(0.22)
+    _render_operational_summary(k)
+
+    spacer(0.22)
+    _render_quick_actions()
+
+    spacer(0.22)
     _render_finance_section(k)
 
-    spacer(0.45)
+    spacer(0.26)
     tab1, tab2, tab3 = st.tabs(["⏳ Prazos", "📅 Agenda", "🗂️ Trabalhos"])
 
     with tab1:
