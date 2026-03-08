@@ -50,12 +50,12 @@ class ProcessoUpdate:
 def _clean_str(v: Optional[str]) -> Optional[str]:
     if v is None:
         return None
-    v2 = v.strip()
+    v2 = " ".join(v.strip().split())
     return v2 if v2 else None
 
 
 def _like(q: str) -> str:
-    return f"%{q}%"
+    return f"%{q.strip()}%"
 
 
 def _extract_categoria_prefix(obs: str) -> Optional[str]:
@@ -93,15 +93,59 @@ def _status_rank_expr():
     )
 
 
+def _normalize_status(value: Optional[str]) -> str:
+    v = (_clean_str(value) or "Ativo").lower()
+    if v == "ativo":
+        return "Ativo"
+    if v in ("concluido", "concluído"):
+        return "Concluído"
+    if v == "suspenso":
+        return "Suspenso"
+    return "Ativo"
+
+
+def _normalize_papel(value: Optional[str]) -> str:
+    v = (_clean_str(value) or "Assistente Técnico").lower()
+    if v in ("perito", "perito judicial"):
+        return "Perito Judicial"
+    if v in ("assistente", "assistente tecnico", "assistente técnico"):
+        return "Assistente Técnico"
+    if v in ("particular", "trabalho particular", "avaliação particular", "avaliacao"):
+        return "Trabalho Particular"
+    return _clean_str(value) or "Assistente Técnico"
+
+
+def _normalize_numero(numero: Optional[str]) -> Optional[str]:
+    return _clean_str(numero)
+
+
+def _build_q_filter(qv: str):
+    like = _like(qv)
+    return or_(
+        Processo.numero_processo.ilike(like),
+        Processo.comarca.ilike(like),
+        Processo.vara.ilike(like),
+        Processo.contratante.ilike(like),
+        Processo.tipo_acao.ilike(like),
+        Processo.categoria_servico.ilike(like),
+        Processo.papel.ilike(like),
+        Processo.status.ilike(like),
+        Processo.observacoes.ilike(like),
+        Processo.pasta_local.ilike(like),
+    )
+
+
 # ==================================================
 # Service
 # ==================================================
 class ProcessosService:
     @staticmethod
     def create(
-        session: Session, owner_user_id: int, payload: ProcessoCreate
+        session: Session,
+        owner_user_id: int,
+        payload: ProcessoCreate,
     ) -> Processo:
-        numero = _clean_str(payload.numero_processo)
+        numero = _normalize_numero(payload.numero_processo)
         if not numero:
             raise ValueError("numero_processo é obrigatório")
 
@@ -113,8 +157,8 @@ class ProcessosService:
             tipo_acao=_clean_str(payload.tipo_acao),
             contratante=_clean_str(payload.contratante),
             categoria_servico=_clean_str(payload.categoria_servico),
-            papel=_clean_str(payload.papel) or "Assistente Técnico",
-            status=_clean_str(payload.status) or "Ativo",
+            papel=_normalize_papel(payload.papel),
+            status=_normalize_status(payload.status),
             pasta_local=_clean_str(payload.pasta_local),
             observacoes=_clean_str(payload.observacoes),
         )
@@ -134,39 +178,25 @@ class ProcessosService:
         order_desc: bool = True,
         limit: Optional[int] = None,
     ) -> List[Processo]:
-        stmt = select(Processo).where(Processo.owner_user_id == owner_user_id)
+        stmt = select(Processo).where(Processo.owner_user_id == int(owner_user_id))
 
         status_v = _clean_str(status)
         papel_v = _clean_str(papel)
         cat_v = _clean_str(categoria_servico)
 
         if status_v:
-            stmt = stmt.where(Processo.status == status_v)
+            stmt = stmt.where(Processo.status == _normalize_status(status_v))
         if papel_v:
-            stmt = stmt.where(Processo.papel == papel_v)
+            stmt = stmt.where(Processo.papel == _normalize_papel(papel_v))
         if cat_v:
             stmt = stmt.where(Processo.categoria_servico == cat_v)
 
         qv = _clean_str(q)
         if qv:
-            like = _like(qv)
-            stmt = stmt.where(
-                or_(
-                    Processo.numero_processo.ilike(like),
-                    Processo.comarca.ilike(like),
-                    Processo.vara.ilike(like),
-                    Processo.contratante.ilike(like),
-                    Processo.tipo_acao.ilike(like),
-                    Processo.categoria_servico.ilike(like),
-                    Processo.papel.ilike(like),
-                    Processo.status.ilike(like),
-                    Processo.observacoes.ilike(like),
-                )
-            )
+            stmt = stmt.where(_build_q_filter(qv))
 
         status_rank = _status_rank_expr()
 
-        # ✅ CORRIGIDO: "Mais antigos" inverte rank também
         if order_desc:
             stmt = stmt.order_by(status_rank.desc(), Processo.id.desc())
         else:
@@ -181,7 +211,9 @@ class ProcessosService:
 
     @staticmethod
     def get(
-        session: Session, owner_user_id: int, processo_id: int
+        session: Session,
+        owner_user_id: int,
+        processo_id: int,
     ) -> Optional[Processo]:
         stmt = select(Processo).where(
             Processo.id == int(processo_id),
@@ -191,7 +223,10 @@ class ProcessosService:
 
     @staticmethod
     def update(
-        session: Session, owner_user_id: int, processo_id: int, payload: ProcessoUpdate
+        session: Session,
+        owner_user_id: int,
+        processo_id: int,
+        payload: ProcessoUpdate,
     ) -> Processo:
         proc = ProcessosService.get(session, owner_user_id, processo_id)
         if not proc:
@@ -205,14 +240,16 @@ class ProcessosService:
                 val = _clean_str(val)
             data[field] = val
 
-        if "numero_processo" in data and not data["numero_processo"]:
-            raise ValueError("numero_processo não pode ficar vazio")
+        if "numero_processo" in data:
+            data["numero_processo"] = _normalize_numero(data["numero_processo"])
+            if not data["numero_processo"]:
+                raise ValueError("numero_processo não pode ficar vazio")
 
-        # defaults de segurança
-        if "papel" in data and not data["papel"]:
-            data["papel"] = "Assistente Técnico"
-        if "status" in data and not data["status"]:
-            data["status"] = "Ativo"
+        if "papel" in data:
+            data["papel"] = _normalize_papel(data["papel"])
+
+        if "status" in data:
+            data["status"] = _normalize_status(data["status"])
 
         if data:
             for k, v in data.items():
@@ -223,12 +260,115 @@ class ProcessosService:
         return proc
 
     @staticmethod
-    def delete(session: Session, owner_user_id: int, processo_id: int) -> None:
+    def delete(
+        session: Session,
+        owner_user_id: int,
+        processo_id: int,
+    ) -> None:
         proc = ProcessosService.get(session, owner_user_id, processo_id)
         if not proc:
             raise ValueError("Processo não encontrado")
         session.delete(proc)
         session.commit()
+
+    @staticmethod
+    def duplicate(
+        session: Session,
+        owner_user_id: int,
+        processo_id: int,
+    ) -> Processo:
+        proc = ProcessosService.get(session, owner_user_id, processo_id)
+        if not proc:
+            raise ValueError("Processo não encontrado")
+
+        base_ref = _clean_str(proc.numero_processo) or "Sem referência"
+        duplicate_ref = f"{base_ref} (cópia)"
+
+        new_proc = Processo(
+            owner_user_id=int(owner_user_id),
+            numero_processo=duplicate_ref,
+            vara=_clean_str(proc.vara),
+            comarca=_clean_str(proc.comarca),
+            tipo_acao=_clean_str(proc.tipo_acao),
+            contratante=_clean_str(proc.contratante),
+            categoria_servico=_clean_str(proc.categoria_servico),
+            papel=_normalize_papel(proc.papel),
+            status=_normalize_status(proc.status),
+            pasta_local=_clean_str(proc.pasta_local),
+            observacoes=_clean_str(proc.observacoes),
+        )
+        session.add(new_proc)
+        session.commit()
+        session.refresh(new_proc)
+        return new_proc
+
+    @staticmethod
+    def stats(session: Session, owner_user_id: int) -> Dict[str, int]:
+        total = (
+            session.scalar(
+                select(func.count())
+                .select_from(Processo)
+                .where(Processo.owner_user_id == int(owner_user_id))
+            )
+            or 0
+        )
+
+        ativos = (
+            session.scalar(
+                select(func.count())
+                .select_from(Processo)
+                .where(
+                    Processo.owner_user_id == int(owner_user_id),
+                    func.lower(Processo.status) == "ativo",
+                )
+            )
+            or 0
+        )
+
+        concluidos = (
+            session.scalar(
+                select(func.count())
+                .select_from(Processo)
+                .where(
+                    Processo.owner_user_id == int(owner_user_id),
+                    func.lower(Processo.status).in_(["concluido", "concluído"]),
+                )
+            )
+            or 0
+        )
+
+        suspensos = (
+            session.scalar(
+                select(func.count())
+                .select_from(Processo)
+                .where(
+                    Processo.owner_user_id == int(owner_user_id),
+                    func.lower(Processo.status) == "suspenso",
+                )
+            )
+            or 0
+        )
+
+        com_pasta = (
+            session.scalar(
+                select(func.count())
+                .select_from(Processo)
+                .where(
+                    Processo.owner_user_id == int(owner_user_id),
+                    Processo.pasta_local.is_not(None),
+                    func.length(func.trim(Processo.pasta_local)) > 0,
+                )
+            )
+            or 0
+        )
+
+        return {
+            "total": int(total),
+            "ativos": int(ativos),
+            "concluidos": int(concluidos),
+            "suspensos": int(suspensos),
+            "com_pasta": int(com_pasta),
+        }
 
     @staticmethod
     def backfill_categoria_from_observacoes(
@@ -237,7 +377,7 @@ class ProcessosService:
         remove_prefix: bool = True,
         only_if_empty: bool = True,
     ) -> int:
-        stmt = select(Processo).where(Processo.owner_user_id == owner_user_id)
+        stmt = select(Processo).where(Processo.owner_user_id == int(owner_user_id))
         rows = list(session.execute(stmt).scalars().all())
 
         changed = 0
