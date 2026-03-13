@@ -4,24 +4,20 @@ import html
 
 import streamlit as st
 
-_CSS_VERSION = "v14"
+__all__ = [
+    "inject_global_css",
+    "card",
+    "section_title",
+    "subtle_divider",
+    "app_error",
+]
+
+_CSS_VERSION = "v15"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
+_ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
 
-# ==========================================================
-# CSS global
-# ==========================================================
-
-
-def inject_global_css() -> None:
-    """Injeta CSS global uma única vez por sessão."""
-    if st.session_state.get(_CSS_FLAG_KEY):
-        return
-
-    st.session_state[_CSS_FLAG_KEY] = True
-
-    st.markdown(
-        """
+_GLOBAL_CSS = """
 <style>
 
 /* ======================================================
@@ -647,21 +643,47 @@ MOBILE
 }
 
 </style>
-""",
-        unsafe_allow_html=True,
-    )
+"""
 
 
 # ==========================================================
-# Componentes Python
+# Helpers privados
 # ==========================================================
 
-_ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
+
+def _render_html(content: str) -> None:
+    """Renderiza HTML seguro para componentes controlados pelo app."""
+    st.markdown(content, unsafe_allow_html=True)
+
+
+def _escape(text: str | None) -> str:
+    """Escapa conteúdo textual para uso em HTML."""
+    return html.escape(text or "")
 
 
 def _normalize_tone(tone: str | None) -> str:
+    """Normaliza o tom visual para um valor permitido."""
     tone_norm = (tone or "neutral").strip().lower()
     return tone_norm if tone_norm in _ALLOWED_TONES else "neutral"
+
+
+# ==========================================================
+# CSS global
+# ==========================================================
+
+
+def inject_global_css() -> None:
+    """Injeta CSS global uma única vez por sessão."""
+    if st.session_state.get(_CSS_FLAG_KEY, False):
+        return
+
+    st.session_state[_CSS_FLAG_KEY] = True
+    _render_html(_GLOBAL_CSS)
+
+
+# ==========================================================
+# Componentes públicos
+# ==========================================================
 
 
 def card(
@@ -672,44 +694,45 @@ def card(
     tone: str = "neutral",
     emphasize: bool = False,
 ) -> None:
+    """Renderiza card KPI com título, valor e subtítulo opcional."""
     tone_norm = _normalize_tone(tone)
 
-    title_html = html.escape(title or "")
-    value_html = html.escape(value or "")
-    subtitle_html = html.escape(subtitle or "")
+    title_html = _escape(title)
+    value_html = _escape(value)
+    subtitle_html = _escape(subtitle)
 
     emph_class = "emph" if emphasize else ""
     subtitle_block = (
         f"<div class='sp-card-sub'>{subtitle_html}</div>" if subtitle_html else ""
     )
 
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-card sp-tone-{tone_norm}">
           <div class="sp-card-title">{title_html}</div>
           <div class="sp-card-value {emph_class}">{value_html}</div>
           {subtitle_block}
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
 def section_title(text: str) -> None:
-    text_html = html.escape(text or "")
+    """Renderiza título simples de seção."""
+    text_html = _escape(text)
 
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-section-header">
           <div class="sp-section-title">{text_html}</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
 def subtle_divider() -> None:
-    st.markdown("<hr class='sp-divider'>", unsafe_allow_html=True)
+    """Renderiza divisor horizontal discreto."""
+    _render_html("<hr class='sp-divider'>")
 
 
 def app_error(
@@ -719,21 +742,20 @@ def app_error(
     technical_details: str | None = None,
     details_expanded: bool = False,
 ) -> None:
-    """Exibe erro amigável para a aplicação."""
-    title_html = html.escape(title or "Erro")
-    message_html = html.escape(message or "")
-    details_html = html.escape(technical_details or "")
+    """Exibe erro amigável da aplicação com detalhes técnicos opcionais."""
+    title_html = _escape(title or "Erro")
+    message_html = _escape(message)
+    details_text = technical_details or ""
 
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-app-error">
           <div class="sp-app-error-title">{title_html}</div>
           <div class="sp-app-error-subtitle">{message_html}</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
-    if details_html:
+    if details_text:
         with st.expander("Detalhes técnicos", expanded=details_expanded):
-            st.code(details_html, language="text")
+            st.code(details_text, language="text")

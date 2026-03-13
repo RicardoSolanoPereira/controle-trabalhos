@@ -3,55 +3,131 @@ from __future__ import annotations
 import html
 import re
 from dataclasses import dataclass
-from typing import Callable, Optional, Sequence
+from typing import Callable, Sequence
 
 import streamlit as st
 
 from ui.layout import grid_weights, is_mobile, spacer
 
+__all__ = [
+    "HeaderAction",
+    "page_header",
+    "surface_start",
+    "surface_end",
+]
 
-# ---------------------------------------------------------
-# Utils
-# ---------------------------------------------------------
+
+# ==========================================================
+# Constantes
+# ==========================================================
+
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v7"
+
+
+# ==========================================================
+# Utils privados
+# ==========================================================
+
+
+def _render_html(content: str) -> None:
+    """Renderiza HTML controlado pela aplicação."""
+    st.markdown(content, unsafe_allow_html=True)
+
+
+def _escape(text: str | None, *, quote: bool = False) -> str:
+    """Escapa texto para uso seguro em HTML."""
+    return html.escape(text or "", quote=quote)
 
 
 def _safe_key(text: str) -> str:
     """Gera uma key estável para widgets."""
-    t = (text or "").strip().lower()
-    t = re.sub(r"\s+", "_", t)
-    t = re.sub(r"[^a-z0-9_]+", "", t)
-    return t or "key"
+    normalized = (text or "").strip().lower()
+    normalized = re.sub(r"\s+", "_", normalized)
+    normalized = re.sub(r"[^a-z0-9_]+", "", normalized)
+    return normalized or "key"
 
 
-# ---------------------------------------------------------
+def _normalize_actions(
+    *,
+    title: str,
+    actions: list[HeaderAction] | None,
+    right_button_label: str | None,
+    right_button_key: str | None,
+    right_button_help: str | None,
+    right_button_on_click: Callable[[], None] | None,
+) -> list["HeaderAction"]:
+    """Normaliza ações do header mantendo compatibilidade com botão único."""
+    if actions:
+        return list(actions)
+
+    if right_button_label:
+        base_key = f"ph_{_safe_key(title)}"
+        return [
+            HeaderAction(
+                label=right_button_label,
+                key=right_button_key or f"{base_key}_btn",
+                help=right_button_help,
+                type="primary",
+                on_click=right_button_on_click,
+            )
+        ]
+
+    return []
+
+
+def _normalize_actions_align(value: str | None) -> str:
+    """Normaliza alinhamento das ações."""
+    align = (value or "right").strip().lower()
+    return align if align in {"left", "right"} else "right"
+
+
+def _action_key(action: "HeaderAction", *, base_key: str) -> str:
+    """Resolve key estável para um botão de ação."""
+    return action.key or f"{base_key}_{_safe_key(action.label)}"
+
+
+def _mobile_action(action: "HeaderAction") -> "HeaderAction":
+    """Garante comportamento full width no mobile."""
+    return HeaderAction(
+        label=action.label,
+        key=action.key,
+        help=action.help,
+        type=action.type,
+        use_container_width=True,
+        disabled=action.disabled,
+        on_click=action.on_click,
+    )
+
+
+# ==========================================================
 # Models
-# ---------------------------------------------------------
+# ==========================================================
 
 
 @dataclass(frozen=True)
 class HeaderAction:
     label: str
     key: str | None = None
-    help: Optional[str] = None
+    help: str | None = None
     type: str = "primary"
     use_container_width: bool = True
     disabled: bool = False
     on_click: Callable[[], None] | None = None
 
 
-# ---------------------------------------------------------
+# ==========================================================
 # CSS local do header
-# ---------------------------------------------------------
+# ==========================================================
 
 
 def _inject_page_header_css() -> None:
-    css_key = "_sp_page_header_css_v6"
-    if st.session_state.get(css_key):
+    """Injeta CSS local do page header uma única vez por sessão."""
+    if st.session_state.get(_PAGE_HEADER_CSS_KEY, False):
         return
 
-    st.session_state[css_key] = True
+    st.session_state[_PAGE_HEADER_CSS_KEY] = True
 
-    st.markdown(
+    _render_html(
         """
         <style>
         .sp-page-header-wrap{
@@ -160,14 +236,13 @@ def _inject_page_header_css() -> None:
             }
         }
         </style>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
-# ---------------------------------------------------------
+# ==========================================================
 # Render helpers
-# ---------------------------------------------------------
+# ==========================================================
 
 
 def _render_title_block(
@@ -176,8 +251,9 @@ def _render_title_block(
     *,
     compact: bool = False,
 ) -> None:
-    title_h = html.escape(title or "")
-    subtitle_h = html.escape(subtitle or "") if subtitle else ""
+    """Renderiza bloco de título e subtítulo."""
+    title_html = _escape(title)
+    subtitle_html = _escape(subtitle) if subtitle else ""
 
     if compact:
         title_size = "1.05rem"
@@ -193,14 +269,14 @@ def _render_title_block(
     subtitle_block = (
         f"""
         <div class="sp-page-header-subtitle" style="font-size:{subtitle_size};">
-            {subtitle_h}
+            {subtitle_html}
         </div>
         """
-        if subtitle_h
+        if subtitle_html
         else ""
     )
 
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-page-header-title">
           <div
@@ -211,109 +287,93 @@ def _render_title_block(
               line-height:{title_line_height};
             "
           >
-            {title_h}
+            {title_html}
           </div>
           {subtitle_block}
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
-def _render_single_action(act: HeaderAction, *, key: str) -> bool:
+def _render_single_action(action: HeaderAction, *, key: str) -> bool:
+    """Renderiza um botão de ação individual."""
     return st.button(
-        act.label,
+        action.label,
         key=key,
-        help=act.help,
-        type=act.type,
-        use_container_width=act.use_container_width,
-        disabled=act.disabled,
-        on_click=act.on_click,
+        help=action.help,
+        type=action.type,
+        use_container_width=action.use_container_width,
+        disabled=action.disabled,
+        on_click=action.on_click,
     )
 
 
 def _render_actions_mobile(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
+    """Renderiza ações empilhadas no mobile."""
     clicked = False
 
     spacer(0.20)
-
-    st.markdown('<div class="sp-page-header-actions-stack">', unsafe_allow_html=True)
+    _render_html('<div class="sp-page-header-actions-stack">')
     try:
-        for act in actions:
-            act_key = act.key or f"{base_key}_{_safe_key(act.label)}"
-            mobile_act = HeaderAction(
-                label=act.label,
-                key=act.key,
-                help=act.help,
-                type=act.type,
-                use_container_width=True,
-                disabled=act.disabled,
-                on_click=act.on_click,
-            )
-            if _render_single_action(mobile_act, key=act_key):
+        for action in actions:
+            resolved_key = _action_key(action, base_key=base_key)
+            if _render_single_action(_mobile_action(action), key=resolved_key):
                 clicked = True
     finally:
-        st.markdown("</div>", unsafe_allow_html=True)
+        _render_html("</div>")
 
     return clicked
 
 
 def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
+    """Renderiza ações em linha no desktop com overflow em expander."""
     clicked = False
-    actions = list(actions)
+    action_list = list(actions)
 
     max_inline = 3
-    inline_actions = actions[:max_inline]
-    extra_actions = actions[max_inline:]
+    inline_actions = action_list[:max_inline]
+    extra_actions = action_list[max_inline:]
 
     if inline_actions:
         cols = st.columns(len(inline_actions), gap="small")
-        for col, act in zip(cols, inline_actions):
-            act_key = act.key or f"{base_key}_{_safe_key(act.label)}"
+        for col, action in zip(cols, inline_actions):
             with col:
-                if _render_single_action(act, key=act_key):
+                if _render_single_action(
+                    action, key=_action_key(action, base_key=base_key)
+                ):
                     clicked = True
 
     if extra_actions:
-        st.markdown('<div class="sp-page-header-more-actions">', unsafe_allow_html=True)
+        _render_html('<div class="sp-page-header-more-actions">')
         try:
             with st.expander("Mais ações", expanded=False):
-                for act in extra_actions:
-                    act_key = act.key or f"{base_key}_{_safe_key(act.label)}"
-                    extra_act = HeaderAction(
-                        label=act.label,
-                        key=act.key,
-                        help=act.help,
-                        type=act.type,
-                        use_container_width=True,
-                        disabled=act.disabled,
-                        on_click=act.on_click,
-                    )
-                    if _render_single_action(extra_act, key=act_key):
+                for action in extra_actions:
+                    resolved_key = _action_key(action, base_key=base_key)
+                    if _render_single_action(_mobile_action(action), key=resolved_key):
                         clicked = True
         finally:
-            st.markdown("</div>", unsafe_allow_html=True)
+            _render_html("</div>")
 
     return clicked
 
 
 def _render_actions(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
+    """Renderiza bloco de ações conforme contexto responsivo."""
     if not actions:
         return False
 
-    st.markdown('<div class="sp-page-header-actions">', unsafe_allow_html=True)
+    _render_html('<div class="sp-page-header-actions">')
     try:
         if is_mobile():
             return _render_actions_mobile(actions, base_key=base_key)
-
         return _render_actions_desktop(actions, base_key=base_key)
     finally:
-        st.markdown("</div>", unsafe_allow_html=True)
+        _render_html("</div>")
 
 
-# ---------------------------------------------------------
+# ==========================================================
 # Page Header
-# ---------------------------------------------------------
+# ==========================================================
 
 
 def page_header(
@@ -342,64 +402,52 @@ def page_header(
         return False
 
     base_key = f"ph_{_safe_key(title)}"
-
-    normalized: list[HeaderAction] = []
-    if actions:
-        normalized = list(actions)
-    elif right_button_label:
-        normalized = [
-            HeaderAction(
-                label=right_button_label,
-                key=right_button_key or f"{base_key}_btn",
-                help=right_button_help,
-                type="primary",
-                on_click=right_button_on_click,
-            )
-        ]
-
-    actions_align = (actions_align or "right").strip().lower()
-    if actions_align not in {"left", "right"}:
-        actions_align = "right"
+    normalized_actions = _normalize_actions(
+        title=title,
+        actions=actions,
+        right_button_label=right_button_label,
+        right_button_key=right_button_key,
+        right_button_help=right_button_help,
+        right_button_on_click=right_button_on_click,
+    )
+    align = _normalize_actions_align(actions_align)
 
     if top_spacing_rem:
         spacer(top_spacing_rem)
 
     clicked = False
 
-    st.markdown('<div class="sp-page-header-wrap">', unsafe_allow_html=True)
-    st.markdown('<div class="sp-page-header">', unsafe_allow_html=True)
+    _render_html('<div class="sp-page-header-wrap">')
+    _render_html('<div class="sp-page-header">')
     try:
         if is_mobile():
             _render_title_block(title, subtitle, compact=compact)
-
-            if normalized:
-                clicked = _render_actions(normalized, base_key=base_key)
-
+            if normalized_actions:
+                clicked = _render_actions(normalized_actions, base_key=base_key)
         else:
-            if normalized:
-                w_left, w_right = actions_width_ratio
-
+            if normalized_actions:
+                left_ratio, right_ratio = actions_width_ratio
                 left, right = grid_weights(
-                    (w_left, w_right),
+                    (left_ratio, right_ratio),
                     weights_mobile=(1, 1),
                     gap="medium",
                 )
 
-                if actions_align == "left":
+                if align == "left":
                     with left:
-                        clicked = _render_actions(normalized, base_key=base_key)
+                        clicked = _render_actions(normalized_actions, base_key=base_key)
                     with right:
                         _render_title_block(title, subtitle, compact=compact)
                 else:
                     with left:
                         _render_title_block(title, subtitle, compact=compact)
                     with right:
-                        clicked = _render_actions(normalized, base_key=base_key)
+                        clicked = _render_actions(normalized_actions, base_key=base_key)
             else:
                 _render_title_block(title, subtitle, compact=compact)
     finally:
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        _render_html("</div>")
+        _render_html("</div>")
 
     if divider:
         spacer(0.14)
@@ -411,21 +459,23 @@ def page_header(
     return clicked
 
 
-# ---------------------------------------------------------
+# ==========================================================
 # Surfaces
-# ---------------------------------------------------------
+# ==========================================================
 
 
 def surface_start(class_name: str | None = None, style: str | None = None) -> None:
+    """Abre manualmente uma surface HTML."""
     classes = "sp-surface"
-    if class_name:
+    if class_name and class_name.strip():
         classes = f"{classes} {class_name.strip()}"
 
-    classes_attr = html.escape(classes, quote=True)
-    style_attr = f' style="{html.escape(style, quote=True)}"' if style else ""
+    class_attr = _escape(classes, quote=True)
+    style_attr = f' style="{_escape(style, quote=True)}"' if style else ""
 
-    st.markdown(f'<div class="{classes_attr}"{style_attr}>', unsafe_allow_html=True)
+    _render_html(f'<div class="{class_attr}"{style_attr}>')
 
 
 def surface_end() -> None:
-    st.markdown("</div>", unsafe_allow_html=True)
+    """Fecha manualmente uma surface HTML."""
+    _render_html("</div>")

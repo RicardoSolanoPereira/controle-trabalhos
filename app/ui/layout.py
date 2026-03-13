@@ -7,7 +7,137 @@ from typing import Callable, Iterator, Sequence
 
 import streamlit as st
 
+__all__ = [
+    "MOBILE_FLAG_KEY",
+    "PageMeta",
+    "is_mobile",
+    "mobile_debug_toggle",
+    "spacer",
+    "divider_space",
+    "compact_gap",
+    "section_gap",
+    "page_gap",
+    "grid",
+    "grid_weights",
+    "content_columns",
+    "split_hero",
+    "surface",
+    "plain_block",
+    "section",
+    "section_surface",
+    "toolbar",
+    "toolbar_actions",
+    "toolbar_row",
+    "empty_state",
+    "page_header",
+]
+
 MOBILE_FLAG_KEY = "force_mobile"
+
+
+# ==========================================================
+# Helpers privados
+# ==========================================================
+
+
+def _render_html(content: str) -> None:
+    """Renderiza HTML controlado pelo app."""
+    st.markdown(content, unsafe_allow_html=True)
+
+
+def _escape(text: str | None, *, quote: bool = False) -> str:
+    """Escapa texto para HTML."""
+    return html.escape(text or "", quote=quote)
+
+
+def _normalize_rem(value: float | int | None, *, minimum: float = 0.0) -> float:
+    """Normaliza valor numérico para uso em espaçamento vertical."""
+    if value is None:
+        return minimum
+    return max(minimum, float(value))
+
+
+def _optional_style_attr(style: str | None) -> str:
+    """Monta atributo style escapado."""
+    if not style:
+        return ""
+    return f' style="{_escape(style, quote=True)}"'
+
+
+def _optional_class_attr(class_name: str | None) -> str:
+    """Monta atributo class escapado."""
+    if not class_name:
+        return ""
+    cleaned = class_name.strip()
+    if not cleaned:
+        return ""
+    return f' class="{_escape(cleaned, quote=True)}"'
+
+
+def _stack_slots(count: int) -> list:
+    """Retorna N containers empilhados."""
+    total = max(1, int(count))
+    return [st.container() for _ in range(total)]
+
+
+def _wrap_columns(count: int, *, per_row: int, gap: str) -> list:
+    """
+    Cria N slots distribuídos em múltiplas linhas.
+    Útil em mobile quando se deseja mais de 1 coluna por linha.
+    """
+    total = max(1, int(count))
+    columns_per_row = max(1, int(per_row))
+
+    slots: list = []
+    remaining = total
+
+    while remaining > 0:
+        current = min(columns_per_row, remaining)
+        row = st.columns(current, gap=gap)
+        slots.extend(list(row))
+        remaining -= current
+
+    return slots
+
+
+def _section_header(title: str, subtitle: str | None = None) -> None:
+    """Renderiza cabeçalho padrão de seção."""
+    title_html = _escape(title)
+    subtitle_html = _escape(subtitle) if subtitle else ""
+
+    subtitle_block = (
+        f"<div class='sp-section-subtitle'>{subtitle_html}</div>"
+        if subtitle_html
+        else ""
+    )
+
+    _render_html(
+        f"""
+        <div class="sp-section-header">
+          <div class="sp-section-title">{title_html}</div>
+          {subtitle_block}
+        </div>
+        """
+    )
+
+
+def _page_title_block(meta: PageMeta) -> None:
+    """Renderiza bloco interno do título da página."""
+    title_html = _escape(meta.title)
+    subtitle_html = _escape(meta.subtitle) if meta.subtitle else ""
+
+    subtitle_block = (
+        f"<div class='sp-page-subtitle'>{subtitle_html}</div>" if subtitle_html else ""
+    )
+
+    _render_html(
+        f"""
+        <div class="sp-page-header">
+          <div class="sp-page-title">{title_html}</div>
+          {subtitle_block}
+        </div>
+        """
+    )
 
 
 # ==========================================================
@@ -37,22 +167,22 @@ def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
 
 def spacer(height_rem: float = 0.5) -> None:
     """Insere espaçamento vertical consistente."""
-    height = max(0.0, float(height_rem))
-    st.markdown(
-        f"<div style='height:{height:.3f}rem'></div>",
-        unsafe_allow_html=True,
-    )
+    height = _normalize_rem(height_rem)
+    _render_html(f"<div style='height:{height:.3f}rem'></div>")
 
 
 def divider_space(top: float = 0.18, bottom: float = 0.20) -> None:
-    """Espaçamento com divisor visual discreto."""
-    if top > 0:
-        spacer(top)
+    """Insere espaçamento com divisor visual discreto."""
+    top_value = _normalize_rem(top)
+    bottom_value = _normalize_rem(bottom)
+
+    if top_value > 0:
+        spacer(top_value)
 
     st.divider()
 
-    if bottom > 0:
-        spacer(bottom)
+    if bottom_value > 0:
+        spacer(bottom_value)
 
 
 def compact_gap() -> None:
@@ -73,32 +203,6 @@ def page_gap() -> None:
 # ==========================================================
 # Slots / grids
 # ==========================================================
-
-
-def _stack_slots(n: int) -> list:
-    """Retorna N containers empilhados."""
-    total = max(1, int(n))
-    return [st.container() for _ in range(total)]
-
-
-def _wrap_columns(n: int, *, per_row: int, gap: str) -> list:
-    """
-    Cria N slots distribuídos em múltiplas linhas.
-    Útil para mobile quando se quer mais de 1 coluna por linha.
-    """
-    total = max(1, int(n))
-    per_row = max(1, int(per_row))
-
-    slots: list = []
-    remaining = total
-
-    while remaining > 0:
-        cols_in_row = min(per_row, remaining)
-        row = st.columns(cols_in_row, gap=gap)
-        slots.extend(list(row))
-        remaining -= cols_in_row
-
-    return slots
 
 
 def grid(
@@ -133,19 +237,23 @@ def grid_weights(
 ) -> list:
     """
     Grid com pesos no desktop.
-    No mobile, empilha mantendo o mesmo número de slots do desktop.
+
+    Em mobile, empilha mantendo quantidade previsível de slots.
     """
-    weights = tuple(float(w) for w in weights_desktop if float(w) > 0) or (1.0,)
+    desktop_weights = tuple(float(w) for w in weights_desktop if float(w) > 0) or (1.0,)
 
     if is_mobile():
         if weights_mobile:
             mobile_weights = tuple(float(w) for w in weights_mobile if float(w) > 0)
-            mobile_count = len(mobile_weights) if mobile_weights else len(weights)
+            mobile_count = (
+                len(mobile_weights) if mobile_weights else len(desktop_weights)
+            )
         else:
-            mobile_count = len(weights)
+            mobile_count = len(desktop_weights)
+
         return _stack_slots(max(1, mobile_count))
 
-    return list(st.columns(weights, gap=gap))
+    return list(st.columns(desktop_weights, gap=gap))
 
 
 def content_columns(
@@ -156,12 +264,10 @@ def content_columns(
 ) -> tuple:
     """
     Layout padrão de conteúdo em 2 colunas.
-    Em mobile empilha.
+    Em mobile, empilha.
     """
     if is_mobile():
-        top = st.container()
-        bottom = st.container()
-        return top, bottom
+        return st.container(), st.container()
 
     cols = st.columns([left, right], gap=gap, vertical_alignment="top")
     return cols[0], cols[1]
@@ -175,7 +281,7 @@ def split_hero(
 ) -> tuple:
     """
     Layout para topo de página / destaque.
-    Em mobile empilha.
+    Em mobile, empilha.
     """
     if is_mobile():
         return st.container(), st.container()
@@ -185,7 +291,7 @@ def split_hero(
 
 
 # ==========================================================
-# Surface
+# Surface / blocks
 # ==========================================================
 
 
@@ -197,18 +303,17 @@ def surface(
 ) -> Iterator[None]:
     """Container visual padrão."""
     classes = "sp-surface"
-    if class_name:
+    if class_name and class_name.strip():
         classes = f"{classes} {class_name.strip()}"
 
-    style_attr = f' style="{html.escape(style, quote=True)}"' if style else ""
-    st.markdown(
-        f'<div class="{html.escape(classes, quote=True)}"{style_attr}>',
-        unsafe_allow_html=True,
-    )
+    class_attr = f' class="{_escape(classes, quote=True)}"'
+    style_attr = _optional_style_attr(style)
+
+    _render_html(f"<div{class_attr}{style_attr}>")
     try:
         yield
     finally:
-        st.markdown("</div>", unsafe_allow_html=True)
+        _render_html("</div>")
 
 
 @contextmanager
@@ -221,41 +326,19 @@ def plain_block(
     Bloco sem surface visual.
     Útil para headers, toolbars e agrupamentos sem borda.
     """
-    classes = class_name.strip() if class_name else ""
-    class_attr = f' class="{html.escape(classes, quote=True)}"' if classes else ""
-    style_attr = f' style="{html.escape(style, quote=True)}"' if style else ""
+    class_attr = _optional_class_attr(class_name)
+    style_attr = _optional_style_attr(style)
 
-    st.markdown(f"<div{class_attr}{style_attr}>", unsafe_allow_html=True)
+    _render_html(f"<div{class_attr}{style_attr}>")
     try:
         yield
     finally:
-        st.markdown("</div>", unsafe_allow_html=True)
+        _render_html("</div>")
 
 
 # ==========================================================
 # Section
 # ==========================================================
-
-
-def _section_header(title: str, subtitle: str | None = None) -> None:
-    title_html = html.escape(title or "")
-    subtitle_html = html.escape(subtitle) if subtitle else ""
-
-    subtitle_block = (
-        f"<div class='sp-section-subtitle'>{subtitle_html}</div>"
-        if subtitle_html
-        else ""
-    )
-
-    st.markdown(
-        f"""
-        <div class="sp-section-header">
-          <div class="sp-section-title">{title_html}</div>
-          {subtitle_block}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 @contextmanager
@@ -274,25 +357,33 @@ def section(
     Seção padrão com header e surface.
 
     - Em desktop: header e ações ficam lado a lado.
-    - Em mobile: ações descem para baixo do título.
+    - Em mobile: ações descem abaixo do título.
     """
-    if top_pad_rem is not None and top_pad_rem > 0:
-        spacer(top_pad_rem)
+    top_pad = (
+        _normalize_rem(top_pad_rem, minimum=0.0) if top_pad_rem is not None else None
+    )
+    bottom_pad = (
+        _normalize_rem(bottom_pad_rem, minimum=0.0)
+        if bottom_pad_rem is not None
+        else None
+    )
+
+    if top_pad is not None and top_pad > 0:
+        spacer(top_pad)
 
     if title:
         if header_actions and not is_mobile():
             left, right = st.columns(
-                [4.2, 1.8], gap="medium", vertical_alignment="center"
+                [4.2, 1.8],
+                gap="medium",
+                vertical_alignment="center",
             )
 
             with left:
                 _section_header(title, subtitle)
 
             with right:
-                st.markdown(
-                    "<div style='height:0.10rem'></div>",
-                    unsafe_allow_html=True,
-                )
+                _render_html("<div style='height:0.10rem'></div>")
                 header_actions()
         else:
             _section_header(title, subtitle)
@@ -309,8 +400,8 @@ def section(
     with surface(class_name=surface_class, style=surface_style):
         yield
 
-    if bottom_pad_rem is not None and bottom_pad_rem > 0:
-        spacer(bottom_pad_rem)
+    if bottom_pad is not None and bottom_pad > 0:
+        spacer(bottom_pad)
 
 
 @contextmanager
@@ -325,7 +416,7 @@ def section_surface(
     surface_class: str | None = None,
     surface_style: str | None = None,
 ) -> Iterator[None]:
-    """Alias de compatibilidade para section()."""
+    """Alias de compatibilidade para `section()`."""
     with section(
         title=title,
         subtitle=subtitle,
@@ -353,8 +444,8 @@ def toolbar(
 ) -> Iterator[None]:
     """
     Área principal de toolbar.
-    Em desktop rende a área da esquerda.
-    Em mobile rende inline.
+    Em desktop, rende a área esquerda.
+    Em mobile, rende inline.
     """
     if is_mobile():
         with st.container():
@@ -401,9 +492,7 @@ def toolbar_row(
     right_ratio: float = 2.0,
     bottom_space: float = 0.26,
 ) -> None:
-    """
-    Renderiza uma toolbar completa em uma chamada.
-    """
+    """Renderiza uma toolbar completa em uma chamada."""
     if is_mobile():
         if left_content:
             left_content()
@@ -442,9 +531,10 @@ def empty_state(
     subtitle: str | None = "Quando você adicionar itens, eles vão aparecer aqui.",
     icon: str = "📭",
 ) -> None:
-    title_html = html.escape(title or "")
-    subtitle_html = html.escape(subtitle) if subtitle else ""
-    icon_html = html.escape(icon or "📭")
+    """Renderiza estado vazio padrão."""
+    title_html = _escape(title)
+    subtitle_html = _escape(subtitle) if subtitle else ""
+    icon_html = _escape(icon or "📭")
 
     subtitle_block = (
         f"<div class='sp-empty-state-subtitle'>{subtitle_html}</div>"
@@ -452,15 +542,14 @@ def empty_state(
         else ""
     )
 
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-surface sp-empty-state">
             <div class="sp-empty-state-icon">{icon_html}</div>
             <div class="sp-empty-state-title">{title_html}</div>
             {subtitle_block}
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
@@ -473,25 +562,6 @@ def empty_state(
 class PageMeta:
     title: str
     subtitle: str | None = None
-
-
-def _page_title_block(meta: PageMeta) -> None:
-    title_html = html.escape(meta.title or "")
-    subtitle_html = html.escape(meta.subtitle) if meta.subtitle else ""
-
-    subtitle_block = (
-        f"<div class='sp-page-subtitle'>{subtitle_html}</div>" if subtitle_html else ""
-    )
-
-    st.markdown(
-        f"""
-        <div class="sp-page-header">
-          <div class="sp-page-title">{title_html}</div>
-          {subtitle_block}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def page_header(
@@ -507,13 +577,17 @@ def page_header(
     spacer(0.04)
 
     if right_actions and not is_mobile():
-        left, right = st.columns([4.2, 1.8], gap="medium", vertical_alignment="center")
+        left, right = st.columns(
+            [4.2, 1.8],
+            gap="medium",
+            vertical_alignment="center",
+        )
 
         with left:
             _page_title_block(meta)
 
         with right:
-            st.markdown("<div style='height:0.08rem'></div>", unsafe_allow_html=True)
+            _render_html("<div style='height:0.08rem'></div>")
             right_actions()
     else:
         _page_title_block(meta)
