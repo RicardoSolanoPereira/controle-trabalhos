@@ -45,7 +45,7 @@ class HeaderAction:
 
 
 def _inject_page_header_css() -> None:
-    css_key = "_sp_page_header_css_v5"
+    css_key = "_sp_page_header_css_v6"
     if st.session_state.get(css_key):
         return
 
@@ -59,7 +59,7 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header{
-            padding:0.02rem 0 0.04rem 0;
+            padding:0.02rem 0 0.02rem 0;
         }
 
         .sp-page-header-title{
@@ -76,11 +76,11 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-subtitle{
-            margin-top:0.22rem;
+            margin-top:0.20rem;
             font-size:0.94rem;
-            line-height:1.42;
+            line-height:1.45;
             color:var(--muted);
-            max-width:72ch;
+            max-width:76ch;
         }
 
         .sp-page-header-actions{
@@ -135,10 +135,14 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-more-actions details[data-testid="stExpander"]{
-            margin-top:0.10rem;
+            margin-top:0.12rem;
         }
 
-        @media (max-width: 768px){
+        .sp-page-header-more-actions summary{
+            font-weight:650;
+        }
+
+        @media (max-width:768px){
             .sp-page-header{
                 padding:0.02rem 0 0.02rem 0;
             }
@@ -176,14 +180,14 @@ def _render_title_block(
     subtitle_h = html.escape(subtitle or "") if subtitle else ""
 
     if compact:
-        title_size = "1.06rem"
+        title_size = "1.05rem"
         title_weight = "800"
         title_line_height = "1.16"
-        subtitle_size = "0.89rem"
+        subtitle_size = "0.88rem"
     else:
         title_size = "1.72rem"
         title_weight = "860"
-        title_line_height = "1.06"
+        title_line_height = "1.05"
         subtitle_size = "0.94rem"
 
     subtitle_block = (
@@ -377,8 +381,8 @@ def page_header(
 
                 left, right = grid_weights(
                     (w_left, w_right),
-                    weights_mobile=(1,),
-                    gap="large",
+                    weights_mobile=(1, 1),
+                    gap="medium",
                 )
 
                 if actions_align == "left":

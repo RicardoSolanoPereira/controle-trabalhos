@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import html
+
 import streamlit as st
 
-_CSS_VERSION = "v13"
+_CSS_VERSION = "v14"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 
@@ -29,11 +30,12 @@ ROOT VARIABLES
 
 :root{
 
-  --bg:#f8fafb;
+  --bg:#f6f8f7;
+  --bg-soft:#fbfcfb;
 
   --surface:#ffffff;
-  --surface-soft:#fbfcfd;
-  --surface-muted:#f1f5f4;
+  --surface-soft:#fcfdfc;
+  --surface-muted:#f2f5f4;
   --surface-elevated:#ffffff;
 
   --border:#e2e8e5;
@@ -41,35 +43,38 @@ ROOT VARIABLES
   --border-soft:rgba(15,23,42,0.06);
 
   --text:#0f172a;
+  --text-soft:#344054;
   --muted:#667085;
   --muted-strong:#475467;
 
   --primary:#3f5f5a;
-  --primary-hover:#344e4a;
+  --primary-hover:#314b47;
   --primary-soft:rgba(63,95,90,0.08);
+  --primary-ring:rgba(63,95,90,0.14);
 
   --danger:#dc2626;
   --warning:#d97706;
   --success:#15803d;
-  --info:#3f5f5a;
+  --info:#2563eb;
+  --neutral:#64748b;
 
   --danger-bg:rgba(220,38,38,0.07);
-  --warning-bg:rgba(217,119,6,0.10);
+  --warning-bg:rgba(217,119,6,0.09);
   --success-bg:rgba(21,128,61,0.08);
-  --info-bg:rgba(63,95,90,0.08);
+  --info-bg:rgba(37,99,235,0.08);
   --neutral-bg:rgba(15,23,42,0.04);
 
-  --radius-xl:22px;
+  --radius-xl:24px;
   --radius-lg:18px;
   --radius-md:14px;
   --radius-sm:12px;
   --radius-xs:10px;
 
-  --shadow:0 1px 2px rgba(15,23,42,0.04);
-  --shadow-soft:0 4px 12px rgba(15,23,42,0.05);
-  --shadow-strong:0 8px 20px rgba(15,23,42,0.07);
+  --shadow-xs:0 1px 2px rgba(15,23,42,0.04);
+  --shadow-soft:0 6px 18px rgba(15,23,42,0.05);
+  --shadow-md:0 10px 26px rgba(15,23,42,0.06);
 
-  --transition:all .15s ease;
+  --transition:all .18s ease;
 }
 
 
@@ -92,13 +97,18 @@ body{
 
 .stApp{
   background:
-    radial-gradient(circle at top right, rgba(63,95,90,0.03), transparent 22%),
+    radial-gradient(circle at top right, rgba(63,95,90,0.035), transparent 24%),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.15) 100%),
     var(--bg);
 }
 
 header[data-testid="stHeader"]{
   background:transparent;
-  height:0px;
+  height:0;
+}
+
+div[data-testid="stAppViewContainer"]{
+  background:transparent;
 }
 
 
@@ -107,18 +117,16 @@ LAYOUT COMPACTO
 ====================================================== */
 
 .block-container{
-  padding-top:0.65rem;
-  padding-bottom:1.05rem;
-  padding-left:1.10rem;
-  padding-right:1.10rem;
+  padding-top:0.70rem;
+  padding-bottom:1.10rem;
+  padding-left:1.15rem;
+  padding-right:1.15rem;
   max-width:1380px;
   overflow:visible !important;
 }
 
-/* remove espaços exagerados */
-
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.25rem;
+  margin-bottom:0.22rem;
 }
 
 section.main{
@@ -137,21 +145,21 @@ h1,h2,h3,h4{
 }
 
 h1{
-  font-size:1.80rem;
-  line-height:1.08;
-  font-weight:820;
+  font-size:1.82rem;
+  line-height:1.06;
+  font-weight:840;
 }
 
 h2{
   font-size:1.34rem;
   line-height:1.12;
-  font-weight:760;
+  font-weight:780;
 }
 
 h3{
-  font-size:1.04rem;
+  font-size:1.05rem;
   line-height:1.2;
-  font-weight:720;
+  font-weight:730;
 }
 
 h4{
@@ -160,7 +168,7 @@ h4{
   font-weight:700;
 }
 
-p, li, label{
+p, li, label, span{
   color:var(--text);
 }
 
@@ -175,23 +183,23 @@ PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.05rem 0 0.02rem 0;
+  padding:0.02rem 0 0.02rem 0;
 }
 
 .sp-page-title{
-  font-size:1.70rem;
+  font-size:1.72rem;
   font-weight:860;
-  line-height:1.05;
-  letter-spacing:-0.025em;
+  line-height:1.04;
+  letter-spacing:-0.028em;
   color:var(--text);
 }
 
 .sp-page-subtitle{
-  margin-top:0.15rem;
-  font-size:0.94rem;
-  line-height:1.42;
+  margin-top:0.18rem;
+  font-size:0.95rem;
+  line-height:1.46;
   color:var(--muted);
-  max-width:76ch;
+  max-width:78ch;
 }
 
 
@@ -204,14 +212,16 @@ SECTION HEADER
 }
 
 .sp-section-title{
-  font-size:1rem;
-  font-weight:800;
-  letter-spacing:-0.01em;
+  font-size:1.01rem;
+  font-weight:810;
+  letter-spacing:-0.012em;
+  color:var(--text);
 }
 
 .sp-section-subtitle{
-  margin-top:0.05rem;
+  margin-top:0.08rem;
   font-size:0.90rem;
+  line-height:1.42;
   color:var(--muted);
 }
 
@@ -221,7 +231,7 @@ SURFACE
 ====================================================== */
 
 .sp-surface{
-  background:var(--surface);
+  background:linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #ffffff 100%);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   padding:14px 16px;
@@ -231,6 +241,7 @@ SURFACE
 
 .sp-surface:hover{
   border-color:var(--border-strong);
+  box-shadow:var(--shadow-md);
 }
 
 
@@ -247,8 +258,10 @@ CHIPS
   background:var(--neutral-bg);
   border:1px solid rgba(15,23,42,0.08);
   font-size:0.80rem;
-  font-weight:600;
+  font-weight:650;
   line-height:1;
+  color:var(--text-soft);
+  white-space:nowrap;
 }
 
 
@@ -257,12 +270,12 @@ SIDEBAR
 ====================================================== */
 
 section[data-testid="stSidebar"]{
-  background:#f4f7f6;
+  background:linear-gradient(180deg, #f4f7f6 0%, #f1f5f4 100%);
   border-right:1px solid #dce4e1;
 }
 
 section[data-testid="stSidebar"] .block-container{
-  padding:0.78rem !important;
+  padding:0.80rem !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
@@ -283,44 +296,32 @@ label[data-baseweb="radio"] > div:first-child{
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"]{
-
   display:block;
   width:100%;
   padding:9px 12px;
-
   border-radius:12px;
-
   margin-bottom:4px;
-
   cursor:pointer;
-
   border:1px solid rgba(15,23,42,0.08);
-
   background:rgba(255,255,255,0.92);
-
   font-size:0.92rem;
-
   transition:var(--transition);
 }
 
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"]:hover{
-
   background:#ffffff;
-
   border-color:rgba(15,23,42,0.14);
+  transform:translateX(1px);
 }
 
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"][aria-checked="true"]{
-
   background:var(--primary-soft);
-
   border-left:4px solid var(--primary);
-
-  font-weight:750;
+  font-weight:760;
 }
 
 
@@ -329,71 +330,86 @@ BUTTONS
 ====================================================== */
 
 .stButton > button{
-
   border-radius:12px;
-
-  padding:0.55rem 0.95rem;
-
-  font-weight:650;
-
+  padding:0.56rem 0.98rem;
+  min-height:42px;
+  font-weight:670;
   border:1px solid rgba(15,23,42,0.10);
-
   background:#ffffff;
-
   color:var(--text);
-
   transition:var(--transition);
+  box-shadow:none;
 }
 
 .stButton > button:hover{
-
   background:rgba(15,23,42,0.025);
-
   border-color:rgba(15,23,42,0.18);
-
   transform:translateY(-1px);
+}
+
+.stButton > button:focus{
+  outline:none !important;
+  box-shadow:0 0 0 0.18rem rgba(63,95,90,0.10) !important;
 }
 
 .stButton > button[kind="primary"],
 .stButton > button[class*="primary"]{
-
   background:var(--primary) !important;
-
   border:1px solid var(--primary) !important;
-
-  color:#fff !important;
+  color:#ffffff !important;
 }
 
-.stButton > button[kind="primary"]:hover{
-
+.stButton > button[kind="primary"]:hover,
+.stButton > button[class*="primary"]:hover{
   background:var(--primary-hover) !important;
+  border-color:var(--primary-hover) !important;
 }
 
 
 /* ======================================================
-INPUTS
+INPUTS / SELECTS / TEXTAREA
 ====================================================== */
 
 div[data-baseweb="input"] > div,
 div[data-baseweb="textarea"] > div,
 div[data-baseweb="select"] > div{
-
   border-radius:var(--radius-md) !important;
-
   border-color:rgba(15,23,42,0.10) !important;
-
   background:#ffffff !important;
-
   min-height:42px;
+  transition:var(--transition) !important;
+}
+
+div[data-baseweb="input"] > div:hover,
+div[data-baseweb="textarea"] > div:hover,
+div[data-baseweb="select"] > div:hover{
+  border-color:rgba(15,23,42,0.18) !important;
 }
 
 div[data-baseweb="input"] > div:focus-within,
 div[data-baseweb="textarea"] > div:focus-within,
 div[data-baseweb="select"] > div:focus-within{
-
   border-color:rgba(63,95,90,0.35) !important;
+  box-shadow:0 0 0 0.18rem var(--primary-ring) !important;
+}
 
-  box-shadow:0 0 0 0.16rem rgba(63,95,90,0.09) !important;
+label[data-testid="stWidgetLabel"] p{
+  font-weight:620 !important;
+  color:var(--text-soft) !important;
+}
+
+
+/* ======================================================
+TABS
+====================================================== */
+
+button[data-baseweb="tab"]{
+  border-radius:12px 12px 0 0 !important;
+  font-weight:650 !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"]{
+  color:var(--primary) !important;
 }
 
 
@@ -402,14 +418,27 @@ DATAFRAME
 ====================================================== */
 
 div[data-testid="stDataFrame"]{
-
   border-radius:14px;
-
   overflow:hidden;
-
   border:1px solid var(--border);
-
   background:#ffffff;
+}
+
+div[data-testid="stDataFrame"] [role="grid"]{
+  border:none !important;
+}
+
+
+/* ======================================================
+EXPANDER
+====================================================== */
+
+details{
+  border-radius:14px;
+}
+
+summary{
+  border-radius:12px;
 }
 
 
@@ -418,69 +447,47 @@ CARD KPI
 ====================================================== */
 
 .sp-card{
-
-  background:#ffffff;
-
+  background:linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
   border:1px solid var(--border);
-
   border-radius:var(--radius-lg);
-
   padding:14px 16px;
-
   box-shadow:var(--shadow-soft);
-
   transition:var(--transition);
-
-  min-height:100px;
+  min-height:108px;
 }
 
 .sp-card:hover{
-
   border-color:var(--border-strong);
-
   transform:translateY(-1px);
+  box-shadow:var(--shadow-md);
 }
 
 .sp-card-title{
-
-  font-size:0.78rem;
-
+  font-size:0.77rem;
   color:rgba(15,23,42,0.58);
-
   margin-bottom:7px;
-
   font-weight:760;
-
   text-transform:uppercase;
-
-  letter-spacing:0.03em;
+  letter-spacing:0.04em;
 }
 
 .sp-card-value{
-
-  font-size:1.40rem;
-
+  font-size:1.42rem;
   font-weight:850;
-
   color:var(--text);
-
-  line-height:1.1;
+  line-height:1.08;
 }
 
 .sp-card-value.emph{
-
   font-size:1.72rem;
-
   font-weight:900;
 }
 
 .sp-card-sub{
-
   color:rgba(15,23,42,0.56);
-
   font-size:0.84rem;
-
   margin-top:8px;
+  line-height:1.35;
 }
 
 
@@ -488,11 +495,86 @@ CARD KPI
 TONES
 ====================================================== */
 
-.sp-tone-danger{border-left:5px solid var(--danger);padding-left:13px;}
-.sp-tone-warning{border-left:5px solid var(--warning);padding-left:13px;}
-.sp-tone-success{border-left:5px solid var(--success);padding-left:13px;}
-.sp-tone-info{border-left:5px solid var(--info);padding-left:13px;}
-.sp-tone-neutral{border-left:5px solid #cbd5e1;padding-left:13px;}
+.sp-tone-danger{
+  border-left:5px solid var(--danger);
+  padding-left:13px;
+}
+
+.sp-tone-warning{
+  border-left:5px solid var(--warning);
+  padding-left:13px;
+}
+
+.sp-tone-success{
+  border-left:5px solid var(--success);
+  padding-left:13px;
+}
+
+.sp-tone-info{
+  border-left:5px solid var(--info);
+  padding-left:13px;
+}
+
+.sp-tone-neutral{
+  border-left:5px solid #cbd5e1;
+  padding-left:13px;
+}
+
+
+/* ======================================================
+EMPTY STATE
+====================================================== */
+
+.sp-empty-state{
+  text-align:center;
+  padding:28px 20px;
+}
+
+.sp-empty-state-icon{
+  font-size:1.8rem;
+  line-height:1;
+  margin-bottom:10px;
+}
+
+.sp-empty-state-title{
+  font-size:1rem;
+  font-weight:800;
+  color:var(--text);
+}
+
+.sp-empty-state-subtitle{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:0.91rem;
+  line-height:1.45;
+}
+
+
+/* ======================================================
+APP ERROR
+====================================================== */
+
+.sp-app-error{
+  background:linear-gradient(180deg, rgba(220,38,38,0.04) 0%, rgba(220,38,38,0.02) 100%);
+  border:1px solid rgba(220,38,38,0.15);
+  border-left:5px solid var(--danger);
+  border-radius:16px;
+  padding:14px 16px;
+  margin-bottom:0.35rem;
+}
+
+.sp-app-error-title{
+  color:#991b1b;
+  font-size:0.98rem;
+  font-weight:820;
+}
+
+.sp-app-error-subtitle{
+  color:#7f1d1d;
+  margin-top:5px;
+  font-size:0.90rem;
+  line-height:1.45;
+}
 
 
 /* ======================================================
@@ -500,12 +582,22 @@ DIVIDER
 ====================================================== */
 
 .sp-divider{
-
   border:0;
-
   border-top:1px solid #e5e7eb;
-
   margin:0.55rem 0;
+}
+
+
+/* ======================================================
+HELPERS
+====================================================== */
+
+.sp-muted{
+  color:var(--muted) !important;
+}
+
+.sp-text-soft{
+  color:var(--text-soft) !important;
 }
 
 
@@ -515,40 +607,43 @@ MOBILE
 
 @media (max-width:768px){
 
-.block-container{
+  .block-container{
+    padding:0.90rem !important;
+    max-width:100% !important;
+  }
 
-padding:0.90rem !important;
+  .sp-page-title{
+    font-size:1.45rem;
+  }
 
-max-width:100% !important;
+  .sp-page-subtitle{
+    font-size:0.91rem;
+  }
 
-}
+  .sp-card{
+    min-height:auto;
+  }
 
-.sp-page-title{
+  .sp-card-value{
+    font-size:1.14rem;
+  }
 
-font-size:1.45rem;
+  .sp-card-value.emph{
+    font-size:1.34rem;
+  }
 
-}
+  .sp-surface{
+    padding:13px 14px;
+  }
 
-.sp-card{
+  .stButton > button{
+    min-height:44px !important;
+    padding:0.72rem 1rem !important;
+  }
 
-min-height:auto;
-
-}
-
-.sp-card-value{
-
-font-size:1.15rem;
-
-}
-
-.stButton > button{
-
-min-height:44px !important;
-
-padding:0.72rem 1rem !important;
-
-}
-
+  .sp-chip{
+    font-size:0.78rem;
+  }
 }
 
 </style>

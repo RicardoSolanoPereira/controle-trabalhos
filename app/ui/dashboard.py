@@ -114,7 +114,7 @@ def _status_prazo(dias: int) -> str:
         return "🟠 Urgente"
     if dias <= 10:
         return "🟡 Atenção"
-    return "🟢 Ok"
+    return "🟢 Em dia"
 
 
 def _tone_from_prazo_status(dias: int) -> str:
@@ -141,8 +141,8 @@ def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str,
         return {
             "tone": "danger",
             "title": "Pendências críticas exigem ação imediata",
-            "left_text": f"Você tem <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s).",
-            "helper": "Priorize o que está vencido antes de novos cadastros ou revisões secundárias.",
+            "left_text": f"Você possui <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s) no painel.",
+            "helper": "Priorize o que já venceu antes de novos cadastros, revisões secundárias ou tarefas administrativas.",
             "cta_label": "Ver atrasados",
             "cta_page": "Prazos",
             "cta_state": {
@@ -156,8 +156,8 @@ def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str,
         return {
             "tone": "warning",
             "title": "Há vencimentos próximos no radar",
-            "left_text": f"Você tem <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias.",
-            "helper": "Vale revisar documentos, agenda, visitas e pendências associadas.",
+            "left_text": f"Você possui <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias.",
+            "helper": "Vale revisar documentos, agenda, vistorias, diligências e pendências relacionadas.",
             "cta_label": "Ver próximos 7 dias",
             "cta_page": "Prazos",
             "cta_state": {
@@ -171,7 +171,7 @@ def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str,
         "tone": "success",
         "title": "Tudo sob controle no momento",
         "left_text": "Não há prazos críticos no painel.",
-        "helper": "Bom momento para organizar agenda, financeiro e novos cadastros.",
+        "helper": "Bom momento para organizar agenda, revisar financeiro e atualizar cadastros.",
         "cta_label": "Novo prazo",
         "cta_page": "Prazos",
         "cta_state": {"prazos_section": "Cadastro"},
@@ -190,7 +190,7 @@ def _agenda_status(hours_left: float) -> tuple[str, str]:
         return "🟠 Urgente", "warning"
     if hours_left <= 72:
         return "🟡 Atenção", "info"
-    return "🟢 Ok", "success"
+    return "🟢 Programado", "success"
 
 
 def _agenda_rest_chip(hours_left: float) -> str:
@@ -207,7 +207,7 @@ def _agenda_rest_chip(hours_left: float) -> str:
 
 def _kpi_agenda_subtitle(ag_24h: int, ag_72h: int, ag_7d: int) -> str:
     if ag_7d <= 0:
-        return "nenhum agendado"
+        return "nenhum compromisso próximo"
     if ag_24h > 0:
         return f"{ag_24h} em 24h • {ag_7d} em 7d"
     if ag_72h > 0:
@@ -239,17 +239,17 @@ def _build_prazos_df(rows: Iterable[tuple]) -> pd.DataFrame:
             {
                 "Trabalho": f"{numero_processo} – {tipo_acao or 'Sem tipo'}",
                 "Evento": evento,
-                "Venc.": format_date_br(data_limite),
+                "Vencimento": format_date_br(data_limite),
                 "Dias": dias,
                 "Status": _status_prazo(dias),
-                "Prior.": _prior_badge(prioridade),
+                "Prioridade": _prior_badge(prioridade),
             }
         )
 
     if not items:
         return pd.DataFrame()
 
-    return pd.DataFrame(items).sort_values(by=["Dias", "Venc."], ascending=True)
+    return pd.DataFrame(items).sort_values(by=["Dias", "Vencimento"], ascending=True)
 
 
 def _build_agenda_df(rows: Iterable[tuple]) -> pd.DataFrame:
@@ -336,12 +336,12 @@ def _render_nav_button(
 def _render_info_strip(k: dict[str, Any], atuacao_label: str) -> None:
     st.markdown(
         f"""
-        <div class="sp-surface" style="padding:14px 16px;">
-          <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:flex-start;">
+        <div class="sp-surface" style="padding:16px 18px;">
+          <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px; align-items:flex-start;">
             <div>
-              <div style="font-weight:900; font-size:1.02rem;">{_greeting()}</div>
-              <div class="sp-muted" style="margin-top:2px;">
-                {_today_label()} • atuação: <b>{atuacao_label}</b>
+              <div style="font-weight:900; font-size:1.12rem;">{_greeting()}</div>
+              <div class="sp-muted" style="margin-top:4px;">
+                {_today_label()} • visão atual: <b>{atuacao_label}</b>
               </div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -365,7 +365,7 @@ def _render_priority_banner(k: dict[str, Any]) -> None:
         st.markdown(
             f"""
             <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
-              <div style="font-size:1.04rem; font-weight:900;">{banner['title']}</div>
+              <div style="font-size:1.05rem; font-weight:900;">{banner['title']}</div>
               <div style="margin-top:8px;">{banner['left_text']}</div>
               <div class="sp-muted" style="margin-top:6px;">{banner['helper']}</div>
             </div>
@@ -374,7 +374,7 @@ def _render_priority_banner(k: dict[str, Any]) -> None:
         )
 
     with right:
-        with section("Próxima ação", subtitle="Atalho recomendado", divider=False):
+        with section("Ação sugerida", subtitle="Atalho recomendado", divider=False):
             _render_nav_button(
                 banner["cta_label"],
                 page=banner["cta_page"],
@@ -384,7 +384,7 @@ def _render_priority_banner(k: dict[str, Any]) -> None:
             )
             spacer(0.10)
             _render_nav_button(
-                "Abrir prazos",
+                "Abrir visão completa de prazos",
                 page="Prazos",
                 state={"prazos_section": "Lista"},
                 key="dash_priority_open_prazos",
@@ -396,14 +396,14 @@ def _render_kpi_section(k: dict[str, Any]) -> None:
     pct_atraso = _pct(k["prazos_atrasados"], k["prazos_abertos"])
     pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
 
-    with section("Visão geral", subtitle="Resumo operacional do painel", divider=False):
+    with section("Visão geral", subtitle="Resumo executivo do painel", divider=False):
         c1, c2, c3, c4 = grid(4, columns_mobile=1)
 
         with c1:
             card(
                 "Trabalhos ativos",
                 f"{k['ativos']}",
-                f"{k['total_proc']} cadastrados",
+                f"{k['total_proc']} cadastrados no total",
                 tone="neutral",
             )
 
@@ -414,9 +414,9 @@ def _render_kpi_section(k: dict[str, Any]) -> None:
                 else ("warning" if k["prazos_7dias"] > 0 else "success")
             )
             card(
-                "Prazos",
+                "Prazos em aberto",
                 f"{k['prazos_abertos']}",
-                f"{pct_atraso} atrasados • {pct_7d} em 7d",
+                f"{pct_atraso} atrasados • {pct_7d} em 7 dias",
                 tone=tone_pz,
                 emphasize=(k["prazos_atrasados"] > 0),
             )
@@ -424,7 +424,7 @@ def _render_kpi_section(k: dict[str, Any]) -> None:
         with c3:
             ag_tone, ag_emph = _kpi_agenda_tone(k["ag_24h"], k["ag_72h"], k["ag_7d"])
             card(
-                "Agenda",
+                "Agenda próxima",
                 f"{k['ag_7d']}",
                 _kpi_agenda_subtitle(k["ag_24h"], k["ag_72h"], k["ag_7d"]),
                 tone=ag_tone,
@@ -433,9 +433,9 @@ def _render_kpi_section(k: dict[str, Any]) -> None:
 
         with c4:
             card(
-                "Saldo",
+                "Saldo atual",
                 f"R$ {_fmt_money_br(k['saldo'])}",
-                "receitas - despesas",
+                "receitas menos despesas",
                 tone=("success" if k["saldo"] >= 0 else "danger"),
                 emphasize=True,
             )
@@ -444,7 +444,7 @@ def _render_kpi_section(k: dict[str, Any]) -> None:
 def _render_quick_actions() -> None:
     with section(
         "Ações rápidas",
-        subtitle="Atalhos para tarefas frequentes",
+        subtitle="Atalhos para as tarefas mais frequentes",
         divider=False,
     ):
         c1, c2, c3, c4 = grid(4, columns_mobile=1)
@@ -468,7 +468,7 @@ def _render_quick_actions() -> None:
 
         with c3:
             st.button(
-                "📅 Ver agenda",
+                "📅 Abrir agenda",
                 key="dash_quick_agenda",
                 use_container_width=True,
                 on_click=_go_agenda,
@@ -512,15 +512,15 @@ def _render_operational_summary(k: dict[str, Any]) -> None:
             _summary_surface(
                 "Prazos atrasados",
                 k["prazos_atrasados"],
-                "precisam de ação imediata",
+                "itens vencidos que exigem resposta imediata",
                 "danger" if k["prazos_atrasados"] > 0 else "success",
             )
 
         with c2:
             _summary_surface(
-                "Próximos 7 dias",
+                "Vencimentos em 7 dias",
                 k["prazos_7dias"],
-                "vencimentos no curto prazo",
+                "curto prazo para organização e preparo",
                 "warning" if k["prazos_7dias"] > 0 else "success",
             )
 
@@ -531,9 +531,13 @@ def _render_operational_summary(k: dict[str, Any]) -> None:
                 else ("info" if k["ag_72h"] > 0 else "success")
             )
             texto = (
-                f"{k['ag_24h']} em 24h"
+                f"{k['ag_24h']} compromisso(s) em 24h"
                 if k["ag_24h"] > 0
-                else (f"{k['ag_72h']} em 72h" if k["ag_72h"] > 0 else "sem urgência")
+                else (
+                    f"{k['ag_72h']} compromisso(s) em 72h"
+                    if k["ag_72h"] > 0
+                    else "sem urgência de agenda"
+                )
             )
             _summary_surface("Agenda próxima", k["ag_7d"], texto, agenda_tone)
 
@@ -550,7 +554,7 @@ def _render_finance_section(k: dict[str, Any]) -> None:
             card(
                 "Receitas",
                 f"R$ {_fmt_money_br(k['receitas'])}",
-                "acumulado",
+                "valor acumulado",
                 tone="success",
             )
 
@@ -558,7 +562,7 @@ def _render_finance_section(k: dict[str, Any]) -> None:
             card(
                 "Despesas",
                 f"R$ {_fmt_money_br(k['despesas'])}",
-                "acumulado",
+                "valor acumulado",
                 tone="danger",
             )
 
@@ -610,13 +614,13 @@ def _render_prazo_cards(rows: list, empty_msg: str) -> None:
         st.markdown(
             f"""
             <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
-              <div style="font-weight:850; font-size:0.98rem;">
+              <div style="font-weight:850; font-size:0.99rem;">
                 {numero_processo_txt} – {tipo_acao_txt}
               </div>
-              <div style="margin-top:6px; color:rgba(15,23,42,0.75);">
+              <div style="margin-top:6px; color:rgba(15,23,42,0.78);">
                 <b>Evento:</b> {evento_txt}
               </div>
-              <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+              <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
                 <span class="sp-chip">📅 {format_date_br(data_limite)}</span>
                 <span class="sp-chip">⏳ {dias} dia(s)</span>
                 <span class="sp-chip">{status}</span>
@@ -656,10 +660,10 @@ def _render_agenda_cards(rows: list, empty_msg: str) -> None:
         st.markdown(
             f"""
             <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
-              <div style="font-weight:850; font-size:0.98rem;">
+              <div style="font-weight:850; font-size:0.99rem;">
                 {numero_processo_txt} – {tipo_acao_txt}
               </div>
-              <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+              <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
                 <span class="sp-chip">📌 {tipo_txt}</span>
                 <span class="sp-chip">🕒 {inicio_br_txt}</span>
                 {rest_chip}
@@ -958,7 +962,7 @@ def _fetch_ultimos_processos_cached(
 def _render_header_actions() -> None:
     page_header(
         "Painel de Controle",
-        "Visão geral dos trabalhos, prazos, agenda e financeiro",
+        "Visão consolidada de trabalhos, prazos, agenda e financeiro",
         actions=[
             HeaderAction(
                 "Prazos",
@@ -986,7 +990,9 @@ def _render_header_actions() -> None:
 
 def _render_filters() -> str | None:
     with section(
-        "Filtros", subtitle="Refine o painel por tipo de atuação", divider=False
+        "Filtros",
+        subtitle="Refine a visão do painel por tipo de atuação",
+        divider=False,
     ):
         col1, col2 = grid(2, columns_mobile=1)
 
@@ -1000,7 +1006,7 @@ def _render_filters() -> str | None:
 
         with col2:
             st.caption(
-                "Use “(Todas)” para visão geral ou selecione uma atuação para focar o painel."
+                "Selecione “(Todas)” para uma visão geral ou escolha uma atuação específica para focar o painel."
             )
 
     return ATUACAO_UI[atuacao_label]
@@ -1026,7 +1032,7 @@ def _render_tab_prazos(
     )
 
     with section("Atrasados", subtitle="Top 10 com maior urgência", divider=False):
-        _render_prazo_cards(rows_atrasados, "✅ Sem prazos atrasados.")
+        _render_prazo_cards(rows_atrasados, "✅ Nenhum prazo atrasado no momento.")
         spacer(0.10)
         _render_nav_button(
             "Abrir lista completa",
@@ -1040,10 +1046,10 @@ def _render_tab_prazos(
 
     with section(
         "Vencem em até 7 dias",
-        subtitle="Top 10 no curto prazo",
+        subtitle="Itens que exigem organização no curto prazo",
         divider=False,
     ):
-        _render_prazo_cards(rows_7d, "✅ Sem prazos vencendo em até 7 dias.")
+        _render_prazo_cards(rows_7d, "✅ Nenhum prazo vencendo em até 7 dias.")
 
     with st.expander("Ver em tabela", expanded=False):
         col1, col2 = grid(2, columns_mobile=1)
@@ -1072,10 +1078,10 @@ def _render_tab_agenda(
 
     with section(
         "Próximas 24 horas",
-        subtitle="Compromissos mais imediatos",
+        subtitle="Compromissos com prioridade operacional",
         divider=False,
     ):
-        _render_agenda_cards(rows_24h, "✅ Sem agendamentos nas próximas 24 horas.")
+        _render_agenda_cards(rows_24h, "✅ Nenhum agendamento nas próximas 24 horas.")
         spacer(0.10)
         _render_nav_button(
             "Abrir agenda",
@@ -1087,7 +1093,7 @@ def _render_tab_agenda(
     spacer(0.20)
 
     with section("Próximos 7 dias", subtitle="Planejamento da semana", divider=False):
-        _render_agenda_cards(rows_ag_7d, "✅ Sem agendamentos nos próximos 7 dias.")
+        _render_agenda_cards(rows_ag_7d, "✅ Nenhum agendamento nos próximos 7 dias.")
 
     with st.expander("Ver em tabela", expanded=False):
         col1, col2 = grid(2, columns_mobile=1)
@@ -1132,6 +1138,9 @@ def _render_tab_trabalhos(
 
         dfp["tipo_acao"] = dfp["tipo_acao"].fillna("Sem tipo")
         dfp["tipo_trabalho"] = dfp["tipo_trabalho"].fillna("Assistente Técnico")
+        dfp["comarca"] = dfp["comarca"].fillna("—")
+        dfp["vara"] = dfp["vara"].fillna("—")
+        dfp["status"] = dfp["status"].fillna("—")
 
         dfp = dfp.rename(
             columns={

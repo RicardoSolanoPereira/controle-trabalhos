@@ -26,7 +26,7 @@ def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
         label,
         key=MOBILE_FLAG_KEY,
         value=is_mobile(),
-        help="Simula layout mobile.",
+        help="Simula layout mobile para validar empilhamento, cards e espaçamentos.",
     )
 
 
@@ -44,7 +44,7 @@ def spacer(height_rem: float = 0.5) -> None:
     )
 
 
-def divider_space(top: float = 0.20, bottom: float = 0.22) -> None:
+def divider_space(top: float = 0.18, bottom: float = 0.20) -> None:
     """Espaçamento com divisor visual discreto."""
     if top > 0:
         spacer(top)
@@ -57,12 +57,17 @@ def divider_space(top: float = 0.20, bottom: float = 0.22) -> None:
 
 def compact_gap() -> None:
     """Pequeno respiro entre blocos relacionados."""
-    spacer(0.18)
+    spacer(0.16)
 
 
 def section_gap() -> None:
     """Espaço padrão entre grandes blocos da página."""
-    spacer(0.42)
+    spacer(0.34)
+
+
+def page_gap() -> None:
+    """Espaço entre macroblocos da página."""
+    spacer(0.46)
 
 
 # ==========================================================
@@ -100,7 +105,7 @@ def grid(
     columns_desktop: int = 3,
     *,
     columns_mobile: int = 1,
-    gap: str = "small",
+    gap: str = "medium",
 ) -> list:
     """
     Grid responsivo.
@@ -123,31 +128,34 @@ def grid(
 def grid_weights(
     weights_desktop: Sequence[float],
     *,
-    weights_mobile: Sequence[float] = (1,),
-    gap: str = "small",
+    weights_mobile: Sequence[float] | None = None,
+    gap: str = "medium",
 ) -> list:
     """
     Grid com pesos no desktop.
-    No mobile, empilha mantendo o mesmo número de slots.
+    No mobile, empilha mantendo o mesmo número de slots do desktop.
     """
     weights = tuple(float(w) for w in weights_desktop if float(w) > 0) or (1.0,)
 
     if is_mobile():
-        mobile_weights = tuple(float(w) for w in weights_mobile if float(w) > 0)
-        mobile_count = len(mobile_weights) if mobile_weights else len(weights)
+        if weights_mobile:
+            mobile_weights = tuple(float(w) for w in weights_mobile if float(w) > 0)
+            mobile_count = len(mobile_weights) if mobile_weights else len(weights)
+        else:
+            mobile_count = len(weights)
         return _stack_slots(max(1, mobile_count))
 
     return list(st.columns(weights, gap=gap))
 
 
 def content_columns(
-    left: float = 1.6,
+    left: float = 1.65,
     right: float = 1.0,
     *,
-    gap: str = "small",
+    gap: str = "medium",
 ) -> tuple:
     """
-    Layout padrão de conteúdo 2 colunas.
+    Layout padrão de conteúdo em 2 colunas.
     Em mobile empilha.
     """
     if is_mobile():
@@ -156,6 +164,23 @@ def content_columns(
         return top, bottom
 
     cols = st.columns([left, right], gap=gap, vertical_alignment="top")
+    return cols[0], cols[1]
+
+
+def split_hero(
+    *,
+    left_ratio: float = 1.45,
+    right_ratio: float = 1.0,
+    gap: str = "medium",
+) -> tuple:
+    """
+    Layout para topo de página / destaque.
+    Em mobile empilha.
+    """
+    if is_mobile():
+        return st.container(), st.container()
+
+    cols = st.columns([left_ratio, right_ratio], gap=gap, vertical_alignment="top")
     return cols[0], cols[1]
 
 
@@ -216,11 +241,17 @@ def _section_header(title: str, subtitle: str | None = None) -> None:
     title_html = html.escape(title or "")
     subtitle_html = html.escape(subtitle) if subtitle else ""
 
+    subtitle_block = (
+        f"<div class='sp-section-subtitle'>{subtitle_html}</div>"
+        if subtitle_html
+        else ""
+    )
+
     st.markdown(
         f"""
         <div class="sp-section-header">
           <div class="sp-section-title">{title_html}</div>
-          {f"<div class='sp-section-subtitle'>{subtitle_html}</div>" if subtitle_html else ""}
+          {subtitle_block}
         </div>
         """,
         unsafe_allow_html=True,
@@ -250,14 +281,17 @@ def section(
 
     if title:
         if header_actions and not is_mobile():
-            left, right = st.columns([4, 2], gap="small", vertical_alignment="center")
+            left, right = st.columns(
+                [4.2, 1.8], gap="medium", vertical_alignment="center"
+            )
 
             with left:
                 _section_header(title, subtitle)
 
             with right:
                 st.markdown(
-                    "<div style='height:0.10rem'></div>", unsafe_allow_html=True
+                    "<div style='height:0.10rem'></div>",
+                    unsafe_allow_html=True,
                 )
                 header_actions()
         else:
@@ -268,9 +302,9 @@ def section(
                 header_actions()
 
     if divider:
-        divider_space(0.10, 0.24)
+        divider_space(0.10, 0.18)
     elif title:
-        spacer(0.16)
+        spacer(0.14)
 
     with surface(class_name=surface_class, style=surface_style):
         yield
@@ -312,7 +346,7 @@ def section_surface(
 
 @contextmanager
 def toolbar(
-    gap: str = "small",
+    gap: str = "medium",
     *,
     left_ratio: float = 3.2,
     right_ratio: float = 2.0,
@@ -339,7 +373,7 @@ def toolbar(
 def toolbar_actions(
     actions: Callable[[], None],
     *,
-    gap: str = "small",
+    gap: str = "medium",
     left_ratio: float = 3.2,
     right_ratio: float = 2.0,
 ) -> None:
@@ -362,10 +396,10 @@ def toolbar_row(
     left_content: Callable[[], None] | None = None,
     right_actions: Callable[[], None] | None = None,
     *,
-    gap: str = "small",
+    gap: str = "medium",
     left_ratio: float = 3.2,
     right_ratio: float = 2.0,
-    bottom_space: float = 0.28,
+    bottom_space: float = 0.26,
 ) -> None:
     """
     Renderiza uma toolbar completa em uma chamada.
@@ -445,11 +479,15 @@ def _page_title_block(meta: PageMeta) -> None:
     title_html = html.escape(meta.title or "")
     subtitle_html = html.escape(meta.subtitle) if meta.subtitle else ""
 
+    subtitle_block = (
+        f"<div class='sp-page-subtitle'>{subtitle_html}</div>" if subtitle_html else ""
+    )
+
     st.markdown(
         f"""
         <div class="sp-page-header">
           <div class="sp-page-title">{title_html}</div>
-          {f"<div class='sp-page-subtitle'>{subtitle_html}</div>" if subtitle_html else ""}
+          {subtitle_block}
         </div>
         """,
         unsafe_allow_html=True,
@@ -460,16 +498,16 @@ def page_header(
     meta: PageMeta,
     *,
     right_actions: Callable[[], None] | None = None,
-    bottom_space: float = 0.40,
+    bottom_space: float = 0.34,
 ) -> None:
     """Header simples de página para telas que não usam page_header dedicado."""
     if not meta.title:
         return
 
-    spacer(0.06)
+    spacer(0.04)
 
     if right_actions and not is_mobile():
-        left, right = st.columns([4, 2], gap="small", vertical_alignment="center")
+        left, right = st.columns([4.2, 1.8], gap="medium", vertical_alignment="center")
 
         with left:
             _page_title_block(meta)
@@ -481,7 +519,7 @@ def page_header(
         _page_title_block(meta)
 
         if right_actions:
-            spacer(0.26)
+            spacer(0.22)
             right_actions()
 
     if bottom_space > 0:
