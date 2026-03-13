@@ -28,6 +28,10 @@ ATUACAO_UI = {
 # ==========================================================
 
 
+def _render_html(content: str) -> None:
+    st.markdown(content, unsafe_allow_html=True)
+
+
 def _naive(dt: datetime) -> datetime:
     try:
         if getattr(dt, "tzinfo", None) is not None:
@@ -94,6 +98,22 @@ def _today_label() -> str:
 def _safe_html_text(value: Any, fallback: str = "—") -> str:
     text = str(value).strip() if value is not None else ""
     return text if text else fallback
+
+
+def _action_button(
+    label: str,
+    *,
+    key: str,
+    on_click,
+    button_type: str = "secondary",
+) -> None:
+    st.button(
+        label,
+        key=key,
+        type=button_type,
+        use_container_width=True,
+        on_click=on_click,
+    )
 
 
 # ==========================================================
@@ -334,7 +354,7 @@ def _render_nav_button(
 
 
 def _render_info_strip(k: dict[str, Any], atuacao_label: str) -> None:
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-surface" style="padding:16px 18px;">
           <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px; align-items:flex-start;">
@@ -351,8 +371,7 @@ def _render_info_strip(k: dict[str, Any], atuacao_label: str) -> None:
             </div>
           </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
@@ -362,15 +381,14 @@ def _render_priority_banner(k: dict[str, Any]) -> None:
     left, right = grid(2, columns_mobile=1)
 
     with left:
-        st.markdown(
+        _render_html(
             f"""
             <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
               <div style="font-size:1.05rem; font-weight:900;">{banner['title']}</div>
               <div style="margin-top:8px;">{banner['left_text']}</div>
               <div class="sp-muted" style="margin-top:6px;">{banner['helper']}</div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     with right:
@@ -450,35 +468,31 @@ def _render_quick_actions() -> None:
         c1, c2, c3, c4 = grid(4, columns_mobile=1)
 
         with c1:
-            st.button(
+            _action_button(
                 "⏳ Novo prazo",
                 key="dash_quick_new_prazo",
-                type="primary",
-                use_container_width=True,
+                button_type="primary",
                 on_click=_go_prazos_cadastro,
             )
 
         with c2:
-            st.button(
+            _action_button(
                 "📁 Novo trabalho",
                 key="dash_quick_new_trabalho",
-                use_container_width=True,
                 on_click=_go_trabalhos_cadastro,
             )
 
         with c3:
-            st.button(
+            _action_button(
                 "📅 Abrir agenda",
                 key="dash_quick_agenda",
-                use_container_width=True,
                 on_click=_go_agenda,
             )
 
         with c4:
-            st.button(
+            _action_button(
                 "💰 Lançamentos",
                 key="dash_quick_financeiro",
-                use_container_width=True,
                 on_click=_go_financeiro_lancamentos,
             )
 
@@ -488,15 +502,14 @@ def _summary_surface(title: str, value: Any, subtitle: str, tone: str) -> None:
     title_txt = _safe_html_text(title)
     subtitle_txt = _safe_html_text(subtitle)
 
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-surface sp-tone-{tone}">
           <div style="font-weight:900;">{title_txt}</div>
           <div style="font-size:1.8rem; font-weight:900; margin-top:6px;">{value_txt}</div>
           <div class="sp-muted" style="margin-top:4px;">{subtitle_txt}</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
@@ -579,19 +592,16 @@ def _render_finance_section(k: dict[str, Any]) -> None:
 
         c1, c2 = grid(2, columns_mobile=1)
         with c1:
-            st.button(
+            _action_button(
                 "Abrir financeiro",
                 key="go_fin_open",
-                type="primary",
-                use_container_width=True,
+                button_type="primary",
                 on_click=_go_financeiro_lancamentos,
             )
         with c2:
-            st.button(
+            _action_button(
                 "Ver trabalhos",
                 key="go_fin_jobs",
-                type="secondary",
-                use_container_width=True,
                 on_click=_go_trabalhos_lista,
             )
 
@@ -611,7 +621,7 @@ def _render_prazo_cards(rows: list, empty_msg: str) -> None:
         tipo_acao_txt = _safe_html_text(tipo_acao, "Sem tipo")
         evento_txt = _safe_html_text(evento, "Sem evento")
 
-        st.markdown(
+        _render_html(
             f"""
             <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
               <div style="font-weight:850; font-size:0.99rem;">
@@ -627,8 +637,7 @@ def _render_prazo_cards(rows: list, empty_msg: str) -> None:
                 <span class="sp-chip">{prior}</span>
               </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
 
@@ -657,7 +666,7 @@ def _render_agenda_cards(rows: list, empty_msg: str) -> None:
             else ""
         )
 
-        st.markdown(
+        _render_html(
             f"""
             <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
               <div style="font-weight:850; font-size:0.99rem;">
@@ -671,8 +680,7 @@ def _render_agenda_cards(rows: list, empty_msg: str) -> None:
                 {local_chip}
               </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
 
