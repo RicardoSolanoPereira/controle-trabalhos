@@ -12,19 +12,20 @@ import streamlit as st
 
 from db.connection import get_session
 from services.processos_service import (
-    ProcessosService,
     ProcessoCreate,
     ProcessoUpdate,
+    ProcessosService,
 )
+from ui.layout import grid, is_mobile, section, spacer
+from ui.page_header import HeaderAction, page_header
 from ui.theme import card
-from ui.page_header import page_header, HeaderAction
-from ui_state import navigate, get_qp_str, bump_data_version
-from ui.layout import section, grid, spacer, is_mobile
+from ui_state import bump_data_version, get_qp_str, navigate
 
 
 # ==================================================
 # CONSTANTS / UI MAPS
 # ==================================================
+
 ATUACAO_UI = {
     "Perícia (Juízo)": "Perito Judicial",
     "Assistência Técnica": "Assistente Técnico",
@@ -59,6 +60,7 @@ SECTIONS = ("Lista", "Cadastrar", "Editar")
 # ==================================================
 # STATE KEYS
 # ==================================================
+
 K_SECTION = "processos_section"
 K_SELECTED_ID = "processo_selected_id"
 
@@ -86,8 +88,47 @@ K_EDIT_SEARCH = "proc_edit_search"
 
 
 # ==================================================
+# LOW-LEVEL HELPERS
+# ==================================================
+
+
+def _render_html(content: str) -> None:
+    st.markdown(content, unsafe_allow_html=True)
+
+
+def _safe_strip(value: Any) -> str:
+    return _strip_html("" if value is None else str(value))
+
+
+def _button(
+    label: str,
+    *,
+    key: str,
+    on_click=None,
+    args: tuple | None = None,
+    use_container_width: bool = True,
+    type: str = "secondary",
+    disabled: bool = False,
+) -> bool:
+    kwargs: dict[str, Any] = {
+        "label": label,
+        "key": key,
+        "use_container_width": use_container_width,
+        "type": type,
+        "disabled": disabled,
+    }
+    if on_click is not None:
+        kwargs["on_click"] = on_click
+    if args is not None:
+        kwargs["args"] = args
+    return st.button(**kwargs)
+
+
+# ==================================================
 # VERSION
 # ==================================================
+
+
 def _data_version(owner_user_id: int) -> int:
     return int(st.session_state.get(f"data_version_{owner_user_id}", 0))
 
@@ -95,6 +136,8 @@ def _data_version(owner_user_id: int) -> int:
 # ==================================================
 # MOBILE MODE
 # ==================================================
+
+
 def _use_cards() -> bool:
     return bool(st.session_state.get("ui_mobile_cards", True) or is_mobile())
 
@@ -102,6 +145,8 @@ def _use_cards() -> bool:
 # ==================================================
 # NORMALIZAÇÃO / LABELS
 # ==================================================
+
+
 def _norm_tipo_trabalho(val: str | None) -> str:
     v = (val or "").strip()
     if not v:
@@ -186,13 +231,11 @@ def _compact_text(v: str | None, max_len: int = 120) -> str:
     return txt[: max_len - 1].rstrip() + "…"
 
 
-def _safe_str(v: Any) -> str:
-    return _strip_html("" if v is None else str(v))
-
-
 # ==================================================
 # UX HELPERS
 # ==================================================
+
+
 def _guess_pasta_local(numero: str) -> str:
     n = (numero or "").strip()
     if not n:
@@ -275,14 +318,14 @@ def _summarize_filters() -> list[str]:
 
 
 def _results_metrics(rows: list[dict]) -> dict[str, int]:
-    ativos = sum(1 for r in rows if (_safe_str(r.get("status")).lower() == "ativo"))
+    ativos = sum(1 for r in rows if (_safe_strip(r.get("status")).lower() == "ativo"))
     concluidos = sum(
-        1 for r in rows if _safe_str(r.get("status")).lower().startswith("concl")
+        1 for r in rows if _safe_strip(r.get("status")).lower().startswith("concl")
     )
     suspensos = sum(
-        1 for r in rows if (_safe_str(r.get("status")).lower() == "suspenso")
+        1 for r in rows if (_safe_strip(r.get("status")).lower() == "suspenso")
     )
-    com_pasta = sum(1 for r in rows if _safe_str(r.get("pasta_local")))
+    com_pasta = sum(1 for r in rows if _safe_strip(r.get("pasta_local")))
     return {
         "resultado": len(rows),
         "ativos": ativos,
@@ -306,20 +349,21 @@ def _row_label(r: dict) -> str:
 
 
 def _render_soft_note(title: str, body: str) -> None:
-    st.markdown(
+    _render_html(
         f"""
         <div class="sp-surface" style="padding:14px 16px;">
           <div style="font-weight:800; margin-bottom:4px;">{title}</div>
           <div style="font-size:0.94rem; color:rgba(15,23,42,.72);">{body}</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
 # ==================================================
 # SYNC
 # ==================================================
+
+
 def _sync_from_dashboard_and_qp() -> None:
     if "proc_active_tab" in st.session_state and K_SECTION not in st.session_state:
         st.session_state[K_SECTION] = st.session_state.get("proc_active_tab", "Lista")
@@ -367,6 +411,8 @@ def _sync_from_dashboard_and_qp() -> None:
 # ==================================================
 # CALLBACKS
 # ==================================================
+
+
 def _set_section(sec: str) -> None:
     if sec in SECTIONS:
         st.session_state[K_SECTION] = sec
@@ -378,27 +424,25 @@ def _open_edit(processo_id: int) -> None:
     _set_section("Editar")
 
 
-def _go_prazos(pid: int, ref: str, comarca: str, vara: str) -> None:
+def _prefill_processo_context(pid: int, ref: str, comarca: str, vara: str) -> None:
     st.session_state["pref_processo_id"] = int(pid)
     st.session_state["pref_processo_ref"] = ref
     st.session_state["pref_processo_comarca"] = comarca
     st.session_state["pref_processo_vara"] = vara
+
+
+def _go_prazos(pid: int, ref: str, comarca: str, vara: str) -> None:
+    _prefill_processo_context(pid, ref, comarca, vara)
     navigate(MENU_PRAZOS_KEY, state={"prazos_section": "Lista"})
 
 
 def _go_agenda(pid: int, ref: str, comarca: str, vara: str) -> None:
-    st.session_state["pref_processo_id"] = int(pid)
-    st.session_state["pref_processo_ref"] = ref
-    st.session_state["pref_processo_comarca"] = comarca
-    st.session_state["pref_processo_vara"] = vara
+    _prefill_processo_context(pid, ref, comarca, vara)
     navigate(MENU_AGENDA_KEY)
 
 
 def _go_fin(pid: int, ref: str, comarca: str, vara: str) -> None:
-    st.session_state["pref_processo_id"] = int(pid)
-    st.session_state["pref_processo_ref"] = ref
-    st.session_state["pref_processo_comarca"] = comarca
-    st.session_state["pref_processo_vara"] = vara
+    _prefill_processo_context(pid, ref, comarca, vara)
     navigate(MENU_FIN_KEY, state={"financeiro_section": "Lançamentos"})
 
 
@@ -420,6 +464,7 @@ def _duplicate_processo(owner_user_id: int, processo_id: int) -> None:
     try:
         with get_session() as s:
             created = ProcessosService.duplicate(s, owner_user_id, processo_id)
+
         bump_data_version(owner_user_id)
         st.session_state["proc_last_created_id"] = int(getattr(created, "id", 0) or 0)
         st.session_state["proc_last_created_ref"] = (
@@ -435,6 +480,8 @@ def _duplicate_processo(owner_user_id: int, processo_id: int) -> None:
 # ==================================================
 # CACHE
 # ==================================================
+
+
 def _p_to_row(p: Any) -> dict:
     return {
         "id": int(getattr(p, "id", 0) or 0),
@@ -461,6 +508,7 @@ def _cached_list_rows(
     order_desc: bool,
     version: int,
 ) -> list[dict]:
+    _ = version
     with get_session() as s:
         processos = ProcessosService.list(
             s,
@@ -476,6 +524,7 @@ def _cached_list_rows(
 
 @st.cache_data(show_spinner=False, ttl=45)
 def _cached_get_row(owner_user_id: int, processo_id: int, version: int) -> dict | None:
+    _ = version
     with get_session() as s:
         p = ProcessosService.get(s, owner_user_id, processo_id)
     return _p_to_row(p) if p else None
@@ -483,6 +532,7 @@ def _cached_get_row(owner_user_id: int, processo_id: int, version: int) -> dict 
 
 @st.cache_data(show_spinner=False, ttl=45)
 def _cached_stats(owner_user_id: int, version: int) -> dict[str, int]:
+    _ = version
     with get_session() as s:
         return ProcessosService.stats(s, owner_user_id)
 
@@ -490,6 +540,8 @@ def _cached_stats(owner_user_id: int, version: int) -> dict[str, int]:
 # ==================================================
 # UI FRAGMENTS
 # ==================================================
+
+
 def _render_filter_summary() -> None:
     chips = _summarize_filters()
     if not chips:
@@ -502,18 +554,16 @@ def _render_empty_state() -> None:
     st.info("Nenhum trabalho encontrado com os filtros atuais.")
     a, b = st.columns(2)
     with a:
-        st.button(
+        _button(
             "➕ Cadastrar novo trabalho",
-            use_container_width=True,
-            type="primary",
             key="proc_empty_new",
+            type="primary",
             on_click=_set_section,
             args=("Cadastrar",),
         )
     with b:
-        st.button(
+        _button(
             "🧹 Limpar filtros",
-            use_container_width=True,
             key="proc_empty_clear",
             on_click=_clear_filters,
         )
@@ -597,14 +647,19 @@ def _render_selected_context(selected_row: dict | None) -> None:
     pasta = _strip_html(selected_row.get("pasta_local")) or "—"
     obs = _compact_text(selected_row.get("observacoes"), 240) or "Sem observações."
 
-    st.markdown(
+    categoria_chip = ""
+    categoria = _strip_html(selected_row.get("categoria_servico"))
+    if categoria:
+        categoria_chip = f"<span class='sp-chip'>🏷️ {categoria}</span>"
+
+    _render_html(
         f"""
         <div class="sp-surface">
           <div style="font-weight:900; font-size:1rem; margin-bottom:8px;">{ref}</div>
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
             <span class="sp-chip">{_status_badge(selected_row.get("status", ""))}</span>
             <span class="sp-chip">{_atuacao_badge(selected_row.get("papel"))}</span>
-            {f"<span class='sp-chip'>🏷️ {_strip_html(selected_row.get('categoria_servico'))}</span>" if _strip_html(selected_row.get('categoria_servico')) else ""}
+            {categoria_chip}
           </div>
           <div style="font-size:0.94rem; color:rgba(15,23,42,.78);"><b>Cliente:</b> {cli}</div>
           <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Descrição:</b> {desc}</div>
@@ -612,14 +667,15 @@ def _render_selected_context(selected_row: dict | None) -> None:
           <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Pasta:</b> {pasta}</div>
           <div style="font-size:0.92rem; color:rgba(15,23,42,.70); margin-top:8px;"><b>Obs.:</b> {obs}</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
 # ==================================================
 # CARD
 # ==================================================
+
+
 def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
     pid = int(r.get("id") or 0)
     ref = _compact_text(r.get("numero_processo"), 90)
@@ -636,7 +692,24 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
 
     meta_line = " • ".join([x for x in [cli, comarca, vara] if x])
 
-    st.markdown(
+    categoria_chip = f"<span class='sp-chip'>🏷️ {cat}</span>" if cat else ""
+    descricao_line = (
+        f"<div style='margin-top:10px; color: rgba(15,23,42,0.82);'><b>Descrição:</b> {desc}</div>"
+        if desc
+        else ""
+    )
+    obs_line = (
+        f"<div style='margin-top:6px; color: rgba(15,23,42,0.72);'><b>Obs.:</b> {obs}</div>"
+        if obs
+        else ""
+    )
+    pasta_line = (
+        f"<div style='margin-top:6px; color: rgba(15,23,42,0.65);'><b>Pasta:</b> {_compact_text(pasta, 110)}</div>"
+        if pasta
+        else ""
+    )
+
+    _render_html(
         f"""
         <div class="sp-surface" style="margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;">
@@ -647,33 +720,30 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
               <span class="sp-chip">{status}</span>
               <span class="sp-chip">{atu}</span>
-              {f"<span class='sp-chip'>🏷️ {cat}</span>" if cat else ""}
+              {categoria_chip}
             </div>
           </div>
 
-          {f"<div style='margin-top:10px; color: rgba(15,23,42,0.82);'><b>Descrição:</b> {desc}</div>" if desc else ""}
-          {f"<div style='margin-top:6px; color: rgba(15,23,42,0.72);'><b>Obs.:</b> {obs}</div>" if obs else ""}
-          {f"<div style='margin-top:6px; color: rgba(15,23,42,0.65);'><b>Pasta:</b> {_compact_text(pasta, 110)}</div>" if pasta else ""}
+          {descricao_line}
+          {obs_line}
+          {pasta_line}
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     a, b = st.columns(2)
     with a:
-        st.button(
+        _button(
             "Editar",
             key=f"m_edit_{pid}",
-            use_container_width=True,
             type="primary",
             on_click=_open_edit,
             args=(pid,),
         )
     with b:
-        st.button(
+        _button(
             "Prazos",
             key=f"m_pz_{pid}",
-            use_container_width=True,
             on_click=_go_prazos,
             args=(pid, ref, comarca, vara),
         )
@@ -681,38 +751,34 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
     with st.expander("Mais ações"):
         c, d = st.columns(2)
         with c:
-            st.button(
+            _button(
                 "Agenda",
                 key=f"m_ag_{pid}",
-                use_container_width=True,
                 on_click=_go_agenda,
                 args=(pid, ref, comarca, vara),
             )
         with d:
-            st.button(
+            _button(
                 "Financeiro",
                 key=f"m_fin_{pid}",
-                use_container_width=True,
                 on_click=_go_fin,
                 args=(pid, ref, comarca, vara),
             )
 
         e, f = st.columns(2)
         with e:
-            st.button(
+            _button(
                 "Duplicar",
                 key=f"m_dup_{pid}",
-                use_container_width=True,
                 on_click=_duplicate_processo,
                 args=(owner_user_id, pid),
             )
 
         with f:
             if pasta:
-                if st.button(
+                if _button(
                     "Abrir pasta",
                     key=f"m_open_folder_{pid}",
-                    use_container_width=True,
                 ):
                     ok, msg = _open_folder(pasta)
                     if ok:
@@ -720,10 +786,9 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
                     else:
                         st.warning(msg)
             else:
-                st.button(
+                _button(
                     "Sem pasta",
                     key=f"m_no_folder_{pid}",
-                    use_container_width=True,
                     disabled=True,
                 )
 
@@ -733,6 +798,8 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
 # ==================================================
 # ENTRY
 # ==================================================
+
+
 def render(owner_user_id: int):
     _sync_from_dashboard_and_qp()
 
@@ -814,6 +881,8 @@ def render(owner_user_id: int):
 # ==================================================
 # CADASTRAR
 # ==================================================
+
+
 def _render_cadastrar(owner_user_id: int) -> None:
     if st.session_state.get("proc_last_created_id"):
         last_id = int(st.session_state["proc_last_created_id"])
@@ -826,34 +895,30 @@ def _render_cadastrar(owner_user_id: int) -> None:
         ):
             a, b, c, d = grid(4, columns_mobile=1)
             with a:
-                st.button(
+                _button(
                     "Editar",
-                    use_container_width=True,
-                    type="primary",
                     key="proc_post_edit",
+                    type="primary",
                     on_click=_open_edit,
                     args=(last_id,),
                 )
             with b:
-                st.button(
+                _button(
                     "Prazos",
-                    use_container_width=True,
                     key="proc_post_prazos",
                     on_click=_go_prazos,
                     args=(last_id, last_ref, "", ""),
                 )
             with c:
-                st.button(
+                _button(
                     "Duplicar",
-                    use_container_width=True,
                     key="proc_post_dup",
                     on_click=_duplicate_processo,
                     args=(owner_user_id, last_id),
                 )
             with d:
-                if st.button(
+                if _button(
                     "Cadastrar outro",
-                    use_container_width=True,
                     key="proc_post_new",
                 ):
                     st.session_state.pop("proc_last_created_id", None)
@@ -875,9 +940,8 @@ def _render_cadastrar(owner_user_id: int) -> None:
 
         a, b = grid(2, columns_mobile=1)
         with a:
-            if st.button(
+            if _button(
                 "📁 Escolher pasta…",
-                use_container_width=True,
                 key="proc_create_pick_folder",
             ):
                 chosen = _pick_folder_dialog(initialdir=str(ROOT_TRABALHOS))
@@ -1015,6 +1079,8 @@ def _render_cadastrar(owner_user_id: int) -> None:
 # ==================================================
 # LISTA
 # ==================================================
+
+
 def _render_lista(owner_user_id: int) -> None:
     version = _data_version(owner_user_id)
     stats = _cached_stats(owner_user_id, version)
@@ -1026,25 +1092,22 @@ def _render_lista(owner_user_id: int) -> None:
     ):
         cta1, cta2, cta3 = grid(3, columns_mobile=1)
         with cta1:
-            st.button(
+            _button(
                 "➕ Novo trabalho",
-                use_container_width=True,
-                type="primary",
                 key="proc_list_new",
+                type="primary",
                 on_click=_set_section,
                 args=("Cadastrar",),
             )
         with cta2:
-            st.button(
+            _button(
                 "🧹 Limpar filtros",
-                use_container_width=True,
-                on_click=_clear_filters,
                 key="proc_list_clear",
+                on_click=_clear_filters,
             )
         with cta3:
-            st.button(
+            _button(
                 "↻ Recarregar",
-                use_container_width=True,
                 key="proc_list_reload",
                 on_click=st.rerun,
             )
@@ -1201,26 +1264,23 @@ def _render_lista(owner_user_id: int) -> None:
 
             a1, a2, a3 = grid(3, columns_mobile=1)
             with a1:
-                st.button(
+                _button(
                     "Editar",
-                    use_container_width=True,
-                    type="primary",
                     key="proc_act_edit",
+                    type="primary",
                     on_click=_open_edit,
                     args=(int(selected_id),),
                 )
             with a2:
-                st.button(
+                _button(
                     "Prazos",
-                    use_container_width=True,
                     key="proc_act_pz",
                     on_click=_go_prazos,
                     args=(int(selected_id), selected_ref, comarca, vara),
                 )
             with a3:
-                st.button(
+                _button(
                     "Duplicar",
-                    use_container_width=True,
                     key="proc_act_dup",
                     on_click=_duplicate_processo,
                     args=(owner_user_id, int(selected_id)),
@@ -1228,17 +1288,15 @@ def _render_lista(owner_user_id: int) -> None:
 
             a4, a5 = grid(2, columns_mobile=1)
             with a4:
-                st.button(
+                _button(
                     "Agenda",
-                    use_container_width=True,
                     key="proc_act_ag",
                     on_click=_go_agenda,
                     args=(int(selected_id), selected_ref, comarca, vara),
                 )
             with a5:
-                st.button(
+                _button(
                     "Financeiro",
-                    use_container_width=True,
                     key="proc_act_fin",
                     on_click=_go_fin,
                     args=(int(selected_id), selected_ref, comarca, vara),
@@ -1251,6 +1309,8 @@ def _render_lista(owner_user_id: int) -> None:
 # ==================================================
 # EDITAR
 # ==================================================
+
+
 def _render_editar(owner_user_id: int) -> None:
     with section(
         "Editar",
@@ -1360,9 +1420,8 @@ def _render_editar(owner_user_id: int) -> None:
 
         a, b, c, d = grid(4, columns_mobile=1)
         with a:
-            if st.button(
+            if _button(
                 "📁 Escolher pasta…",
-                use_container_width=True,
                 key=f"proc_edit_pick_folder_{selected_id}",
             ):
                 chosen = _pick_folder_dialog(initialdir=str(ROOT_TRABALHOS))
@@ -1371,9 +1430,8 @@ def _render_editar(owner_user_id: int) -> None:
                     st.rerun()
 
         with b:
-            st.button(
+            _button(
                 "📄 Duplicar",
-                use_container_width=True,
                 key=f"proc_duplicate_{selected_id}",
                 on_click=_duplicate_processo,
                 args=(owner_user_id, int(selected_id)),
@@ -1381,9 +1439,8 @@ def _render_editar(owner_user_id: int) -> None:
 
         with c:
             current_pasta = st.session_state.get(pasta_key, "") or ""
-            if st.button(
+            if _button(
                 "📂 Abrir pasta",
-                use_container_width=True,
                 key=f"proc_open_folder_{selected_id}",
                 disabled=not bool(current_pasta.strip()),
             ):
@@ -1399,11 +1456,10 @@ def _render_editar(owner_user_id: int) -> None:
                 value=False,
                 key=f"proc_del_confirm_{selected_id}",
             )
-            if st.button(
+            if _button(
                 "🗑️ Excluir",
-                use_container_width=True,
-                disabled=not bool(confirm),
                 key=f"proc_delete_{selected_id}",
+                disabled=not bool(confirm),
             ):
                 try:
                     with get_session() as s:
