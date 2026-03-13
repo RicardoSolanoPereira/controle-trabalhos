@@ -45,7 +45,7 @@ class ProcessoUpdate:
 
 
 # ==================================================
-# Helpers
+# HELPERS
 # ==================================================
 def _clean_str(v: Optional[str]) -> Optional[str]:
     if v is None:
@@ -136,7 +136,7 @@ def _build_q_filter(qv: str):
 
 
 # ==================================================
-# Service
+# SERVICE
 # ==================================================
 class ProcessosService:
     @staticmethod
@@ -371,6 +371,30 @@ class ProcessosService:
         }
 
     @staticmethod
+    def summary(session: Session, owner_user_id: int) -> Dict[str, Dict[str, int]]:
+        rows = list(
+            session.execute(
+                select(Processo.papel, Processo.status, func.count())
+                .where(Processo.owner_user_id == int(owner_user_id))
+                .group_by(Processo.papel, Processo.status)
+            ).all()
+        )
+
+        by_papel: Dict[str, int] = {}
+        by_status: Dict[str, int] = {}
+
+        for papel, status, total in rows:
+            papel_key = _normalize_papel(papel)
+            status_key = _normalize_status(status)
+            by_papel[papel_key] = by_papel.get(papel_key, 0) + int(total or 0)
+            by_status[status_key] = by_status.get(status_key, 0) + int(total or 0)
+
+        return {
+            "papel": by_papel,
+            "status": by_status,
+        }
+
+    @staticmethod
     def backfill_categoria_from_observacoes(
         session: Session,
         owner_user_id: int,
@@ -394,7 +418,6 @@ class ProcessosService:
             if remove_prefix:
                 p.observacoes = _clean_str(_remove_categoria_prefix(obs))
             p.categoria_servico = _clean_str(cat)
-
             changed += 1
 
         if changed:

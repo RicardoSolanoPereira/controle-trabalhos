@@ -53,6 +53,8 @@ MENU_PRAZOS_KEY = "Prazos"
 MENU_AGENDA_KEY = "Agenda"
 MENU_FIN_KEY = "Financeiro"
 
+SECTIONS = ("Lista", "Cadastrar", "Editar")
+
 
 # ==================================================
 # STATE KEYS
@@ -68,6 +70,19 @@ K_FILTER_ORDEM = "processos_filter_ordem"
 K_FILTER_SOMENTE_COM_PASTA = "processos_filter_somente_com_pasta"
 
 K_SECTION_SELECTOR = "processos_section_selector"
+
+K_CREATE_PASTA = "proc_create_pasta"
+K_CREATE_NUMERO = "proc_create_numero"
+K_CREATE_ATUACAO = "proc_create_atuacao"
+K_CREATE_STATUS = "proc_create_status"
+K_CREATE_CATEGORIA = "proc_create_categoria"
+K_CREATE_TIPO = "proc_create_tipo_acao"
+K_CREATE_COMARCA = "proc_create_comarca"
+K_CREATE_VARA = "proc_create_vara"
+K_CREATE_CONTRATANTE = "proc_create_contratante"
+K_CREATE_OBS = "proc_create_obs"
+
+K_EDIT_SEARCH = "proc_edit_search"
 
 
 # ==================================================
@@ -171,6 +186,10 @@ def _compact_text(v: str | None, max_len: int = 120) -> str:
     return txt[: max_len - 1].rstrip() + "…"
 
 
+def _safe_str(v: Any) -> str:
+    return _strip_html("" if v is None else str(v))
+
+
 # ==================================================
 # UX HELPERS
 # ==================================================
@@ -229,10 +248,6 @@ def _open_folder(path_str: str | None) -> tuple[bool, str]:
         return False, f"Não foi possível abrir a pasta: {e}"
 
 
-def _copy_to_state(value: str, key: str) -> None:
-    st.session_state[key] = value
-
-
 def _summarize_filters() -> list[str]:
     chips: list[str] = []
 
@@ -259,6 +274,49 @@ def _summarize_filters() -> list[str]:
     return chips
 
 
+def _results_metrics(rows: list[dict]) -> dict[str, int]:
+    ativos = sum(1 for r in rows if (_safe_str(r.get("status")).lower() == "ativo"))
+    concluidos = sum(
+        1 for r in rows if _safe_str(r.get("status")).lower().startswith("concl")
+    )
+    suspensos = sum(
+        1 for r in rows if (_safe_str(r.get("status")).lower() == "suspenso")
+    )
+    com_pasta = sum(1 for r in rows if _safe_str(r.get("pasta_local")))
+    return {
+        "resultado": len(rows),
+        "ativos": ativos,
+        "concluidos": concluidos,
+        "suspensos": suspensos,
+        "com_pasta": com_pasta,
+    }
+
+
+def _row_label(r: dict) -> str:
+    ref = _strip_html(r.get("numero_processo")) or "Sem referência"
+    atu = _atuacao_badge(r.get("papel"))
+    cat = _strip_html(r.get("categoria_servico"))
+    cli = _strip_html(r.get("contratante"))
+    parts = [ref, atu]
+    if cat:
+        parts.append(cat)
+    if cli:
+        parts.append(cli)
+    return " — ".join(parts)
+
+
+def _render_soft_note(title: str, body: str) -> None:
+    st.markdown(
+        f"""
+        <div class="sp-surface" style="padding:14px 16px;">
+          <div style="font-weight:800; margin-bottom:4px;">{title}</div>
+          <div style="font-size:0.94rem; color:rgba(15,23,42,.72);">{body}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # ==================================================
 # SYNC
 # ==================================================
@@ -275,7 +333,7 @@ def _sync_from_dashboard_and_qp() -> None:
     st.session_state.setdefault(K_FILTER_SOMENTE_COM_PASTA, False)
 
     sec = st.session_state.pop("processos_section", None)
-    if sec in ("Lista", "Cadastrar", "Editar"):
+    if sec in SECTIONS:
         st.session_state[K_SECTION] = sec
 
     qp_status = get_qp_str("status", "")
@@ -310,7 +368,7 @@ def _sync_from_dashboard_and_qp() -> None:
 # CALLBACKS
 # ==================================================
 def _set_section(sec: str) -> None:
-    if sec in ("Lista", "Cadastrar", "Editar"):
+    if sec in SECTIONS:
         st.session_state[K_SECTION] = sec
         st.session_state[K_SECTION_SELECTOR] = sec
 
@@ -437,9 +495,7 @@ def _render_filter_summary() -> None:
     if not chips:
         st.caption("Visualização geral sem filtros específicos.")
         return
-
-    txt = "  •  ".join(chips)
-    st.caption(f"Filtros aplicados: {txt}")
+    st.caption(f"Filtros aplicados: {'  •  '.join(chips)}")
 
 
 def _render_empty_state() -> None:
@@ -463,12 +519,110 @@ def _render_empty_state() -> None:
         )
 
 
+def _render_overview_cards(stats: dict[str, int]) -> None:
+    k1, k2, k3, k4, k5 = grid(5, columns_mobile=2)
+    with k1:
+        card("Total", f"{stats.get('total', 0)}", "todos os trabalhos", tone="info")
+    with k2:
+        card("Ativos", f"{stats.get('ativos', 0)}", "em andamento", tone="success")
+    with k3:
+        card(
+            "Concluídos",
+            f"{stats.get('concluidos', 0)}",
+            "finalizados",
+            tone="neutral",
+        )
+    with k4:
+        card(
+            "Suspensos",
+            f"{stats.get('suspensos', 0)}",
+            "pausados",
+            tone="warning",
+        )
+    with k5:
+        card(
+            "Com pasta",
+            f"{stats.get('com_pasta', 0)}",
+            "com vínculo local",
+            tone="info",
+        )
+
+
+def _render_list_insights(rows: list[dict]) -> None:
+    metrics = _results_metrics(rows)
+    k1, k2, k3, k4, k5 = grid(5, columns_mobile=2)
+
+    with k1:
+        card("Resultado", f"{metrics['resultado']}", "nos filtros", tone="info")
+    with k2:
+        card(
+            "Ativos",
+            f"{metrics['ativos']}",
+            "nesta visualização",
+            tone="success" if metrics["ativos"] else "neutral",
+        )
+    with k3:
+        card(
+            "Concluídos",
+            f"{metrics['concluidos']}",
+            "nesta visualização",
+            tone="neutral",
+        )
+    with k4:
+        card(
+            "Suspensos",
+            f"{metrics['suspensos']}",
+            "nesta visualização",
+            tone="warning" if metrics["suspensos"] else "neutral",
+        )
+    with k5:
+        card(
+            "Com pasta",
+            f"{metrics['com_pasta']}",
+            "com vínculo local",
+            tone="info" if metrics["com_pasta"] else "neutral",
+        )
+
+
+def _render_selected_context(selected_row: dict | None) -> None:
+    if not selected_row:
+        st.info("Selecione um trabalho para ver o contexto.")
+        return
+
+    ref = _strip_html(selected_row.get("numero_processo")) or "—"
+    cli = _strip_html(selected_row.get("contratante")) or "—"
+    desc = _strip_html(selected_row.get("tipo_acao")) or "—"
+    comarca = _strip_html(selected_row.get("comarca")) or "—"
+    vara = _strip_html(selected_row.get("vara")) or "—"
+    pasta = _strip_html(selected_row.get("pasta_local")) or "—"
+    obs = _compact_text(selected_row.get("observacoes"), 240) or "Sem observações."
+
+    st.markdown(
+        f"""
+        <div class="sp-surface">
+          <div style="font-weight:900; font-size:1rem; margin-bottom:8px;">{ref}</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <span class="sp-chip">{_status_badge(selected_row.get("status", ""))}</span>
+            <span class="sp-chip">{_atuacao_badge(selected_row.get("papel"))}</span>
+            {f"<span class='sp-chip'>🏷️ {_strip_html(selected_row.get('categoria_servico'))}</span>" if _strip_html(selected_row.get('categoria_servico')) else ""}
+          </div>
+          <div style="font-size:0.94rem; color:rgba(15,23,42,.78);"><b>Cliente:</b> {cli}</div>
+          <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Descrição:</b> {desc}</div>
+          <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Comarca / Vara:</b> {comarca} • {vara}</div>
+          <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Pasta:</b> {pasta}</div>
+          <div style="font-size:0.92rem; color:rgba(15,23,42,.70); margin-top:8px;"><b>Obs.:</b> {obs}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # ==================================================
 # CARD
 # ==================================================
 def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
     pid = int(r.get("id") or 0)
-    ref = _compact_text(r.get("numero_processo"), 80)
+    ref = _compact_text(r.get("numero_processo"), 90)
 
     atu = _atuacao_badge(r.get("papel"))
     status = _status_badge(r.get("status", ""))
@@ -487,7 +641,7 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
         <div class="sp-surface" style="margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;">
             <div style="min-width:0;">
-              <div style="font-weight:900; font-size:1.03rem; line-height:1.2;">{ref or "Sem referência"}</div>
+              <div style="font-weight:900; font-size:1.04rem; line-height:1.2;">{ref or "Sem referência"}</div>
               <div style="margin-top:4px; color:rgba(15,23,42,0.68); font-size:0.92rem;">{meta_line or "Sem metadados principais"}</div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
@@ -506,67 +660,72 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
     )
 
     a, b = st.columns(2)
-    a.button(
-        "Editar",
-        key=f"m_edit_{pid}",
-        use_container_width=True,
-        type="primary",
-        on_click=_open_edit,
-        args=(pid,),
-    )
-
-    b.button(
-        "Prazos",
-        key=f"m_pz_{pid}",
-        use_container_width=True,
-        on_click=_go_prazos,
-        args=(pid, ref, comarca, vara),
-    )
+    with a:
+        st.button(
+            "Editar",
+            key=f"m_edit_{pid}",
+            use_container_width=True,
+            type="primary",
+            on_click=_open_edit,
+            args=(pid,),
+        )
+    with b:
+        st.button(
+            "Prazos",
+            key=f"m_pz_{pid}",
+            use_container_width=True,
+            on_click=_go_prazos,
+            args=(pid, ref, comarca, vara),
+        )
 
     with st.expander("Mais ações"):
         c, d = st.columns(2)
-        c.button(
-            "Agenda",
-            key=f"m_ag_{pid}",
-            use_container_width=True,
-            on_click=_go_agenda,
-            args=(pid, ref, comarca, vara),
-        )
-        d.button(
-            "Financeiro",
-            key=f"m_fin_{pid}",
-            use_container_width=True,
-            on_click=_go_fin,
-            args=(pid, ref, comarca, vara),
-        )
+        with c:
+            st.button(
+                "Agenda",
+                key=f"m_ag_{pid}",
+                use_container_width=True,
+                on_click=_go_agenda,
+                args=(pid, ref, comarca, vara),
+            )
+        with d:
+            st.button(
+                "Financeiro",
+                key=f"m_fin_{pid}",
+                use_container_width=True,
+                on_click=_go_fin,
+                args=(pid, ref, comarca, vara),
+            )
 
         e, f = st.columns(2)
-        e.button(
-            "Duplicar",
-            key=f"m_dup_{pid}",
-            use_container_width=True,
-            on_click=_duplicate_processo,
-            args=(owner_user_id, pid),
-        )
-
-        if pasta:
-            if f.button(
-                "Abrir pasta",
-                key=f"m_open_folder_{pid}",
+        with e:
+            st.button(
+                "Duplicar",
+                key=f"m_dup_{pid}",
                 use_container_width=True,
-            ):
-                ok, msg = _open_folder(pasta)
-                if ok:
-                    _toast("📂 Pasta aberta")
-                else:
-                    st.warning(msg)
-        else:
-            f.button(
-                "Sem pasta",
-                key=f"m_no_folder_{pid}",
-                use_container_width=True,
-                disabled=True,
+                on_click=_duplicate_processo,
+                args=(owner_user_id, pid),
             )
+
+        with f:
+            if pasta:
+                if st.button(
+                    "Abrir pasta",
+                    key=f"m_open_folder_{pid}",
+                    use_container_width=True,
+                ):
+                    ok, msg = _open_folder(pasta)
+                    if ok:
+                        _toast("📂 Pasta aberta")
+                    else:
+                        st.warning(msg)
+            else:
+                st.button(
+                    "Sem pasta",
+                    key=f"m_no_folder_{pid}",
+                    use_container_width=True,
+                    disabled=True,
+                )
 
     spacer(0.2)
 
@@ -595,14 +754,16 @@ def render(owner_user_id: int):
     if st.session_state.get("tb_clear"):
         _clear_filters()
         navigate(
-            MENU_TRABALHOS_KEY, clear_qp=True, state={"processos_section": "Lista"}
+            MENU_TRABALHOS_KEY,
+            clear_qp=True,
+            state={"processos_section": "Lista"},
         )
         return
 
     if st.session_state.get("tb_new"):
         _set_section("Cadastrar")
 
-    options = ["Lista", "Cadastrar", "Editar"]
+    options = list(SECTIONS)
     label_vis = "collapsed" if _use_cards() else "visible"
 
     if hasattr(st, "segmented_control"):
@@ -691,7 +852,9 @@ def _render_cadastrar(owner_user_id: int) -> None:
                 )
             with d:
                 if st.button(
-                    "Cadastrar outro", use_container_width=True, key="proc_post_new"
+                    "Cadastrar outro",
+                    use_container_width=True,
+                    key="proc_post_new",
                 ):
                     st.session_state.pop("proc_last_created_id", None)
                     st.session_state.pop("proc_last_created_ref", None)
@@ -699,13 +862,19 @@ def _render_cadastrar(owner_user_id: int) -> None:
 
     with section(
         "Novo trabalho",
-        subtitle="Cadastre o essencial primeiro. Os demais detalhes podem ser ajustados depois.",
+        subtitle="Cadastre o essencial primeiro. Depois você complementa prazos, agenda, financeiro e demais detalhes.",
         divider=False,
     ):
-        st.session_state.setdefault("proc_create_pasta", "")
+        _render_soft_note(
+            "Fluxo recomendado",
+            "Primeiro registre número/código, atuação, categoria e cliente. Depois refine pasta, observações e demais vínculos do trabalho.",
+        )
 
-        pick_col, tip_col = grid(2, columns_mobile=1)
-        with pick_col:
+        spacer(0.10)
+        st.session_state.setdefault(K_CREATE_PASTA, "")
+
+        a, b = grid(2, columns_mobile=1)
+        with a:
             if st.button(
                 "📁 Escolher pasta…",
                 use_container_width=True,
@@ -713,15 +882,15 @@ def _render_cadastrar(owner_user_id: int) -> None:
             ):
                 chosen = _pick_folder_dialog(initialdir=str(ROOT_TRABALHOS))
                 if chosen:
-                    st.session_state["proc_create_pasta"] = chosen
+                    st.session_state[K_CREATE_PASTA] = chosen
                     st.rerun()
                 else:
                     st.info(
                         "Seleção de pasta indisponível em servidor/headless ou operação cancelada."
                     )
-        with tip_col:
+        with b:
             st.caption(
-                "Dica: em localhost/Windows você pode selecionar a pasta local diretamente."
+                "Dica: se estiver no Windows local, você pode vincular a pasta do trabalho desde já."
             )
 
         with st.form("form_trabalho_create", clear_on_submit=False):
@@ -730,21 +899,21 @@ def _render_cadastrar(owner_user_id: int) -> None:
                 numero = st.text_input(
                     "Número / Código *",
                     placeholder="0000000-00.0000.0.00.0000 ou AP-2026-001",
-                    key="proc_create_numero",
+                    key=K_CREATE_NUMERO,
                 )
             with c2:
                 atuacao_label = st.selectbox(
                     "Atuação *",
                     list(ATUACAO_UI.keys()),
                     index=1,
-                    key="proc_create_atuacao",
+                    key=K_CREATE_ATUACAO,
                 )
             with c3:
                 status = st.selectbox(
                     "Status",
                     list(STATUS_VALIDOS),
                     index=0,
-                    key="proc_create_status",
+                    key=K_CREATE_STATUS,
                 )
 
             c4, c5 = grid(2, columns_mobile=1)
@@ -753,40 +922,59 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     "Categoria / Serviço",
                     CATEGORIAS_UI,
                     index=0,
-                    key="proc_create_categoria",
+                    key=K_CREATE_CATEGORIA,
                 )
             with c5:
                 tipo_acao = st.text_input(
                     "Descrição / Tipo",
                     placeholder="Ex.: Ação possessória / Avaliação / Vistoria...",
-                    key="proc_create_tipo_acao",
+                    key=K_CREATE_TIPO,
                 )
 
             c6, c7, c8 = grid(3, columns_mobile=1)
             with c6:
-                comarca = st.text_input("Comarca", key="proc_create_comarca")
+                comarca = st.text_input("Comarca", key=K_CREATE_COMARCA)
             with c7:
-                vara = st.text_input("Vara", key="proc_create_vara")
+                vara = st.text_input("Vara", key=K_CREATE_VARA)
             with c8:
                 contratante = st.text_input(
                     "Contratante / Cliente",
-                    key="proc_create_contratante",
+                    key=K_CREATE_CONTRATANTE,
                 )
 
             pasta = st.text_input(
                 "Pasta local (opcional)",
                 placeholder=str(ROOT_TRABALHOS / "AP-2026-001"),
-                key="proc_create_pasta",
+                key=K_CREATE_PASTA,
             )
 
-            if st.form_submit_button("Sugerir pasta (auto)", type="secondary"):
-                st.session_state["proc_create_pasta"] = _guess_pasta_local(
-                    st.session_state.get("proc_create_numero", "")
+            aux1, aux2 = st.columns(2)
+            with aux1:
+                suggest_folder = st.form_submit_button(
+                    "Sugerir pasta (auto)",
+                    type="secondary",
+                    use_container_width=True,
                 )
-                st.rerun()
+            with aux2:
+                spacer(0.01)
 
-            obs = st.text_area("Observações", key="proc_create_obs", height=120)
-            submitted = st.form_submit_button("Salvar", type="primary")
+            obs = st.text_area("Observações", key=K_CREATE_OBS, height=120)
+
+            submit_col1, submit_col2 = st.columns(2)
+            with submit_col1:
+                submitted = st.form_submit_button(
+                    "Salvar",
+                    type="primary",
+                    use_container_width=True,
+                )
+            with submit_col2:
+                spacer(0.01)
+
+        if suggest_folder:
+            st.session_state[K_CREATE_PASTA] = _guess_pasta_local(
+                st.session_state.get(K_CREATE_NUMERO, "")
+            )
+            st.rerun()
 
         if submitted:
             if not (numero or "").strip():
@@ -832,7 +1020,9 @@ def _render_lista(owner_user_id: int) -> None:
     stats = _cached_stats(owner_user_id, version)
 
     with section(
-        "Lista", subtitle="Filtre, localize e opere rapidamente.", divider=False
+        "Lista",
+        subtitle="Filtre, localize e opere rapidamente sobre os trabalhos cadastrados.",
+        divider=False,
     ):
         cta1, cta2, cta3 = grid(3, columns_mobile=1)
         with cta1:
@@ -860,24 +1050,7 @@ def _render_lista(owner_user_id: int) -> None:
             )
 
         spacer(0.10)
-
-        k1, k2, k3, k4 = grid(4, columns_mobile=2)
-        with k1:
-            card("Total", f"{stats.get('total', 0)}", "todos os trabalhos", tone="info")
-        with k2:
-            card("Ativos", f"{stats.get('ativos', 0)}", "em andamento", tone="success")
-        with k3:
-            card(
-                "Concluídos",
-                f"{stats.get('concluidos', 0)}",
-                "finalizados",
-                tone="neutral",
-            )
-        with k4:
-            card(
-                "Suspensos", f"{stats.get('suspensos', 0)}", "pausados", tone="warning"
-            )
-
+        _render_overview_cards(stats)
         spacer(0.10)
 
         status_options = ["(Todos)"] + list(STATUS_VALIDOS)
@@ -893,7 +1066,9 @@ def _render_lista(owner_user_id: int) -> None:
             st.selectbox("Categoria", categoria_options, key=K_FILTER_CATEGORIA)
         with c4:
             st.selectbox(
-                "Ordenar", ["Mais recentes", "Mais antigos"], key=K_FILTER_ORDEM
+                "Ordenar",
+                ["Mais recentes", "Mais antigos"],
+                key=K_FILTER_ORDEM,
             )
 
         c5, c6 = grid(2, columns_mobile=1)
@@ -940,33 +1115,7 @@ def _render_lista(owner_user_id: int) -> None:
         _render_empty_state()
         return
 
-    total_resultado = len(rows)
-    ativos = sum(1 for r in rows if (r.get("status", "") or "").lower() == "ativo")
-    concl = sum(
-        1 for r in rows if (r.get("status", "") or "").lower().startswith("concl")
-    )
-    susp = sum(1 for r in rows if (r.get("status", "") or "").lower() == "suspenso")
-
-    k1, k2, k3, k4 = grid(4, columns_mobile=2)
-    with k1:
-        card("Resultado", f"{total_resultado}", "nos filtros", tone="info")
-    with k2:
-        card(
-            "Ativos",
-            f"{ativos}",
-            "nesta visualização",
-            tone="success" if ativos else "neutral",
-        )
-    with k3:
-        card("Concluídos", f"{concl}", "nesta visualização", tone="neutral")
-    with k4:
-        card(
-            "Suspensos",
-            f"{susp}",
-            "nesta visualização",
-            tone="warning" if susp else "neutral",
-        )
-
+    _render_list_insights(rows)
     spacer(0.15)
 
     if _use_cards():
@@ -997,7 +1146,11 @@ def _render_lista(owner_user_id: int) -> None:
         ]
     )
 
-    with section("Tabela", subtitle=f"Total exibido: {len(df)}", divider=False):
+    with section(
+        "Tabela",
+        subtitle=f"Total exibido: {len(df)}",
+        divider=False,
+    ):
         st.dataframe(
             df[
                 [
@@ -1018,18 +1171,20 @@ def _render_lista(owner_user_id: int) -> None:
         )
 
     with section(
-        "Ações rápidas", subtitle="Selecione um trabalho para operar.", divider=False
+        "Ações rápidas",
+        subtitle="Selecione um trabalho para editar ou seguir para prazos, agenda e financeiro.",
+        divider=False,
     ):
-        id_to_label = {
-            int(r["id"]): _strip_html(r.get("numero_processo")) for r in rows
-        }
+        id_to_row = {int(r["id"]): r for r in rows}
+        id_to_label = {int(r["id"]): _row_label(r) for r in rows}
         ids = list(id_to_label.keys())
 
         default_id = st.session_state.get(K_SELECTED_ID, ids[0])
         if default_id not in ids:
             default_id = ids[0]
 
-        cA, cB, cC, cD, cE, cF = grid(6, columns_mobile=1)
+        cA, cB = grid(2, columns_mobile=1)
+
         with cA:
             selected_id = st.selectbox(
                 "Selecionar",
@@ -1039,55 +1194,58 @@ def _render_lista(owner_user_id: int) -> None:
                 key=K_SELECTED_ID,
             )
 
-        selected_row = next(
-            (r for r in rows if int(r.get("id", 0)) == int(selected_id)), None
-        )
-        selected_ref = id_to_label.get(int(selected_id), "")
+            selected_row = id_to_row.get(int(selected_id))
+            selected_ref = _strip_html((selected_row or {}).get("numero_processo"))
+            comarca = _strip_html((selected_row or {}).get("comarca"))
+            vara = _strip_html((selected_row or {}).get("vara"))
 
-        comarca = _strip_html((selected_row or {}).get("comarca"))
-        vara = _strip_html((selected_row or {}).get("vara"))
+            a1, a2, a3 = grid(3, columns_mobile=1)
+            with a1:
+                st.button(
+                    "Editar",
+                    use_container_width=True,
+                    type="primary",
+                    key="proc_act_edit",
+                    on_click=_open_edit,
+                    args=(int(selected_id),),
+                )
+            with a2:
+                st.button(
+                    "Prazos",
+                    use_container_width=True,
+                    key="proc_act_pz",
+                    on_click=_go_prazos,
+                    args=(int(selected_id), selected_ref, comarca, vara),
+                )
+            with a3:
+                st.button(
+                    "Duplicar",
+                    use_container_width=True,
+                    key="proc_act_dup",
+                    on_click=_duplicate_processo,
+                    args=(owner_user_id, int(selected_id)),
+                )
+
+            a4, a5 = grid(2, columns_mobile=1)
+            with a4:
+                st.button(
+                    "Agenda",
+                    use_container_width=True,
+                    key="proc_act_ag",
+                    on_click=_go_agenda,
+                    args=(int(selected_id), selected_ref, comarca, vara),
+                )
+            with a5:
+                st.button(
+                    "Financeiro",
+                    use_container_width=True,
+                    key="proc_act_fin",
+                    on_click=_go_fin,
+                    args=(int(selected_id), selected_ref, comarca, vara),
+                )
 
         with cB:
-            st.button(
-                "Editar",
-                use_container_width=True,
-                type="primary",
-                key="proc_act_edit",
-                on_click=_open_edit,
-                args=(int(selected_id),),
-            )
-        with cC:
-            st.button(
-                "Prazos",
-                use_container_width=True,
-                key="proc_act_pz",
-                on_click=_go_prazos,
-                args=(int(selected_id), selected_ref, comarca, vara),
-            )
-        with cD:
-            st.button(
-                "Agenda",
-                use_container_width=True,
-                key="proc_act_ag",
-                on_click=_go_agenda,
-                args=(int(selected_id), selected_ref, comarca, vara),
-            )
-        with cE:
-            st.button(
-                "Financeiro",
-                use_container_width=True,
-                key="proc_act_fin",
-                on_click=_go_fin,
-                args=(int(selected_id), selected_ref, comarca, vara),
-            )
-        with cF:
-            st.button(
-                "Duplicar",
-                use_container_width=True,
-                key="proc_act_dup",
-                on_click=_duplicate_processo,
-                args=(owner_user_id, int(selected_id)),
-            )
+            _render_selected_context(id_to_row.get(int(selected_id)))
 
 
 # ==================================================
@@ -1096,13 +1254,13 @@ def _render_lista(owner_user_id: int) -> None:
 def _render_editar(owner_user_id: int) -> None:
     with section(
         "Editar",
-        subtitle="Localize o trabalho e ajuste os dados principais.",
+        subtitle="Localize o trabalho e ajuste os dados principais com segurança.",
         divider=False,
     ):
         busca = st.text_input(
             "Buscar",
             placeholder="nº/código, cliente, descrição...",
-            key="proc_edit_search",
+            key=K_EDIT_SEARCH,
         )
 
         with get_session() as s:
@@ -1193,7 +1351,9 @@ def _render_editar(owner_user_id: int) -> None:
             )
 
     with section(
-        "Ações", subtitle="Pasta local, duplicação e exclusão.", divider=False
+        "Ações",
+        subtitle="Operações rápidas para o trabalho selecionado.",
+        divider=False,
     ):
         pasta_key = f"proc_edit_pasta_{selected_id}"
         st.session_state.setdefault(pasta_key, p.get("pasta_local", "") or "")
@@ -1257,113 +1417,130 @@ def _render_editar(owner_user_id: int) -> None:
 
         st.caption("⚠️ A exclusão remove definitivamente o registro do banco.")
 
-    with st.form(f"form_trabalho_edit_{selected_id}"):
-        c1, c2, c3 = grid(3, columns_mobile=1)
-        with c1:
-            numero_e = st.text_input(
-                "Número / Código *",
-                value=_strip_html(p.get("numero_processo")) or "",
-                key=f"proc_edit_num_{selected_id}",
-            )
-        with c2:
-            comarca_e = st.text_input(
-                "Comarca",
-                value=_strip_html(p.get("comarca")) or "",
-                key=f"proc_edit_comarca_{selected_id}",
-            )
-        with c3:
-            vara_e = st.text_input(
-                "Vara",
-                value=_strip_html(p.get("vara")) or "",
-                key=f"proc_edit_vara_{selected_id}",
-            )
+    top_left, top_right = grid(2, columns_mobile=1)
 
-        c4, c5, c6 = grid(3, columns_mobile=1)
-        with c4:
-            tipo_acao_e = st.text_input(
-                "Descrição / Tipo",
-                value=_strip_html(p.get("tipo_acao")) or "",
-                key=f"proc_edit_tipo_{selected_id}",
-            )
-        with c5:
-            contratante_e = st.text_input(
-                "Contratante / Cliente",
-                value=_strip_html(p.get("contratante")) or "",
-                key=f"proc_edit_cli_{selected_id}",
-            )
-        with c6:
-            atuacao_label_e = st.selectbox(
-                "Atuação",
-                list(ATUACAO_UI.keys()),
-                index=(
-                    list(ATUACAO_UI.keys()).index(atuacao_atual_label)
-                    if atuacao_atual_label in ATUACAO_UI
-                    else 1
-                ),
-                key=f"proc_edit_atu_{selected_id}",
-            )
-        papel_db_e = _atuacao_db_from_label(atuacao_label_e)
-
-        c7, c8, c9 = grid(3, columns_mobile=1)
-        with c7:
-            cat_atual = _strip_html(p.get("categoria_servico"))
-            categoria_e = st.selectbox(
-                "Categoria / Serviço",
-                CATEGORIAS_UI,
-                index=(
-                    CATEGORIAS_UI.index(cat_atual) if cat_atual in CATEGORIAS_UI else 0
-                ),
-                key=f"proc_edit_cat_{selected_id}",
-            )
-        with c8:
-            status_e = st.selectbox(
-                "Status",
-                list(STATUS_VALIDOS),
-                index=(
-                    list(STATUS_VALIDOS).index(status_atual)
-                    if status_atual in STATUS_VALIDOS
-                    else 0
-                ),
-                key=f"proc_edit_status_{selected_id}",
-            )
-        with c9:
-            pasta_e = st.text_input("Pasta local", key=pasta_key)
-
-        obs_e = st.text_area(
-            "Observações",
-            value=_strip_html(p.get("observacoes")) or "",
-            key=f"proc_edit_obs_{selected_id}",
-            height=120,
-        )
-
-        atualizar = st.form_submit_button("Salvar alterações", type="primary")
-
-    if atualizar:
-        if not (numero_e or "").strip():
-            st.error("Número / Código não pode ficar vazio.")
-            return
-
-        try:
-            with get_session() as s:
-                ProcessosService.update(
-                    s,
-                    owner_user_id,
-                    int(selected_id),
-                    ProcessoUpdate(
-                        numero_processo=(numero_e or "").strip(),
-                        comarca=(comarca_e or "").strip(),
-                        vara=(vara_e or "").strip(),
-                        tipo_acao=(tipo_acao_e or "").strip(),
-                        contratante=(contratante_e or "").strip(),
-                        papel=papel_db_e,
-                        status=status_e,
-                        pasta_local=(pasta_e or "").strip(),
-                        categoria_servico=categoria_e,
-                        observacoes=(obs_e or "").strip(),
-                    ),
+    with top_left:
+        with st.form(f"form_trabalho_edit_{selected_id}"):
+            c1, c2, c3 = grid(3, columns_mobile=1)
+            with c1:
+                numero_e = st.text_input(
+                    "Número / Código *",
+                    value=_strip_html(p.get("numero_processo")) or "",
+                    key=f"proc_edit_num_{selected_id}",
                 )
-            bump_data_version(owner_user_id)
-            _toast("✅ Trabalho atualizado")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Erro ao atualizar: {e}")
+            with c2:
+                comarca_e = st.text_input(
+                    "Comarca",
+                    value=_strip_html(p.get("comarca")) or "",
+                    key=f"proc_edit_comarca_{selected_id}",
+                )
+            with c3:
+                vara_e = st.text_input(
+                    "Vara",
+                    value=_strip_html(p.get("vara")) or "",
+                    key=f"proc_edit_vara_{selected_id}",
+                )
+
+            c4, c5, c6 = grid(3, columns_mobile=1)
+            with c4:
+                tipo_acao_e = st.text_input(
+                    "Descrição / Tipo",
+                    value=_strip_html(p.get("tipo_acao")) or "",
+                    key=f"proc_edit_tipo_{selected_id}",
+                )
+            with c5:
+                contratante_e = st.text_input(
+                    "Contratante / Cliente",
+                    value=_strip_html(p.get("contratante")) or "",
+                    key=f"proc_edit_cli_{selected_id}",
+                )
+            with c6:
+                atuacao_label_e = st.selectbox(
+                    "Atuação",
+                    list(ATUACAO_UI.keys()),
+                    index=(
+                        list(ATUACAO_UI.keys()).index(atuacao_atual_label)
+                        if atuacao_atual_label in ATUACAO_UI
+                        else 1
+                    ),
+                    key=f"proc_edit_atu_{selected_id}",
+                )
+            papel_db_e = _atuacao_db_from_label(atuacao_label_e)
+
+            c7, c8, c9 = grid(3, columns_mobile=1)
+            with c7:
+                cat_atual = _strip_html(p.get("categoria_servico"))
+                categoria_e = st.selectbox(
+                    "Categoria / Serviço",
+                    CATEGORIAS_UI,
+                    index=(
+                        CATEGORIAS_UI.index(cat_atual)
+                        if cat_atual in CATEGORIAS_UI
+                        else 0
+                    ),
+                    key=f"proc_edit_cat_{selected_id}",
+                )
+            with c8:
+                status_e = st.selectbox(
+                    "Status",
+                    list(STATUS_VALIDOS),
+                    index=(
+                        list(STATUS_VALIDOS).index(status_atual)
+                        if status_atual in STATUS_VALIDOS
+                        else 0
+                    ),
+                    key=f"proc_edit_status_{selected_id}",
+                )
+            with c9:
+                pasta_e = st.text_input("Pasta local", key=pasta_key)
+
+            obs_e = st.text_area(
+                "Observações",
+                value=_strip_html(p.get("observacoes")) or "",
+                key=f"proc_edit_obs_{selected_id}",
+                height=140,
+            )
+
+            atualizar = st.form_submit_button(
+                "Salvar alterações",
+                type="primary",
+                use_container_width=True,
+            )
+
+        if atualizar:
+            if not (numero_e or "").strip():
+                st.error("Número / Código não pode ficar vazio.")
+                return
+
+            try:
+                with get_session() as s:
+                    ProcessosService.update(
+                        s,
+                        owner_user_id,
+                        int(selected_id),
+                        ProcessoUpdate(
+                            numero_processo=(numero_e or "").strip(),
+                            comarca=(comarca_e or "").strip(),
+                            vara=(vara_e or "").strip(),
+                            tipo_acao=(tipo_acao_e or "").strip(),
+                            contratante=(contratante_e or "").strip(),
+                            papel=papel_db_e,
+                            status=status_e,
+                            pasta_local=(pasta_e or "").strip(),
+                            categoria_servico=categoria_e,
+                            observacoes=(obs_e or "").strip(),
+                        ),
+                    )
+                bump_data_version(owner_user_id)
+                _toast("✅ Trabalho atualizado")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao atualizar: {e}")
+
+    with top_right:
+        with section(
+            "Contexto do registro",
+            subtitle="Resumo rápido para conferência antes de salvar.",
+            divider=False,
+        ):
+            _render_selected_context(p)
