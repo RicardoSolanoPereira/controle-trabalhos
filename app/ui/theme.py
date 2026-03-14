@@ -12,7 +12,7 @@ __all__ = [
     "app_error",
 ]
 
-_CSS_VERSION = "v17"
+_CSS_VERSION = "v18"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -265,7 +265,7 @@ SURFACE
 
 
 /* ======================================================
-CHIPS
+CHIPS / PILLS
 ====================================================== */
 
 .sp-chip{
@@ -305,6 +305,51 @@ CHIPS
   background:var(--info-bg);
   border-color:rgba(37,99,235,0.16);
   color:#1d4ed8;
+}
+
+.sp-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:28px;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:0.78rem;
+  font-weight:760;
+  line-height:1;
+  border:1px solid rgba(15,23,42,0.08);
+  background:#fff;
+  color:var(--text-soft);
+}
+
+.sp-pill-danger{
+  background:var(--danger-bg);
+  color:#991b1b;
+  border-color:rgba(220,38,38,0.16);
+}
+
+.sp-pill-warning{
+  background:var(--warning-bg);
+  color:#92400e;
+  border-color:rgba(217,119,6,0.16);
+}
+
+.sp-pill-success{
+  background:var(--success-bg);
+  color:#166534;
+  border-color:rgba(21,128,61,0.15);
+}
+
+.sp-pill-info{
+  background:var(--info-bg);
+  color:#1d4ed8;
+  border-color:rgba(37,99,235,0.15);
+}
+
+.sp-pill-neutral{
+  background:var(--neutral-bg);
+  color:var(--text-soft);
+  border-color:rgba(15,23,42,0.08);
 }
 
 
@@ -561,6 +606,11 @@ CARD KPI
   line-height:1.35;
 }
 
+.sp-card-operational{
+  min-height:auto;
+  padding:16px 16px 15px 16px;
+}
+
 
 /* ======================================================
 TONES
@@ -589,6 +639,134 @@ TONES
 .sp-tone-neutral{
   border-left:5px solid #cbd5e1;
   padding-left:13px;
+}
+
+
+/* ======================================================
+RADAR / STRIP
+====================================================== */
+
+.sp-kpi-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.sp-highlight-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.sp-kv{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 0;
+  border-bottom:1px solid rgba(15,23,42,0.06);
+}
+
+.sp-kv:last-child{
+  border-bottom:none;
+  padding-bottom:0;
+}
+
+.sp-kv-label{
+  color:var(--muted);
+  font-size:0.84rem;
+  line-height:1.35;
+}
+
+.sp-kv-value{
+  color:var(--text);
+  font-weight:780;
+  text-align:right;
+  font-size:0.88rem;
+  line-height:1.35;
+}
+
+
+/* ======================================================
+TIMELINE
+====================================================== */
+
+.sp-timeline{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.sp-timeline-item{
+  display:flex;
+  align-items:stretch;
+  gap:12px;
+}
+
+.sp-timeline-rail{
+  width:20px;
+  display:flex;
+  justify-content:center;
+  flex:0 0 20px;
+}
+
+.sp-timeline-rail-line{
+  position:relative;
+  width:2px;
+  min-height:66px;
+  background:rgba(15,23,42,0.08);
+  border-radius:999px;
+}
+
+.sp-timeline-rail-line.last{
+  background:transparent;
+}
+
+.sp-timeline-dot{
+  position:absolute;
+  top:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:12px;
+  height:12px;
+  border-radius:999px;
+  box-shadow:0 0 0 4px rgba(255,255,255,0.96);
+}
+
+.sp-timeline-dot-danger{ background:var(--danger); }
+.sp-timeline-dot-warning{ background:var(--warning); }
+.sp-timeline-dot-success{ background:var(--success); }
+.sp-timeline-dot-info{ background:var(--info); }
+.sp-timeline-dot-neutral{ background:#94a3b8; }
+
+.sp-timeline-content{
+  flex:1 1 auto;
+  min-width:0;
+}
+
+.sp-timeline-kind{
+  color:rgba(15,23,42,0.58);
+  font-weight:780;
+  font-size:0.78rem;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+}
+
+.sp-timeline-title{
+  font-weight:820;
+  line-height:1.35;
+  color:var(--text);
+}
+
+.sp-timeline-detail{
+  margin-top:5px;
+  color:rgba(15,23,42,0.72);
+  font-size:0.88rem;
+  line-height:1.42;
+}
+
+.sp-timeline-meta{
+  margin-top:8px;
 }
 
 
@@ -745,6 +923,19 @@ MOBILE
 
   .sp-section-title{
     font-size:0.98rem;
+  }
+
+  .sp-timeline-item{
+    gap:10px;
+  }
+
+  .sp-timeline-rail{
+    width:18px;
+    flex-basis:18px;
+  }
+
+  .sp-timeline-rail-line{
+    min-height:72px;
   }
 }
 

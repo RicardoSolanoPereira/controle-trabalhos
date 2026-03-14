@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
-from typing import Any, Iterable, Callable
+from typing import Any, Callable, Iterable
 
 import pandas as pd
 import streamlit as st
@@ -9,11 +9,11 @@ from sqlalchemy import case, func, select
 
 from db.connection import get_session
 from db.models import Agendamento, LancamentoFinanceiro, Prazo, Processo
-from ui.layout import grid, section, spacer
+from services.utils import ensure_br, format_date_br, now_br
+from ui.layout import content_shell, empty_state, grid, grid_weights, section, spacer
 from ui.page_header import HeaderAction, page_header
 from ui.theme import card
-from ui_state import navigate
-from services.utils import ensure_br, format_date_br, now_br
+from ui_state import get_data_version, navigate
 
 ATUACAO_UI = {
     "(Todas)": None,
@@ -56,11 +56,6 @@ def _safe_text(value: Any, fallback: str = "—") -> str:
 
 def _apply_tipo_filter(stmt, tipo_val: str | None):
     return stmt if not tipo_val else stmt.where(Processo.papel == tipo_val)
-
-
-def _cache_buster(owner_user_id: int) -> int:
-    _ = owner_user_id
-    return int(st.session_state.get("data_version", 0))
 
 
 def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
@@ -137,11 +132,17 @@ def _render_action_button(
 def _render_dataframe_or_caption(
     df: pd.DataFrame,
     *,
-    empty_text: str = "—",
+    empty_title: str = "Nada por aqui",
+    empty_subtitle: str = "Não há registros para exibir neste recorte.",
+    empty_icon: str = "📭",
     height: int | None = None,
 ) -> None:
     if df.empty:
-        st.caption(empty_text)
+        empty_state(
+            title=empty_title,
+            subtitle=empty_subtitle,
+            icon=empty_icon,
+        )
         return
 
     dataframe_kwargs = {
@@ -183,6 +184,13 @@ def _tone_from_prazo_status(dias: int) -> str:
     if dias <= 10:
         return "info"
     return "success"
+
+
+def _pill_class_from_tone(tone: str) -> str:
+    tone_norm = (tone or "neutral").strip().lower()
+    if tone_norm in {"danger", "warning", "success", "info"}:
+        return f"sp-pill sp-pill-{tone_norm}"
+    return "sp-pill sp-pill-neutral"
 
 
 def _prior_badge(prioridade: str | None) -> str:
@@ -277,7 +285,7 @@ def _build_agenda_df(rows: Iterable[tuple]) -> pd.DataFrame:
                 "Trabalho": f"{_safe_text(numero_processo, 'Sem referência')} – {_safe_text(tipo_acao, 'Sem tipo')}",
                 "Tipo": _safe_text(tipo, "Sem tipo"),
                 "Início": ensure_br(inicio).strftime("%d/%m/%Y %H:%M"),
-                "Local": _safe_text(local, ""),
+                "Local": _safe_text(local, "—"),
             }
         )
 
@@ -318,59 +326,6 @@ def _build_trabalhos_df(rows: list[tuple]) -> pd.DataFrame:
             "tipo_trabalho": "Atuação",
         }
     )
-
-
-# ==========================================================
-# Banner de prioridade
-# ==========================================================
-
-
-def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str, Any]:
-    if prazos_atrasados > 0:
-        return {
-            "tone": "danger",
-            "title": "Pendências críticas exigem ação imediata",
-            "text": (
-                f"Você possui <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s). "
-                "Priorize o que já venceu antes de novas tarefas administrativas."
-            ),
-            "cta_label": "Abrir prazos atrasados",
-            "cta_page": "Prazos",
-            "cta_state": {
-                "prazos_section": "Lista",
-                "pz_nav_to": "Lista",
-                "pz_list_nav_to": "Atrasados",
-            },
-        }
-
-    if prazos_7dias > 0:
-        return {
-            "tone": "warning",
-            "title": "Há vencimentos próximos no radar",
-            "text": (
-                f"Você possui <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias. "
-                "Vale revisar documentos, agenda e providências relacionadas."
-            ),
-            "cta_label": "Ver próximos 7 dias",
-            "cta_page": "Prazos",
-            "cta_state": {
-                "prazos_section": "Lista",
-                "pz_nav_to": "Lista",
-                "pz_list_nav_to": "Vencem (7 dias)",
-            },
-        }
-
-    return {
-        "tone": "success",
-        "title": "Tudo sob controle no momento",
-        "text": (
-            "Não há prazos críticos no painel. Bom momento para revisar agenda, "
-            "financeiro e atualizar cadastros."
-        ),
-        "cta_label": "Cadastrar novo prazo",
-        "cta_page": "Prazos",
-        "cta_state": {"prazos_section": "Cadastro"},
-    }
 
 
 # ==========================================================
@@ -439,9 +394,13 @@ def _render_surface_list_item(
     )
 
 
-def _render_prazo_cards(rows: list, empty_msg: str) -> None:
+def _render_prazo_cards(rows: list, empty_title: str, empty_subtitle: str) -> None:
     if not rows:
-        st.caption(empty_msg)
+        empty_state(
+            title=empty_title,
+            subtitle=empty_subtitle,
+            icon="✅",
+        )
         return
 
     for _id, evento, data_limite, prioridade, numero_processo, tipo_acao in rows:
@@ -468,9 +427,13 @@ def _render_prazo_cards(rows: list, empty_msg: str) -> None:
         )
 
 
-def _render_agenda_cards(rows: list, empty_msg: str) -> None:
+def _render_agenda_cards(rows: list, empty_title: str, empty_subtitle: str) -> None:
     if not rows:
-        st.caption(empty_msg)
+        empty_state(
+            title=empty_title,
+            subtitle=empty_subtitle,
+            icon="📭",
+        )
         return
 
     now_n = _naive(now_br())
@@ -504,6 +467,289 @@ def _render_agenda_cards(rows: list, empty_msg: str) -> None:
             tone=tone,
             title=title,
             chips=chips,
+        )
+
+
+# ==========================================================
+# Timeline / radar
+# ==========================================================
+
+
+def _build_timeline_items(
+    rows_prazos_atrasados: list,
+    rows_prazos_7d: list,
+    rows_ag_24h: list,
+    rows_ag_7d: list,
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+
+    for (
+        _id,
+        evento,
+        data_limite,
+        prioridade,
+        numero_processo,
+        tipo_acao,
+    ) in rows_prazos_atrasados:
+        dias = int(_dias_restantes(data_limite))
+        items.append(
+            {
+                "sort_dt": ensure_br(data_limite),
+                "tone": "danger",
+                "kind": "Prazo",
+                "headline": f"{_safe_text(numero_processo, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
+                "meta": f"vencido há {abs(dias)} dia(s)",
+                "detail": _safe_text(tipo_acao, "Sem tipo"),
+            }
+        )
+
+    for (
+        _id,
+        evento,
+        data_limite,
+        prioridade,
+        numero_processo,
+        tipo_acao,
+    ) in rows_prazos_7d:
+        dias = int(_dias_restantes(data_limite))
+        items.append(
+            {
+                "sort_dt": ensure_br(data_limite),
+                "tone": _tone_from_prazo_status(dias),
+                "kind": "Prazo",
+                "headline": f"{_safe_text(numero_processo, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
+                "meta": f"vence em {dias} dia(s)",
+                "detail": _safe_text(tipo_acao, "Sem tipo"),
+            }
+        )
+
+    for _id, tipo, inicio, local, numero_processo, tipo_acao in rows_ag_24h:
+        inicio_br = ensure_br(inicio)
+        hours_left = (_naive(inicio_br) - _naive(now_br())).total_seconds() / 3600.0
+        _label, tone = _agenda_status(hours_left)
+        items.append(
+            {
+                "sort_dt": inicio_br,
+                "tone": tone,
+                "kind": "Agenda",
+                "headline": f"{_safe_text(numero_processo, 'Sem referência')} – {_safe_text(tipo, 'Sem tipo')}",
+                "meta": inicio_br.strftime("%d/%m %H:%M"),
+                "detail": _safe_text(local, _safe_text(tipo_acao, "Sem local")),
+            }
+        )
+
+    seen_agenda_keys: set[str] = set()
+    for _id, tipo, inicio, local, numero_processo, tipo_acao in rows_ag_24h:
+        seen_agenda_keys.add(f"{_id}")
+
+    for _id, tipo, inicio, local, numero_processo, tipo_acao in rows_ag_7d:
+        if f"{_id}" in seen_agenda_keys:
+            continue
+        inicio_br = ensure_br(inicio)
+        hours_left = (_naive(inicio_br) - _naive(now_br())).total_seconds() / 3600.0
+        _label, tone = _agenda_status(hours_left)
+        items.append(
+            {
+                "sort_dt": inicio_br,
+                "tone": tone,
+                "kind": "Agenda",
+                "headline": f"{_safe_text(numero_processo, 'Sem referência')} – {_safe_text(tipo, 'Sem tipo')}",
+                "meta": inicio_br.strftime("%d/%m %H:%M"),
+                "detail": _safe_text(local, _safe_text(tipo_acao, "Sem local")),
+            }
+        )
+
+    items.sort(key=lambda x: x["sort_dt"])
+    return items[:8]
+
+
+def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
+    with section(
+        "Próximos passos",
+        subtitle="Prévia cronológica do que exige atenção",
+        divider=False,
+    ):
+        if not items:
+            empty_state(
+                title="Nenhum evento próximo",
+                subtitle="Quando houver prazos ou compromissos no radar, eles aparecerão aqui.",
+                icon="🗓️",
+            )
+            return
+
+        _render_html("<div class='sp-timeline'>")
+        try:
+            for idx, item in enumerate(items):
+                tone = item["tone"]
+                last_class = "last" if idx == len(items) - 1 else ""
+                pill_class = _pill_class_from_tone(tone)
+
+                _render_html(
+                    f"""
+                    <div class="sp-timeline-item">
+                      <div class="sp-timeline-rail">
+                        <div class="sp-timeline-rail-line {last_class}">
+                          <div class="sp-timeline-dot sp-timeline-dot-{tone}"></div>
+                        </div>
+                      </div>
+                      <div class="sp-timeline-content">
+                        <div class="sp-surface sp-tone-{tone}" style="margin:0; width:100%;">
+                          <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                            <div class="sp-timeline-title">{item["headline"]}</div>
+                            <div class="sp-timeline-kind">{item["kind"]}</div>
+                          </div>
+                          <div class="sp-timeline-detail">{item["detail"]}</div>
+                          <div class="sp-timeline-meta">
+                            <span class="{pill_class}">{item["meta"]}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    """
+                )
+        finally:
+            _render_html("</div>")
+
+
+def _render_radar_panel(
+    *,
+    kpis: dict[str, Any],
+    rows_prazos_atrasados: list,
+    rows_prazos_7d: list,
+    rows_ag_24h: list,
+) -> None:
+    with section(
+        "Radar do dia",
+        subtitle="O que merece sua atenção primeiro",
+        divider=False,
+    ):
+        if kpis["prazos_atrasados"] > 0:
+            title = "Prioridade máxima: regularizar prazos vencidos"
+            tone = "danger"
+            lines = [
+                f"Você possui <b>{kpis['prazos_atrasados']}</b> prazo(s) atrasado(s).",
+                "Comece pelos itens já vencidos antes de abrir novas frentes administrativas.",
+            ]
+            cta_label = "Abrir prazos atrasados"
+            cta_page = "Prazos"
+            cta_state = {
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Atrasados",
+            }
+        elif kpis["ag_24h"] > 0:
+            title = "Atenção operacional nas próximas 24 horas"
+            tone = "warning"
+            lines = [
+                f"Há <b>{kpis['ag_24h']}</b> compromisso(s) muito próximo(s).",
+                "Vale revisar deslocamento, documentos, endereço e horário antes do início.",
+            ]
+            cta_label = "Abrir agenda"
+            cta_page = "Agenda"
+            cta_state = None
+        elif kpis["prazos_7dias"] > 0:
+            title = "Organize a semana com antecedência"
+            tone = "info"
+            lines = [
+                f"Há <b>{kpis['prazos_7dias']}</b> prazo(s) vencendo em até 7 dias.",
+                "Bom momento para separar peças, documentos e prioridades por trabalho.",
+            ]
+            cta_label = "Ver próximos prazos"
+            cta_page = "Prazos"
+            cta_state = {
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Vencem (7 dias)",
+            }
+        else:
+            title = "Painel sob controle no momento"
+            tone = "success"
+            lines = [
+                "Não há pendências críticas neste recorte.",
+                "Você pode usar este momento para cadastrar, revisar ou atualizar trabalhos.",
+            ]
+            cta_label = "Novo trabalho"
+            cta_page = "Trabalhos"
+            cta_state = {"trabalhos_section": "Cadastro"}
+
+        _render_html(
+            f"""
+            <div class="sp-card sp-card-operational sp-tone-{tone}">
+              <div class="sp-card-title">FOCO DO MOMENTO</div>
+              <div style="font-size:1.10rem; font-weight:840; line-height:1.24;">{title}</div>
+              <div style="margin-top:10px; color:rgba(15,23,42,0.74); line-height:1.5;">
+                {"<br>".join(lines)}
+              </div>
+            </div>
+            """
+        )
+
+        spacer(0.12)
+        _render_nav_button(
+            cta_label,
+            page=cta_page,
+            state=cta_state,
+            key="dash_radar_cta",
+            type="primary",
+        )
+
+        spacer(0.16)
+
+        highlights: list[str] = []
+        if rows_prazos_atrasados:
+            _, evento, data_limite, prioridade, numero_processo, tipo_acao = (
+                rows_prazos_atrasados[0]
+            )
+            highlights.append(
+                f"<span class='sp-chip sp-chip-danger'>Prazo crítico: {_safe_text(numero_processo, 'Sem referência')} • {format_date_br(data_limite)}</span>"
+            )
+
+        if rows_ag_24h:
+            _, tipo, inicio, local, numero_processo, tipo_acao = rows_ag_24h[0]
+            highlights.append(
+                f"<span class='sp-chip sp-chip-warning'>Próximo compromisso: {_safe_text(numero_processo, 'Sem referência')} • {ensure_br(inicio).strftime('%d/%m %H:%M')}</span>"
+            )
+
+        if rows_prazos_7d and not rows_prazos_atrasados:
+            _, evento, data_limite, prioridade, numero_processo, tipo_acao = (
+                rows_prazos_7d[0]
+            )
+            highlights.append(
+                f"<span class='sp-chip sp-chip-info'>Próximo vencimento: {_safe_text(numero_processo, 'Sem referência')} • {format_date_br(data_limite)}</span>"
+            )
+
+        if highlights:
+            _render_html(
+                f"""
+                <div class="sp-highlight-strip">
+                  {''.join(highlights)}
+                </div>
+                """
+            )
+
+        spacer(0.14)
+
+        _render_html(
+            f"""
+            <div class="sp-surface">
+              <div class="sp-kv">
+                <div class="sp-kv-label">Prazos atrasados</div>
+                <div class="sp-kv-value">{kpis['prazos_atrasados']}</div>
+              </div>
+              <div class="sp-kv">
+                <div class="sp-kv-label">Prazos em até 7 dias</div>
+                <div class="sp-kv-value">{kpis['prazos_7dias']}</div>
+              </div>
+              <div class="sp-kv">
+                <div class="sp-kv-label">Agenda em 24 horas</div>
+                <div class="sp-kv-value">{kpis['ag_24h']}</div>
+              </div>
+              <div class="sp-kv">
+                <div class="sp-kv-label">Agenda em 7 dias</div>
+                <div class="sp-kv-value">{kpis['ag_7d']}</div>
+              </div>
+            </div>
+            """
         )
 
 
@@ -819,15 +1065,16 @@ def _render_header() -> None:
     )
 
 
-def _render_filters() -> str | None:
+def _render_top_bar() -> str | None:
     with section(
-        "Filtros",
-        subtitle="Refine o painel por tipo de atuação",
+        "Visão atual",
+        subtitle="Escolha a atuação para filtrar o painel",
         divider=False,
+        compact=True,
     ):
-        col1, col2 = grid(2, columns_mobile=1)
+        left, right = grid_weights((1.2, 2.2), weights_mobile=(1, 1), gap="medium")
 
-        with col1:
+        with left:
             atuacao_label = st.selectbox(
                 "Atuação",
                 list(ATUACAO_UI.keys()),
@@ -835,19 +1082,26 @@ def _render_filters() -> str | None:
                 key="dash_atuacao_ui",
             )
 
-        with col2:
-            st.caption(
-                "Selecione “(Todas)” para visão geral ou escolha uma atuação específica para focar o painel."
+        with right:
+            _render_html(
+                f"""
+                <div class="sp-surface" style="min-height:42px; display:flex; align-items:center;">
+                  <div style="color:rgba(15,23,42,0.72);">
+                    <b>{_greeting()}</b> • {_today_label()}
+                  </div>
+                </div>
+                """
             )
 
     return ATUACAO_UI[atuacao_label]
 
 
 def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
-    with section(divider=False):
-        st.markdown(f"### {_greeting()}")
-        st.caption(f"{_today_label()} • visão atual: {atuacao_label}")
-
+    with section(
+        "Resumo executivo",
+        subtitle=f"Leitura rápida do painel • atuação: {atuacao_label}",
+        divider=False,
+    ):
         c1, c2, c3, c4 = grid(4, columns_mobile=1)
 
         with c1:
@@ -900,31 +1154,6 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
                 tone=("success" if kpis["saldo"] >= 0 else "danger"),
                 emphasize=True,
             )
-
-
-def _render_priority_banner(kpis: dict[str, Any]) -> None:
-    banner = _priority_banner_data(kpis["prazos_atrasados"], kpis["prazos_7dias"])
-
-    col1, col2 = grid(2, columns_mobile=1)
-
-    with col1:
-        _render_html(
-            f"""
-            <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
-              <div style="font-size:1.05rem; font-weight:860;">{banner['title']}</div>
-              <div style="margin-top:8px; line-height:1.45;">{banner['text']}</div>
-            </div>
-            """
-        )
-
-    with col2:
-        _render_nav_button(
-            banner["cta_label"],
-            page=banner["cta_page"],
-            state=banner["cta_state"],
-            key="dash_priority_cta",
-            type="primary",
-        )
 
 
 def _render_quick_actions() -> None:
@@ -1025,7 +1254,11 @@ def _render_tab_prazos(
     )
 
     with section("Atrasados", subtitle="Top 10 com maior urgência", divider=False):
-        _render_prazo_cards(rows_atrasados, "✅ Nenhum prazo atrasado no momento.")
+        _render_prazo_cards(
+            rows_atrasados,
+            "Nenhum prazo atrasado no momento",
+            "Ótimo sinal. Seu painel não possui pendências vencidas neste recorte.",
+        )
         spacer(0.10)
         _render_nav_button(
             "Abrir lista completa",
@@ -1042,18 +1275,32 @@ def _render_tab_prazos(
         subtitle="Itens que exigem organização no curto prazo",
         divider=False,
     ):
-        _render_prazo_cards(rows_7d, "✅ Nenhum prazo vencendo em até 7 dias.")
+        _render_prazo_cards(
+            rows_7d,
+            "Sem vencimentos na próxima janela",
+            "Não há prazos previstos para vencer em até 7 dias.",
+        )
 
     with st.expander("Ver em tabela", expanded=False):
         col1, col2 = grid(2, columns_mobile=1)
 
         with col1:
             st.caption("Atrasados")
-            _render_dataframe_or_caption(_build_prazos_df(rows_atrasados))
+            _render_dataframe_or_caption(
+                _build_prazos_df(rows_atrasados),
+                empty_title="Sem prazos atrasados",
+                empty_subtitle="Quando houver pendências vencidas, elas aparecerão aqui.",
+                empty_icon="✅",
+            )
 
         with col2:
             st.caption("Próximos 7 dias")
-            _render_dataframe_or_caption(_build_prazos_df(rows_7d))
+            _render_dataframe_or_caption(
+                _build_prazos_df(rows_7d),
+                empty_title="Sem vencimentos próximos",
+                empty_subtitle="Nenhum prazo está previsto para vencer em até 7 dias.",
+                empty_icon="📅",
+            )
 
 
 def _render_tab_agenda(
@@ -1074,7 +1321,11 @@ def _render_tab_agenda(
         subtitle="Compromissos com prioridade operacional",
         divider=False,
     ):
-        _render_agenda_cards(rows_24h, "✅ Nenhum agendamento nas próximas 24 horas.")
+        _render_agenda_cards(
+            rows_24h,
+            "Nenhum agendamento nas próximas 24 horas",
+            "Sua agenda imediata está livre neste momento.",
+        )
         spacer(0.10)
         _render_nav_button(
             "Abrir agenda",
@@ -1086,18 +1337,32 @@ def _render_tab_agenda(
     spacer(0.20)
 
     with section("Próximos 7 dias", subtitle="Planejamento da semana", divider=False):
-        _render_agenda_cards(rows_7d, "✅ Nenhum agendamento nos próximos 7 dias.")
+        _render_agenda_cards(
+            rows_7d,
+            "Nenhum agendamento nos próximos 7 dias",
+            "Quando houver compromissos programados, eles aparecerão aqui.",
+        )
 
     with st.expander("Ver em tabela", expanded=False):
         col1, col2 = grid(2, columns_mobile=1)
 
         with col1:
             st.caption("24 horas")
-            _render_dataframe_or_caption(_build_agenda_df(rows_24h))
+            _render_dataframe_or_caption(
+                _build_agenda_df(rows_24h),
+                empty_title="Sem compromissos imediatos",
+                empty_subtitle="Não há registros de agenda para as próximas 24 horas.",
+                empty_icon="🕒",
+            )
 
         with col2:
             st.caption("7 dias")
-            _render_dataframe_or_caption(_build_agenda_df(rows_7d))
+            _render_dataframe_or_caption(
+                _build_agenda_df(rows_7d),
+                empty_title="Sem compromissos nesta janela",
+                empty_subtitle="Não há registros de agenda para os próximos 7 dias.",
+                empty_icon="🗓️",
+            )
 
 
 def _render_tab_trabalhos(
@@ -1113,12 +1378,19 @@ def _render_tab_trabalhos(
         divider=False,
     ):
         if not rows:
-            st.caption("Nenhum trabalho cadastrado ainda para esta atuação.")
+            empty_state(
+                title="Nenhum trabalho cadastrado ainda",
+                subtitle="Quando você cadastrar trabalhos para esta atuação, eles aparecerão aqui.",
+                icon="📁",
+            )
             return
 
         _render_dataframe_or_caption(
             _build_trabalhos_df(rows),
             height=420,
+            empty_title="Sem trabalhos para exibir",
+            empty_subtitle="Não há registros neste recorte.",
+            empty_icon="📁",
         )
 
         spacer(0.10)
@@ -1137,47 +1409,80 @@ def _render_tab_trabalhos(
 
 
 def render(owner_user_id: int) -> None:
-    _render_header()
+    with content_shell(max_width="1320px"):
+        _render_header()
 
-    tipo_val = _render_filters()
-    atuacao_label = st.session_state.get("dash_atuacao_ui", "(Todas)")
+        tipo_val = _render_top_bar()
+        atuacao_label = st.session_state.get("dash_atuacao_ui", "(Todas)")
 
-    hoje_sp = now_br().date()
-    version = _cache_buster(owner_user_id)
+        hoje_sp = now_br().date()
+        version = get_data_version(owner_user_id)
 
-    kpis = _fetch_kpis_cached(
-        owner_user_id=owner_user_id,
-        tipo_val=tipo_val,
-        hoje_iso=hoje_sp.isoformat(),
-        version=version,
-    )
+        kpis = _fetch_kpis_cached(
+            owner_user_id=owner_user_id,
+            tipo_val=tipo_val,
+            hoje_iso=hoje_sp.isoformat(),
+            version=version,
+        )
 
-    spacer(0.12)
-    _render_dashboard_summary(kpis, atuacao_label)
+        rows_prazos_atrasados, rows_prazos_7d = _fetch_prazos_tables_cached(
+            owner_user_id,
+            tipo_val,
+            kpis["start_today"].isoformat(timespec="seconds"),
+            kpis["end_7d"].isoformat(timespec="seconds"),
+            version,
+        )
 
-    spacer(0.18)
-    _render_priority_banner(kpis)
+        rows_ag_24h, rows_ag_7d = _fetch_agendamentos_cached(
+            owner_user_id,
+            tipo_val,
+            kpis["now_n"].isoformat(timespec="seconds"),
+            version,
+        )
 
-    spacer(0.18)
-    _render_quick_actions()
+        spacer(0.12)
+        _render_dashboard_summary(kpis, atuacao_label)
 
-    spacer(0.18)
-    _render_finance_summary(kpis)
+        spacer(0.18)
+        _render_quick_actions()
 
-    spacer(0.24)
-    tab1, tab2, tab3 = st.tabs(
-        [
-            f"⏳ Prazos ({kpis['prazos_atrasados']})",
-            f"📅 Agenda ({kpis['ag_7d']})",
-            f"🗂️ Trabalhos ({kpis['ativos']})",
-        ]
-    )
+        spacer(0.20)
+        left, right = grid_weights((1.08, 1.00), weights_mobile=(1, 1), gap="medium")
 
-    with tab1:
-        _render_tab_prazos(owner_user_id, tipo_val, kpis, version)
+        with left:
+            _render_radar_panel(
+                kpis=kpis,
+                rows_prazos_atrasados=rows_prazos_atrasados,
+                rows_prazos_7d=rows_prazos_7d,
+                rows_ag_24h=rows_ag_24h,
+            )
 
-    with tab2:
-        _render_tab_agenda(owner_user_id, tipo_val, kpis, version)
+        with right:
+            timeline_items = _build_timeline_items(
+                rows_prazos_atrasados,
+                rows_prazos_7d,
+                rows_ag_24h,
+                rows_ag_7d,
+            )
+            _render_timeline_preview(timeline_items)
 
-    with tab3:
-        _render_tab_trabalhos(owner_user_id, tipo_val, version)
+        spacer(0.20)
+        _render_finance_summary(kpis)
+
+        spacer(0.24)
+        tab1, tab2, tab3 = st.tabs(
+            [
+                f"⏳ Prazos ({kpis['prazos_atrasados']})",
+                f"📅 Agenda ({kpis['ag_7d']})",
+                f"🗂️ Trabalhos ({kpis['ativos']})",
+            ]
+        )
+
+        with tab1:
+            _render_tab_prazos(owner_user_id, tipo_val, kpis, version)
+
+        with tab2:
+            _render_tab_agenda(owner_user_id, tipo_val, kpis, version)
+
+        with tab3:
+            _render_tab_trabalhos(owner_user_id, tipo_val, version)
