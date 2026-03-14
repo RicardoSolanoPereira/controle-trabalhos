@@ -149,6 +149,10 @@ def _safe_strip(value: Any) -> str:
     return _strip_html("" if value is None else str(value))
 
 
+def _escape_text(value: Any) -> str:
+    return html.escape(_safe_strip(value))
+
+
 def _use_cards() -> bool:
     return bool(st.session_state.get("ui_mobile_cards", True) or is_mobile())
 
@@ -294,8 +298,8 @@ def _render_soft_note(title: str, body: str) -> None:
     _render_html(
         f"""
         <div class="sp-surface" style="padding:14px 16px;">
-          <div style="font-weight:800; margin-bottom:4px;">{title}</div>
-          <div style="font-size:0.94rem; color:rgba(15,23,42,.72);">{body}</div>
+          <div style="font-weight:800; margin-bottom:4px;">{html.escape(title)}</div>
+          <div style="font-size:0.94rem; color:rgba(15,23,42,.72);">{html.escape(body)}</div>
         </div>
         """
     )
@@ -631,16 +635,18 @@ def _render_selected_context(selected_row: dict | None) -> None:
         )
         return
 
-    ref = _strip_html(selected_row.get("numero_processo")) or "—"
-    cli = _strip_html(selected_row.get("contratante")) or "—"
-    desc = _strip_html(selected_row.get("tipo_acao")) or "—"
-    comarca = _strip_html(selected_row.get("comarca")) or "—"
-    vara = _strip_html(selected_row.get("vara")) or "—"
-    pasta = _strip_html(selected_row.get("pasta_local")) or "—"
-    obs = _compact_text(selected_row.get("observacoes"), 240) or "Sem observações."
+    ref = _escape_text(selected_row.get("numero_processo")) or "—"
+    cli = _escape_text(selected_row.get("contratante")) or "—"
+    desc = _escape_text(selected_row.get("tipo_acao")) or "—"
+    comarca = _escape_text(selected_row.get("comarca")) or "—"
+    vara = _escape_text(selected_row.get("vara")) or "—"
+    pasta = _escape_text(selected_row.get("pasta_local")) or "—"
+    obs = html.escape(
+        _compact_text(selected_row.get("observacoes"), 240) or "Sem observações."
+    )
 
     categoria_chip = ""
-    categoria = _strip_html(selected_row.get("categoria_servico"))
+    categoria = _escape_text(selected_row.get("categoria_servico"))
     if categoria:
         categoria_chip = f"<span class='sp-chip'>🏷️ {categoria}</span>"
 
@@ -746,34 +752,36 @@ def _render_next_steps_panel(row: dict) -> None:
     if not items:
         items = ["Registro consistente. O trabalho está bem estruturado nesta etapa."]
 
-    rows_html = "".join(
-        f"""
-        <div class="sp-kv">
-          <div class="sp-kv-label">Próximo passo</div>
-          <div class="sp-kv-value" style="text-align:left; max-width:420px;">{item}</div>
-        </div>
-        """
-        for item in items
-    )
-
-    _render_html(f"<div class='sp-surface'>{rows_html}</div>")
+    for idx, item in enumerate(items, start=1):
+        _render_html(
+            f"""
+            <div class="sp-surface" style="padding:12px 14px; margin-bottom:10px;">
+              <div style="font-size:0.82rem; font-weight:800; letter-spacing:.02em; text-transform:uppercase; color:rgba(15,23,42,.62);">
+                Próximo passo {idx}
+              </div>
+              <div style="margin-top:6px; color:rgba(15,23,42,.86); line-height:1.5; text-align:left;">
+                {html.escape(item)}
+              </div>
+            </div>
+            """
+        )
 
 
 def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
     pid = int(r.get("id") or 0)
-    ref = _compact_text(r.get("numero_processo"), 90)
+    ref = html.escape(_compact_text(r.get("numero_processo"), 90))
 
     atu = _atuacao_badge(r.get("papel"))
     status = _status_badge(r.get("status", ""))
-    cat = _compact_text(r.get("categoria_servico"), 40)
-    cli = _compact_text(r.get("contratante"), 80)
-    desc = _compact_text(r.get("tipo_acao"), 180)
+    cat = html.escape(_compact_text(r.get("categoria_servico"), 40))
+    cli = html.escape(_compact_text(r.get("contratante"), 80))
+    desc = html.escape(_compact_text(r.get("tipo_acao"), 180))
     comarca = _compact_text(r.get("comarca"), 40)
     vara = _compact_text(r.get("vara"), 40)
     pasta = _strip_html(r.get("pasta_local"))
-    obs = _compact_text(r.get("observacoes"), 180)
+    obs = html.escape(_compact_text(r.get("observacoes"), 180))
 
-    meta_line = " • ".join([x for x in [cli, comarca, vara] if x])
+    meta_line = html.escape(" • ".join([x for x in [cli, comarca, vara] if x]))
 
     categoria_chip = f"<span class='sp-chip'>🏷️ {cat}</span>" if cat else ""
     descricao_line = (
@@ -822,7 +830,7 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
             "Prazos",
             key=f"m_pz_{pid}",
             on_click=_go_prazos,
-            args=(pid, ref, comarca, vara),
+            args=(pid, _strip_html(r.get("numero_processo")), comarca, vara),
         )
 
     with st.expander("Mais ações"):
@@ -832,14 +840,14 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
                 "Agenda",
                 key=f"m_ag_{pid}",
                 on_click=_go_agenda,
-                args=(pid, ref, comarca, vara),
+                args=(pid, _strip_html(r.get("numero_processo")), comarca, vara),
             )
         with d:
             _button(
                 "Financeiro",
                 key=f"m_fin_{pid}",
                 on_click=_go_fin,
-                args=(pid, ref, comarca, vara),
+                args=(pid, _strip_html(r.get("numero_processo")), comarca, vara),
             )
 
         e, f = grid(2, columns_mobile=1)
@@ -1426,14 +1434,15 @@ def _render_editar(owner_user_id: int) -> None:
     atuacao_atual_label = _atuacao_label_from_db(papel_atual)
     status_atual = p.get("status", "Ativo") or "Ativo"
 
-    ref = _strip_html(p.get("numero_processo")) or "Sem referência"
-    categoria = _strip_html(p.get("categoria_servico")) or "—"
-    contratante = _strip_html(p.get("contratante")) or "—"
-    descricao = _strip_html(p.get("tipo_acao")) or "—"
-    comarca = _strip_html(p.get("comarca")) or "—"
-    vara = _strip_html(p.get("vara")) or "—"
+    ref = _escape_text(p.get("numero_processo")) or "Sem referência"
+    categoria = _escape_text(p.get("categoria_servico")) or "—"
+    contratante = _escape_text(p.get("contratante")) or "—"
+    descricao = _escape_text(p.get("tipo_acao")) or "—"
+    comarca = _escape_text(p.get("comarca")) or "—"
+    vara = _escape_text(p.get("vara")) or "—"
     pasta = _strip_html(p.get("pasta_local")) or ""
-    obs = _compact_text(p.get("observacoes"), 280) or "Sem observações."
+    pasta_html = html.escape(pasta) if pasta else "Não vinculada"
+    obs = html.escape(_compact_text(p.get("observacoes"), 280) or "Sem observações.")
 
     with section(
         "Painel do trabalho",
@@ -1463,7 +1472,13 @@ def _render_editar(owner_user_id: int) -> None:
         subtitle="Atalhos mais usados para seguir o fluxo do trabalho",
         divider=False,
     ):
-        _render_operational_actions(int(selected_id), ref, comarca, vara, pasta)
+        _render_operational_actions(
+            int(selected_id),
+            _strip_html(p.get("numero_processo")) or "",
+            _strip_html(p.get("comarca")) or "",
+            _strip_html(p.get("vara")) or "",
+            pasta,
+        )
 
     with section(
         "Resumo do registro",
@@ -1486,9 +1501,19 @@ def _render_editar(owner_user_id: int) -> None:
                 tone="neutral",
             )
         with c3:
-            card("Categoria", categoria, "serviço", tone="neutral")
+            card(
+                "Categoria",
+                _strip_html(p.get("categoria_servico")) or "—",
+                "serviço",
+                tone="neutral",
+            )
         with c4:
-            card("Cliente", contratante, "contratante", tone="info")
+            card(
+                "Cliente",
+                _strip_html(p.get("contratante")) or "—",
+                "contratante",
+                tone="info",
+            )
 
     left, right = grid_weights((1.12, 1.0), weights_mobile=(1, 1), gap="medium")
 
@@ -1515,7 +1540,7 @@ def _render_editar(owner_user_id: int) -> None:
                   </div>
                   <div class="sp-kv">
                     <div class="sp-kv-label">Pasta local</div>
-                    <div class="sp-kv-value">{pasta or "Não vinculada"}</div>
+                    <div class="sp-kv-value">{pasta_html}</div>
                   </div>
                 </div>
                 """
