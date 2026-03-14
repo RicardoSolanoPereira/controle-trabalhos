@@ -12,7 +12,7 @@ __all__ = [
     "app_error",
 ]
 
-_CSS_VERSION = "v15"
+_CSS_VERSION = "v16"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -26,27 +26,29 @@ ROOT VARIABLES
 
 :root{
 
-  --bg:#f6f8f7;
-  --bg-soft:#fbfcfb;
+  --bg:#f4f7f6;
+  --bg-soft:#f8fbfa;
+  --bg-panel:#eef3f1;
 
   --surface:#ffffff;
-  --surface-soft:#fcfdfc;
-  --surface-muted:#f2f5f4;
+  --surface-soft:#fbfcfc;
+  --surface-muted:#f3f6f5;
   --surface-elevated:#ffffff;
 
-  --border:#e2e8e5;
-  --border-strong:#cfd8d3;
+  --border:#dde5e1;
+  --border-strong:#c9d5cf;
   --border-soft:rgba(15,23,42,0.06);
 
   --text:#0f172a;
-  --text-soft:#344054;
+  --text-soft:#334155;
   --muted:#667085;
   --muted-strong:#475467;
 
-  --primary:#3f5f5a;
-  --primary-hover:#314b47;
-  --primary-soft:rgba(63,95,90,0.08);
-  --primary-ring:rgba(63,95,90,0.14);
+  --primary:#355e57;
+  --primary-hover:#294942;
+  --primary-soft:rgba(53,94,87,0.08);
+  --primary-soft-2:rgba(53,94,87,0.12);
+  --primary-ring:rgba(53,94,87,0.16);
 
   --danger:#dc2626;
   --warning:#d97706;
@@ -54,21 +56,23 @@ ROOT VARIABLES
   --info:#2563eb;
   --neutral:#64748b;
 
-  --danger-bg:rgba(220,38,38,0.07);
-  --warning-bg:rgba(217,119,6,0.09);
-  --success-bg:rgba(21,128,61,0.08);
-  --info-bg:rgba(37,99,235,0.08);
-  --neutral-bg:rgba(15,23,42,0.04);
+  --danger-bg:rgba(220,38,38,0.075);
+  --warning-bg:rgba(217,119,6,0.10);
+  --success-bg:rgba(21,128,61,0.09);
+  --info-bg:rgba(37,99,235,0.09);
+  --neutral-bg:rgba(15,23,42,0.045);
 
-  --radius-xl:24px;
+  --radius-2xl:26px;
+  --radius-xl:22px;
   --radius-lg:18px;
   --radius-md:14px;
   --radius-sm:12px;
   --radius-xs:10px;
 
   --shadow-xs:0 1px 2px rgba(15,23,42,0.04);
-  --shadow-soft:0 6px 18px rgba(15,23,42,0.05);
-  --shadow-md:0 10px 26px rgba(15,23,42,0.06);
+  --shadow-sm:0 4px 10px rgba(15,23,42,0.04);
+  --shadow-soft:0 8px 22px rgba(15,23,42,0.05);
+  --shadow-md:0 14px 32px rgba(15,23,42,0.07);
 
   --transition:all .18s ease;
 }
@@ -93,8 +97,9 @@ body{
 
 .stApp{
   background:
-    radial-gradient(circle at top right, rgba(63,95,90,0.035), transparent 24%),
-    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.15) 100%),
+    radial-gradient(circle at top right, rgba(53,94,87,0.045), transparent 26%),
+    radial-gradient(circle at top left, rgba(37,99,235,0.025), transparent 18%),
+    linear-gradient(180deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.16) 100%),
     var(--bg);
 }
 
@@ -107,26 +112,26 @@ div[data-testid="stAppViewContainer"]{
   background:transparent;
 }
 
+section.main{
+  overflow:visible !important;
+}
+
 
 /* ======================================================
 LAYOUT COMPACTO
 ====================================================== */
 
 .block-container{
-  padding-top:0.70rem;
+  padding-top:0.55rem;
   padding-bottom:1.10rem;
-  padding-left:1.15rem;
-  padding-right:1.15rem;
-  max-width:1380px;
+  padding-left:1.10rem;
+  padding-right:1.10rem;
+  max-width:1360px;
   overflow:visible !important;
 }
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.22rem;
-}
-
-section.main{
-  overflow:visible !important;
+  margin-bottom:0.18rem;
 }
 
 
@@ -137,31 +142,31 @@ TYPOGRAPHY
 h1,h2,h3,h4{
   letter-spacing:-0.02em;
   color:var(--text);
-  margin-bottom:0.15rem;
+  margin-bottom:0.12rem;
 }
 
 h1{
-  font-size:1.82rem;
-  line-height:1.06;
-  font-weight:840;
+  font-size:1.86rem;
+  line-height:1.05;
+  font-weight:850;
 }
 
 h2{
-  font-size:1.34rem;
-  line-height:1.12;
-  font-weight:780;
+  font-size:1.36rem;
+  line-height:1.10;
+  font-weight:800;
 }
 
 h3{
-  font-size:1.05rem;
+  font-size:1.06rem;
   line-height:1.2;
-  font-weight:730;
+  font-weight:750;
 }
 
 h4{
   font-size:0.96rem;
   line-height:1.25;
-  font-weight:700;
+  font-weight:710;
 }
 
 p, li, label, span{
@@ -179,23 +184,23 @@ PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.02rem 0 0.02rem 0;
+  padding:0.02rem 0 0.04rem 0;
 }
 
 .sp-page-title{
-  font-size:1.72rem;
-  font-weight:860;
-  line-height:1.04;
-  letter-spacing:-0.028em;
+  font-size:1.74rem;
+  font-weight:870;
+  line-height:1.03;
+  letter-spacing:-0.030em;
   color:var(--text);
 }
 
 .sp-page-subtitle{
-  margin-top:0.18rem;
+  margin-top:0.22rem;
   font-size:0.95rem;
-  line-height:1.46;
+  line-height:1.48;
   color:var(--muted);
-  max-width:78ch;
+  max-width:82ch;
 }
 
 
@@ -204,13 +209,13 @@ SECTION HEADER
 ====================================================== */
 
 .sp-section-header{
-  margin-bottom:0.08rem;
+  margin-bottom:0.06rem;
 }
 
 .sp-section-title{
-  font-size:1.01rem;
-  font-weight:810;
-  letter-spacing:-0.012em;
+  font-size:1.02rem;
+  font-weight:820;
+  letter-spacing:-0.013em;
   color:var(--text);
 }
 
@@ -223,21 +228,36 @@ SECTION HEADER
 
 
 /* ======================================================
+SHELL
+====================================================== */
+
+.sp-content-shell{
+  width:100%;
+}
+
+
+/* ======================================================
 SURFACE
 ====================================================== */
 
 .sp-surface{
-  background:linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #ffffff 100%);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #ffffff 100%);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   padding:14px 16px;
   box-shadow:var(--shadow-soft);
   transition:var(--transition);
+  overflow:visible;
 }
 
 .sp-surface:hover{
   border-color:var(--border-strong);
   box-shadow:var(--shadow-md);
+}
+
+.sp-surface-no-pad{
+  padding:0 !important;
 }
 
 
@@ -254,10 +274,34 @@ CHIPS
   background:var(--neutral-bg);
   border:1px solid rgba(15,23,42,0.08);
   font-size:0.80rem;
-  font-weight:650;
+  font-weight:660;
   line-height:1;
   color:var(--text-soft);
   white-space:nowrap;
+}
+
+.sp-chip-danger{
+  background:var(--danger-bg);
+  border-color:rgba(220,38,38,0.18);
+  color:#991b1b;
+}
+
+.sp-chip-warning{
+  background:var(--warning-bg);
+  border-color:rgba(217,119,6,0.18);
+  color:#92400e;
+}
+
+.sp-chip-success{
+  background:var(--success-bg);
+  border-color:rgba(21,128,61,0.16);
+  color:#166534;
+}
+
+.sp-chip-info{
+  background:var(--info-bg);
+  border-color:rgba(37,99,235,0.16);
+  color:#1d4ed8;
 }
 
 
@@ -266,16 +310,17 @@ SIDEBAR
 ====================================================== */
 
 section[data-testid="stSidebar"]{
-  background:linear-gradient(180deg, #f4f7f6 0%, #f1f5f4 100%);
-  border-right:1px solid #dce4e1;
+  background:
+    linear-gradient(180deg, #f3f7f5 0%, #eef4f1 100%);
+  border-right:1px solid #dbe5e1;
 }
 
 section[data-testid="stSidebar"] .block-container{
-  padding:0.80rem !important;
+  padding:0.82rem !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.22rem !important;
+  margin-bottom:0.20rem !important;
 }
 
 
@@ -294,14 +339,15 @@ div[role="radiogroup"]
 label[data-baseweb="radio"]{
   display:block;
   width:100%;
-  padding:9px 12px;
-  border-radius:12px;
-  margin-bottom:4px;
+  padding:10px 12px;
+  border-radius:14px;
+  margin-bottom:5px;
   cursor:pointer;
   border:1px solid rgba(15,23,42,0.08);
   background:rgba(255,255,255,0.92);
-  font-size:0.92rem;
+  font-size:0.93rem;
   transition:var(--transition);
+  box-shadow:0 1px 2px rgba(15,23,42,0.02);
 }
 
 section[data-testid="stSidebar"]
@@ -315,9 +361,12 @@ label[data-baseweb="radio"]:hover{
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"][aria-checked="true"]{
-  background:var(--primary-soft);
+  background:linear-gradient(180deg, rgba(53,94,87,0.09) 0%, rgba(53,94,87,0.06) 100%);
   border-left:4px solid var(--primary);
-  font-weight:760;
+  border-top-color:rgba(53,94,87,0.10);
+  border-right-color:rgba(53,94,87,0.10);
+  border-bottom-color:rgba(53,94,87,0.10);
+  font-weight:780;
 }
 
 
@@ -327,9 +376,9 @@ BUTTONS
 
 .stButton > button{
   border-radius:12px;
-  padding:0.56rem 0.98rem;
+  padding:0.58rem 0.98rem;
   min-height:42px;
-  font-weight:670;
+  font-weight:680;
   border:1px solid rgba(15,23,42,0.10);
   background:#ffffff;
   color:var(--text);
@@ -338,26 +387,27 @@ BUTTONS
 }
 
 .stButton > button:hover{
-  background:rgba(15,23,42,0.025);
+  background:rgba(15,23,42,0.026);
   border-color:rgba(15,23,42,0.18);
   transform:translateY(-1px);
 }
 
 .stButton > button:focus{
   outline:none !important;
-  box-shadow:0 0 0 0.18rem rgba(63,95,90,0.10) !important;
+  box-shadow:0 0 0 0.18rem rgba(53,94,87,0.12) !important;
 }
 
 .stButton > button[kind="primary"],
 .stButton > button[class*="primary"]{
-  background:var(--primary) !important;
+  background:linear-gradient(180deg, var(--primary) 0%, #2f544d 100%) !important;
   border:1px solid var(--primary) !important;
   color:#ffffff !important;
+  box-shadow:0 8px 18px rgba(53,94,87,0.18) !important;
 }
 
 .stButton > button[kind="primary"]:hover,
 .stButton > button[class*="primary"]:hover{
-  background:var(--primary-hover) !important;
+  background:linear-gradient(180deg, var(--primary-hover) 0%, #233f39 100%) !important;
   border-color:var(--primary-hover) !important;
 }
 
@@ -385,12 +435,12 @@ div[data-baseweb="select"] > div:hover{
 div[data-baseweb="input"] > div:focus-within,
 div[data-baseweb="textarea"] > div:focus-within,
 div[data-baseweb="select"] > div:focus-within{
-  border-color:rgba(63,95,90,0.35) !important;
+  border-color:rgba(53,94,87,0.35) !important;
   box-shadow:0 0 0 0.18rem var(--primary-ring) !important;
 }
 
 label[data-testid="stWidgetLabel"] p{
-  font-weight:620 !important;
+  font-weight:630 !important;
   color:var(--text-soft) !important;
 }
 
@@ -399,13 +449,19 @@ label[data-testid="stWidgetLabel"] p{
 TABS
 ====================================================== */
 
+div[data-testid="stTabs"]{
+  gap:0.20rem;
+}
+
 button[data-baseweb="tab"]{
   border-radius:12px 12px 0 0 !important;
-  font-weight:650 !important;
+  font-weight:660 !important;
+  color:var(--muted-strong) !important;
 }
 
 button[data-baseweb="tab"][aria-selected="true"]{
   color:var(--primary) !important;
+  border-bottom-color:var(--primary) !important;
 }
 
 
@@ -418,6 +474,7 @@ div[data-testid="stDataFrame"]{
   overflow:hidden;
   border:1px solid var(--border);
   background:#ffffff;
+  box-shadow:var(--shadow-xs);
 }
 
 div[data-testid="stDataFrame"] [role="grid"]{
@@ -431,6 +488,8 @@ EXPANDER
 
 details{
   border-radius:14px;
+  border:1px solid var(--border);
+  background:#ffffff;
 }
 
 summary{
@@ -443,13 +502,27 @@ CARD KPI
 ====================================================== */
 
 .sp-card{
-  background:linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   padding:14px 16px;
   box-shadow:var(--shadow-soft);
   transition:var(--transition);
-  min-height:108px;
+  min-height:112px;
+  position:relative;
+  overflow:hidden;
+}
+
+.sp-card::after{
+  content:"";
+  position:absolute;
+  top:0;
+  right:0;
+  width:56px;
+  height:56px;
+  background:radial-gradient(circle, rgba(53,94,87,0.05) 0%, transparent 70%);
+  pointer-events:none;
 }
 
 .sp-card:hover{
@@ -462,25 +535,25 @@ CARD KPI
   font-size:0.77rem;
   color:rgba(15,23,42,0.58);
   margin-bottom:7px;
-  font-weight:760;
+  font-weight:780;
   text-transform:uppercase;
-  letter-spacing:0.04em;
+  letter-spacing:0.045em;
 }
 
 .sp-card-value{
-  font-size:1.42rem;
-  font-weight:850;
+  font-size:1.46rem;
+  font-weight:860;
   color:var(--text);
-  line-height:1.08;
+  line-height:1.06;
 }
 
 .sp-card-value.emph{
-  font-size:1.72rem;
+  font-size:1.76rem;
   font-weight:900;
 }
 
 .sp-card-sub{
-  color:rgba(15,23,42,0.56);
+  color:rgba(15,23,42,0.58);
   font-size:0.84rem;
   margin-top:8px;
   line-height:1.35;
@@ -523,18 +596,18 @@ EMPTY STATE
 
 .sp-empty-state{
   text-align:center;
-  padding:28px 20px;
+  padding:30px 20px;
 }
 
 .sp-empty-state-icon{
-  font-size:1.8rem;
+  font-size:1.9rem;
   line-height:1;
   margin-bottom:10px;
 }
 
 .sp-empty-state-title{
   font-size:1rem;
-  font-weight:800;
+  font-weight:820;
   color:var(--text);
 }
 
@@ -551,7 +624,7 @@ APP ERROR
 ====================================================== */
 
 .sp-app-error{
-  background:linear-gradient(180deg, rgba(220,38,38,0.04) 0%, rgba(220,38,38,0.02) 100%);
+  background:linear-gradient(180deg, rgba(220,38,38,0.045) 0%, rgba(220,38,38,0.025) 100%);
   border:1px solid rgba(220,38,38,0.15);
   border-left:5px solid var(--danger);
   border-radius:16px;
@@ -562,7 +635,7 @@ APP ERROR
 .sp-app-error-title{
   color:#991b1b;
   font-size:0.98rem;
-  font-weight:820;
+  font-weight:830;
 }
 
 .sp-app-error-subtitle{
@@ -580,7 +653,7 @@ DIVIDER
 .sp-divider{
   border:0;
   border-top:1px solid #e5e7eb;
-  margin:0.55rem 0;
+  margin:0.50rem 0;
 }
 
 
@@ -598,18 +671,42 @@ HELPERS
 
 
 /* ======================================================
+SCROLLBAR
+====================================================== */
+
+*::-webkit-scrollbar{
+  width:10px;
+  height:10px;
+}
+
+*::-webkit-scrollbar-track{
+  background:rgba(15,23,42,0.04);
+  border-radius:999px;
+}
+
+*::-webkit-scrollbar-thumb{
+  background:rgba(53,94,87,0.22);
+  border-radius:999px;
+}
+
+*::-webkit-scrollbar-thumb:hover{
+  background:rgba(53,94,87,0.32);
+}
+
+
+/* ======================================================
 MOBILE
 ====================================================== */
 
 @media (max-width:768px){
 
   .block-container{
-    padding:0.90rem !important;
+    padding:0.86rem !important;
     max-width:100% !important;
   }
 
   .sp-page-title{
-    font-size:1.45rem;
+    font-size:1.44rem;
   }
 
   .sp-page-subtitle{
@@ -618,18 +715,20 @@ MOBILE
 
   .sp-card{
     min-height:auto;
+    padding:13px 14px;
   }
 
   .sp-card-value{
-    font-size:1.14rem;
+    font-size:1.16rem;
   }
 
   .sp-card-value.emph{
-    font-size:1.34rem;
+    font-size:1.36rem;
   }
 
   .sp-surface{
     padding:13px 14px;
+    border-radius:16px;
   }
 
   .stButton > button{
@@ -639,6 +738,11 @@ MOBILE
 
   .sp-chip{
     font-size:0.78rem;
+    padding:6px 9px;
+  }
+
+  .sp-section-title{
+    font-size:0.98rem;
   }
 }
 
@@ -652,17 +756,14 @@ MOBILE
 
 
 def _render_html(content: str) -> None:
-    """Renderiza HTML seguro para componentes controlados pelo app."""
     st.markdown(content, unsafe_allow_html=True)
 
 
 def _escape(text: str | None) -> str:
-    """Escapa conteúdo textual para uso em HTML."""
     return html.escape(text or "")
 
 
 def _normalize_tone(tone: str | None) -> str:
-    """Normaliza o tom visual para um valor permitido."""
     tone_norm = (tone or "neutral").strip().lower()
     return tone_norm if tone_norm in _ALLOWED_TONES else "neutral"
 
@@ -673,7 +774,6 @@ def _normalize_tone(tone: str | None) -> str:
 
 
 def inject_global_css() -> None:
-    """Injeta CSS global uma única vez por sessão."""
     if st.session_state.get(_CSS_FLAG_KEY, False):
         return
 
@@ -694,7 +794,6 @@ def card(
     tone: str = "neutral",
     emphasize: bool = False,
 ) -> None:
-    """Renderiza card KPI com título, valor e subtítulo opcional."""
     tone_norm = _normalize_tone(tone)
 
     title_html = _escape(title)
@@ -718,7 +817,6 @@ def card(
 
 
 def section_title(text: str) -> None:
-    """Renderiza título simples de seção."""
     text_html = _escape(text)
 
     _render_html(
@@ -731,7 +829,6 @@ def section_title(text: str) -> None:
 
 
 def subtle_divider() -> None:
-    """Renderiza divisor horizontal discreto."""
     _render_html("<hr class='sp-divider'>")
 
 
@@ -742,7 +839,6 @@ def app_error(
     technical_details: str | None = None,
     details_expanded: bool = False,
 ) -> None:
-    """Exibe erro amigável da aplicação com detalhes técnicos opcionais."""
     title_html = _escape(title or "Erro")
     message_html = _escape(message)
     details_text = technical_details or ""

@@ -49,12 +49,6 @@ def _fmt_money_br(value: float) -> str:
     return f"{parsed:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def _pct(part: int, total: int) -> str:
-    if total <= 0:
-        return "0%"
-    return f"{round((part / total) * 100)}%"
-
-
 def _apply_tipo_filter(stmt, tipo_val: str | None):
     return stmt if not tipo_val else stmt.where(Processo.papel == tipo_val)
 
@@ -161,9 +155,8 @@ def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str,
         return {
             "tone": "danger",
             "title": "Pendências críticas exigem ação imediata",
-            "left_text": f"Você possui <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s) no painel.",
-            "helper": "Priorize o que já venceu antes de novos cadastros, revisões secundárias ou tarefas administrativas.",
-            "cta_label": "Ver atrasados",
+            "text": f"Você possui <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s). Priorize o que já venceu antes de novas tarefas administrativas.",
+            "cta_label": "Abrir prazos atrasados",
             "cta_page": "Prazos",
             "cta_state": {
                 "prazos_section": "Lista",
@@ -176,8 +169,7 @@ def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str,
         return {
             "tone": "warning",
             "title": "Há vencimentos próximos no radar",
-            "left_text": f"Você possui <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias.",
-            "helper": "Vale revisar documentos, agenda, vistorias, diligências e pendências relacionadas.",
+            "text": f"Você possui <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias. Vale revisar documentos, agenda e providências relacionadas.",
             "cta_label": "Ver próximos 7 dias",
             "cta_page": "Prazos",
             "cta_state": {
@@ -190,9 +182,8 @@ def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str,
     return {
         "tone": "success",
         "title": "Tudo sob controle no momento",
-        "left_text": "Não há prazos críticos no painel.",
-        "helper": "Bom momento para organizar agenda, revisar financeiro e atualizar cadastros.",
-        "cta_label": "Novo prazo",
+        "text": "Não há prazos críticos no painel. Bom momento para revisar agenda, financeiro e atualizar cadastros.",
+        "cta_label": "Cadastrar novo prazo",
         "cta_page": "Prazos",
         "cta_state": {"prazos_section": "Cadastro"},
     }
@@ -353,68 +344,11 @@ def _render_nav_button(
     )
 
 
-def _render_info_strip(k: dict[str, Any], atuacao_label: str) -> None:
-    _render_html(
-        f"""
-        <div class="sp-surface" style="padding:16px 18px;">
-          <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px; align-items:flex-start;">
-            <div>
-              <div style="font-weight:900; font-size:1.12rem;">{_greeting()}</div>
-              <div class="sp-muted" style="margin-top:4px;">
-                {_today_label()} • visão atual: <b>{atuacao_label}</b>
-              </div>
-            </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-              <span class="sp-chip">⏳ {k["prazos_atrasados"]} atrasado(s)</span>
-              <span class="sp-chip">📅 {k["ag_24h"]} em 24h</span>
-              <span class="sp-chip">💰 saldo R$ {_fmt_money_br(k["saldo"])}</span>
-            </div>
-          </div>
-        </div>
-        """
-    )
+def _render_dashboard_summary(k: dict[str, Any], atuacao_label: str) -> None:
+    with section(divider=False):
+        st.markdown(f"### {_greeting()}")
+        st.caption(f"{_today_label()} • visão atual: {atuacao_label}")
 
-
-def _render_priority_banner(k: dict[str, Any]) -> None:
-    banner = _priority_banner_data(k["prazos_atrasados"], k["prazos_7dias"])
-
-    left, right = grid(2, columns_mobile=1)
-
-    with left:
-        _render_html(
-            f"""
-            <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
-              <div style="font-size:1.05rem; font-weight:900;">{banner['title']}</div>
-              <div style="margin-top:8px;">{banner['left_text']}</div>
-              <div class="sp-muted" style="margin-top:6px;">{banner['helper']}</div>
-            </div>
-            """
-        )
-
-    with right:
-        with section("Ação sugerida", subtitle="Atalho recomendado", divider=False):
-            _render_nav_button(
-                banner["cta_label"],
-                page=banner["cta_page"],
-                state=banner["cta_state"],
-                key="dash_priority_cta",
-                type="primary",
-            )
-            spacer(0.10)
-            _render_nav_button(
-                "Abrir visão completa de prazos",
-                page="Prazos",
-                state={"prazos_section": "Lista"},
-                key="dash_priority_open_prazos",
-                type="secondary",
-            )
-
-
-def _render_kpi_section(k: dict[str, Any]) -> None:
-    pct_atraso = _pct(k["prazos_atrasados"], k["prazos_abertos"])
-    pct_7d = _pct(k["prazos_7dias"], k["prazos_abertos"])
-
-    with section("Visão geral", subtitle="Resumo executivo do painel", divider=False):
         c1, c2, c3, c4 = grid(4, columns_mobile=1)
 
         with c1:
@@ -431,10 +365,15 @@ def _render_kpi_section(k: dict[str, Any]) -> None:
                 if k["prazos_atrasados"] > 0
                 else ("warning" if k["prazos_7dias"] > 0 else "success")
             )
+            subtitle = (
+                f"{k['prazos_atrasados']} atrasados • {k['prazos_7dias']} em 7 dias"
+                if k["prazos_abertos"] > 0
+                else "nenhum prazo em aberto"
+            )
             card(
                 "Prazos em aberto",
                 f"{k['prazos_abertos']}",
-                f"{pct_atraso} atrasados • {pct_7d} em 7 dias",
+                subtitle,
                 tone=tone_pz,
                 emphasize=(k["prazos_atrasados"] > 0),
             )
@@ -453,19 +392,40 @@ def _render_kpi_section(k: dict[str, Any]) -> None:
             card(
                 "Saldo atual",
                 f"R$ {_fmt_money_br(k['saldo'])}",
-                "receitas menos despesas",
+                f"Receitas R$ {_fmt_money_br(k['receitas'])} • Despesas R$ {_fmt_money_br(k['despesas'])}",
                 tone=("success" if k["saldo"] >= 0 else "danger"),
                 emphasize=True,
             )
 
 
-def _render_quick_actions() -> None:
-    with section(
-        "Ações rápidas",
-        subtitle="Atalhos para as tarefas mais frequentes",
-        divider=False,
-    ):
-        c1, c2, c3, c4 = grid(4, columns_mobile=1)
+def _render_priority_banner(k: dict[str, Any]) -> None:
+    banner = _priority_banner_data(k["prazos_atrasados"], k["prazos_7dias"])
+
+    col1, col2 = grid(2, columns_mobile=1)
+
+    with col1:
+        _render_html(
+            f"""
+            <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
+              <div style="font-size:1.05rem; font-weight:900;">{banner['title']}</div>
+              <div style="margin-top:8px; line-height:1.45;">{banner['text']}</div>
+            </div>
+            """
+        )
+
+    with col2:
+        _render_nav_button(
+            banner["cta_label"],
+            page=banner["cta_page"],
+            state=banner["cta_state"],
+            key="dash_priority_cta",
+            type="primary",
+        )
+
+
+def _render_quick_actions_inline() -> None:
+    with section("Ações rápidas", subtitle="Atalhos operacionais", divider=False):
+        c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
         with c1:
             _action_button(
@@ -484,125 +444,58 @@ def _render_quick_actions() -> None:
 
         with c3:
             _action_button(
-                "📅 Abrir agenda",
+                "📅 Agenda",
                 key="dash_quick_agenda",
                 on_click=_go_agenda,
             )
 
         with c4:
             _action_button(
-                "💰 Lançamentos",
+                "💰 Financeiro",
                 key="dash_quick_financeiro",
                 on_click=_go_financeiro_lancamentos,
             )
 
 
-def _summary_surface(title: str, value: Any, subtitle: str, tone: str) -> None:
-    value_txt = _safe_html_text(value, "0")
-    title_txt = _safe_html_text(title)
-    subtitle_txt = _safe_html_text(subtitle)
-
-    _render_html(
-        f"""
-        <div class="sp-surface sp-tone-{tone}">
-          <div style="font-weight:900;">{title_txt}</div>
-          <div style="font-size:1.8rem; font-weight:900; margin-top:6px;">{value_txt}</div>
-          <div class="sp-muted" style="margin-top:4px;">{subtitle_txt}</div>
-        </div>
-        """
-    )
-
-
-def _render_operational_summary(k: dict[str, Any]) -> None:
+def _render_compact_finance(k: dict[str, Any]) -> None:
     with section(
-        "Radar do dia",
-        subtitle="O que merece atenção imediata",
-        divider=False,
+        "Financeiro", subtitle="Resumo rápido da posição atual", divider=False
     ):
-        c1, c2, c3 = grid(3, columns_mobile=1)
+        c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
         with c1:
-            _summary_surface(
-                "Prazos atrasados",
-                k["prazos_atrasados"],
-                "itens vencidos que exigem resposta imediata",
-                "danger" if k["prazos_atrasados"] > 0 else "success",
-            )
-
-        with c2:
-            _summary_surface(
-                "Vencimentos em 7 dias",
-                k["prazos_7dias"],
-                "curto prazo para organização e preparo",
-                "warning" if k["prazos_7dias"] > 0 else "success",
-            )
-
-        with c3:
-            agenda_tone = (
-                "danger"
-                if k["ag_24h"] > 0
-                else ("info" if k["ag_72h"] > 0 else "success")
-            )
-            texto = (
-                f"{k['ag_24h']} compromisso(s) em 24h"
-                if k["ag_24h"] > 0
-                else (
-                    f"{k['ag_72h']} compromisso(s) em 72h"
-                    if k["ag_72h"] > 0
-                    else "sem urgência de agenda"
-                )
-            )
-            _summary_surface("Agenda próxima", k["ag_7d"], texto, agenda_tone)
-
-
-def _render_finance_section(k: dict[str, Any]) -> None:
-    with section(
-        "Financeiro",
-        subtitle="Receitas, despesas e posição acumulada",
-        divider=False,
-    ):
-        col1, col2, col3 = grid(3, columns_mobile=1)
-
-        with col1:
             card(
                 "Receitas",
                 f"R$ {_fmt_money_br(k['receitas'])}",
-                "valor acumulado",
+                "acumulado",
                 tone="success",
             )
 
-        with col2:
+        with c2:
             card(
                 "Despesas",
                 f"R$ {_fmt_money_br(k['despesas'])}",
-                "valor acumulado",
+                "acumulado",
                 tone="danger",
             )
 
-        with col3:
+        with c3:
+            saldo_tone = "success" if k["saldo"] >= 0 else "danger"
             card(
                 "Saldo",
                 f"R$ {_fmt_money_br(k['saldo'])}",
                 "posição atual",
-                tone=("success" if k["saldo"] >= 0 else "danger"),
+                tone=saldo_tone,
                 emphasize=True,
             )
 
-        spacer(0.16)
-
-        c1, c2 = grid(2, columns_mobile=1)
-        with c1:
-            _action_button(
+        with c4:
+            _render_nav_button(
                 "Abrir financeiro",
-                key="go_fin_open",
-                button_type="primary",
-                on_click=_go_financeiro_lancamentos,
-            )
-        with c2:
-            _action_button(
-                "Ver trabalhos",
-                key="go_fin_jobs",
-                on_click=_go_trabalhos_lista,
+                page="Financeiro",
+                state={"financeiro_section": "Lançamentos"},
+                key="dash_open_financeiro_compact",
+                type="primary",
             )
 
 
@@ -999,7 +892,7 @@ def _render_header_actions() -> None:
 def _render_filters() -> str | None:
     with section(
         "Filtros",
-        subtitle="Refine a visão do painel por tipo de atuação",
+        subtitle="Refine o painel por tipo de atuação",
         divider=False,
     ):
         col1, col2 = grid(2, columns_mobile=1)
@@ -1014,7 +907,7 @@ def _render_filters() -> str | None:
 
         with col2:
             st.caption(
-                "Selecione “(Todas)” para uma visão geral ou escolha uma atuação específica para focar o painel."
+                "Selecione “(Todas)” para visão geral ou escolha uma atuação específica para focar o painel."
             )
 
     return ATUACAO_UI[atuacao_label]
@@ -1195,26 +1088,26 @@ def render(owner_user_id: int) -> None:
         version=version,
     )
 
-    spacer(0.10)
-    _render_info_strip(k, atuacao_label)
+    spacer(0.12)
+    _render_dashboard_summary(k, atuacao_label)
 
     spacer(0.18)
     _render_priority_banner(k)
 
-    spacer(0.22)
-    _render_kpi_section(k)
+    spacer(0.18)
+    _render_quick_actions_inline()
 
-    spacer(0.22)
-    _render_operational_summary(k)
+    spacer(0.18)
+    _render_compact_finance(k)
 
-    spacer(0.22)
-    _render_quick_actions()
-
-    spacer(0.22)
-    _render_finance_section(k)
-
-    spacer(0.26)
-    tab1, tab2, tab3 = st.tabs(["⏳ Prazos", "📅 Agenda", "🗂️ Trabalhos"])
+    spacer(0.24)
+    tab1, tab2, tab3 = st.tabs(
+        [
+            f"⏳ Prazos ({k['prazos_atrasados']})",
+            f"📅 Agenda ({k['ag_7d']})",
+            f"🗂️ Trabalhos ({k['ativos']})",
+        ]
+    )
 
     with tab1:
         _render_tab_prazos(owner_user_id, tipo_val, k, version)
