@@ -250,13 +250,66 @@ def apply_menu_from_qp(
 # ==========================================================
 
 
-def bump_data_version() -> int:
-    """Incrementa a versão global de dados para invalidação de cache visual."""
-    current = int(st.session_state.get("data_version", 0)) + 1
-    st.session_state["data_version"] = current
+def _global_data_version_key() -> str:
+    return "data_version"
+
+
+def _user_data_version_key(owner_user_id: int) -> str:
+    return f"data_version_{int(owner_user_id)}"
+
+
+def bump_data_version(owner_user_id: int | None = None) -> int:
+    """
+    Incrementa a versão de dados para invalidação de cache visual.
+
+    Compatibilidade:
+    - bump_data_version() -> versão global
+    - bump_data_version(owner_user_id) -> versão por usuário
+    """
+    key = (
+        _global_data_version_key()
+        if owner_user_id is None
+        else _user_data_version_key(owner_user_id)
+    )
+
+    current = int(st.session_state.get(key, 0)) + 1
+    st.session_state[key] = current
+
+    # mantém compatibilidade com telas antigas que usam somente data_version global
+    if owner_user_id is not None:
+        global_key = _global_data_version_key()
+        st.session_state[global_key] = int(st.session_state.get(global_key, 0)) + 1
+
     return current
 
 
-def get_data_version() -> int:
-    """Retorna a versão atual dos dados."""
-    return int(st.session_state.get("data_version", 0))
+def get_data_version(owner_user_id: int | None = None) -> int:
+    """
+    Retorna a versão atual dos dados.
+
+    Compatibilidade:
+    - get_data_version() -> versão global
+    - get_data_version(owner_user_id) -> versão por usuário
+    """
+    key = (
+        _global_data_version_key()
+        if owner_user_id is None
+        else _user_data_version_key(owner_user_id)
+    )
+    return int(st.session_state.get(key, 0))
+
+
+def reset_data_version(owner_user_id: int | None = None) -> None:
+    """
+    Reseta a versão de dados.
+
+    Compatibilidade:
+    - reset_data_version() -> global
+    - reset_data_version(owner_user_id) -> por usuário
+    """
+    key = (
+        _global_data_version_key()
+        if owner_user_id is None
+        else _user_data_version_key(owner_user_id)
+    )
+    st.session_state[key] = 0
