@@ -27,10 +27,9 @@ STATE_DEFAULTS: dict[str, Any] = {
 
 
 def init_state() -> None:
-    """Inicializa valores padrão da UI."""
+    """Inicializa os valores padrão da UI apenas uma vez por sessão."""
     for key, value in STATE_DEFAULTS.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+        st.session_state.setdefault(key, value)
 
 
 # ==========================================================
@@ -42,8 +41,17 @@ def _get_qp():
     return st.query_params
 
 
-def _normalize_qp_value(value: Any):
-    """Normaliza valores para uso em query params do Streamlit."""
+def _normalize_qp_value(value: Any) -> Any:
+    """
+    Normaliza valores para uso nos query params do Streamlit.
+
+    Regras:
+    - None remove a chave
+    - dict vira JSON string
+    - list/tuple/set vira lista de strings
+    - bool vira "1"/"0"
+    - demais tipos viram string
+    """
     if value is None:
         return None
 
@@ -60,7 +68,10 @@ def _normalize_qp_value(value: Any):
 
 
 def _set_qp(**params: Any) -> None:
-    """Atualiza query params preservando remoção explícita com valor None."""
+    """
+    Atualiza query params.
+    Valor None remove explicitamente a chave.
+    """
     qp = _get_qp()
 
     for key, value in params.items():
@@ -90,7 +101,7 @@ def clear_qp_keys(*keys: str) -> None:
 
 
 def get_qp_str(key: str, default: str | None = None) -> str | None:
-    """Lê query param como string."""
+    """Lê um query param como string."""
     qp = _get_qp()
 
     if key not in qp:
@@ -108,7 +119,7 @@ def get_qp_str(key: str, default: str | None = None) -> str | None:
 
 
 def get_qp_json(key: str, default: Any = None) -> Any:
-    """Lê query param contendo JSON serializado."""
+    """Lê um query param contendo JSON serializado."""
     value = get_qp_str(key)
 
     if value is None:
@@ -121,7 +132,7 @@ def get_qp_json(key: str, default: Any = None) -> Any:
 
 
 def get_qp_bool(key: str, default: bool = False) -> bool:
-    """Lê query param booleano em formatos comuns."""
+    """Lê um query param booleano em formatos comuns."""
     value = get_qp_str(key)
 
     if value is None:
@@ -136,18 +147,22 @@ def get_qp_bool(key: str, default: bool = False) -> bool:
 
 
 def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> bool:
-    """Valida se o menu é uma string válida e, se informado, pertence ao conjunto permitido."""
+    """
+    Valida se o menu é uma string não vazia e, se informado,
+    pertence ao conjunto permitido.
+    """
     if not isinstance(menu, str) or not menu.strip():
         return False
 
     if allowed is None:
         return True
 
-    return menu in set(allowed)
+    allowed_set = {item for item in allowed if isinstance(item, str)}
+    return menu in allowed_set
 
 
 def get_current_menu(default: str = MENU_DEFAULT) -> str:
-    """Obtém o menu atual persistido na sessão."""
+    """Retorna o menu atual persistido na sessão."""
     value = st.session_state.get("_last_menu", default)
 
     if not isinstance(value, str) or not value.strip():
@@ -157,7 +172,10 @@ def get_current_menu(default: str = MENU_DEFAULT) -> str:
 
 
 def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
-    """Define o menu atual e sincroniza os controles de navegação."""
+    """
+    Define o menu atual e sincroniza os controles de navegação.
+    Esta é a fonte oficial de verdade do menu corrente.
+    """
     if not isinstance(menu, str) or not menu.strip():
         return
 
@@ -170,10 +188,12 @@ def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
 
 
 def navigate(
-    menu: str | None = None, state: dict[str, Any] | None = None, **params: Any
+    menu: str | None = None,
+    state: dict[str, Any] | None = None,
+    **params: Any,
 ) -> None:
     """
-    Navega para um menu e opcionalmente injeta estado via query params.
+    Navega para um menu e injeta estado opcional via query params.
 
     Exemplos:
         navigate("Prazos")
@@ -196,7 +216,7 @@ def navigate(
 
 
 def consume_nav_target(default: str | None = None) -> str | None:
-    """Consome o alvo de navegação pendente uma única vez."""
+    """Consome uma única vez o alvo de navegação pendente."""
     target = st.session_state.get("nav_target")
     st.session_state["nav_target"] = None
     return target if target is not None else default
@@ -205,7 +225,6 @@ def consume_nav_target(default: str | None = None) -> str | None:
 def on_top_nav_change() -> None:
     """Callback do menu superior."""
     menu = st.session_state.get("top_nav_menu", MENU_DEFAULT)
-
     if menu != st.session_state.get("_last_menu"):
         set_current_menu(menu)
 
@@ -213,7 +232,6 @@ def on_top_nav_change() -> None:
 def on_sidebar_menu_change() -> None:
     """Callback do menu lateral."""
     menu = st.session_state.get("sidebar_menu", MENU_DEFAULT)
-
     if menu != st.session_state.get("_last_menu"):
         set_current_menu(menu)
 
@@ -224,11 +242,13 @@ def on_sidebar_menu_change() -> None:
 
 
 def apply_menu_from_qp(
-    *, allowed: Iterable[str] | None = None, default: str = MENU_DEFAULT
+    *,
+    allowed: Iterable[str] | None = None,
+    default: str = MENU_DEFAULT,
 ) -> str:
     """
     Aplica o menu vindo da URL, se válido, e retorna o menu efetivo.
-    Útil para manter navegação previsível após refresh ou links internos.
+    Mantém navegação previsível após refresh ou links internos.
     """
     qp_menu = get_qp_str("menu")
 
@@ -258,6 +278,12 @@ def _user_data_version_key(owner_user_id: int) -> str:
     return f"data_version_{int(owner_user_id)}"
 
 
+def _resolve_data_version_key(owner_user_id: int | None = None) -> str:
+    if owner_user_id is None:
+        return _global_data_version_key()
+    return _user_data_version_key(owner_user_id)
+
+
 def bump_data_version(owner_user_id: int | None = None) -> int:
     """
     Incrementa a versão de dados para invalidação de cache visual.
@@ -266,16 +292,12 @@ def bump_data_version(owner_user_id: int | None = None) -> int:
     - bump_data_version() -> versão global
     - bump_data_version(owner_user_id) -> versão por usuário
     """
-    key = (
-        _global_data_version_key()
-        if owner_user_id is None
-        else _user_data_version_key(owner_user_id)
-    )
+    key = _resolve_data_version_key(owner_user_id)
 
     current = int(st.session_state.get(key, 0)) + 1
     st.session_state[key] = current
 
-    # mantém compatibilidade com telas antigas que usam somente data_version global
+    # Compatibilidade com telas legadas que dependem da versão global
     if owner_user_id is not None:
         global_key = _global_data_version_key()
         st.session_state[global_key] = int(st.session_state.get(global_key, 0)) + 1
@@ -291,11 +313,7 @@ def get_data_version(owner_user_id: int | None = None) -> int:
     - get_data_version() -> versão global
     - get_data_version(owner_user_id) -> versão por usuário
     """
-    key = (
-        _global_data_version_key()
-        if owner_user_id is None
-        else _user_data_version_key(owner_user_id)
-    )
+    key = _resolve_data_version_key(owner_user_id)
     return int(st.session_state.get(key, 0))
 
 
@@ -307,9 +325,5 @@ def reset_data_version(owner_user_id: int | None = None) -> None:
     - reset_data_version() -> global
     - reset_data_version(owner_user_id) -> por usuário
     """
-    key = (
-        _global_data_version_key()
-        if owner_user_id is None
-        else _user_data_version_key(owner_user_id)
-    )
+    key = _resolve_data_version_key(owner_user_id)
     st.session_state[key] = 0

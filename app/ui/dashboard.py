@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
-from typing import Any, Iterable
+from typing import Any, Iterable, Callable
 
 import pandas as pd
 import streamlit as st
@@ -49,6 +49,11 @@ def _fmt_money_br(value: float) -> str:
     return f"{parsed:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _safe_text(value: Any, fallback: str = "—") -> str:
+    text = str(value).strip() if value is not None else ""
+    return text if text else fallback
+
+
 def _apply_tipo_filter(stmt, tipo_val: str | None):
     return stmt if not tipo_val else stmt.where(Processo.papel == tipo_val)
 
@@ -67,10 +72,10 @@ def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
 
 
 def _greeting() -> str:
-    hora = now_br().hour
-    if hora < 12:
+    hour = now_br().hour
+    if hour < 12:
         return "Bom dia"
-    if hora < 18:
+    if hour < 18:
         return "Boa tarde"
     return "Boa noite"
 
@@ -89,16 +94,35 @@ def _today_label() -> str:
     return f"{dias[agora.weekday()]}, {agora.strftime('%d/%m/%Y')}"
 
 
-def _safe_html_text(value: Any, fallback: str = "—") -> str:
-    text = str(value).strip() if value is not None else ""
-    return text if text else fallback
+def _make_nav_callback(page: str, state: dict[str, Any] | None = None):
+    def _callback() -> None:
+        navigate(page, state=state)
+
+    return _callback
 
 
-def _action_button(
+def _render_nav_button(
+    label: str,
+    *,
+    page: str,
+    state: dict[str, Any] | None = None,
+    key: str,
+    type: str = "secondary",
+) -> None:
+    st.button(
+        label,
+        key=key,
+        type=type,
+        use_container_width=True,
+        on_click=_make_nav_callback(page, state),
+    )
+
+
+def _render_action_button(
     label: str,
     *,
     key: str,
-    on_click,
+    on_click: Callable[[], None],
     button_type: str = "secondary",
 ) -> None:
     st.button(
@@ -110,8 +134,28 @@ def _action_button(
     )
 
 
+def _render_dataframe_or_caption(
+    df: pd.DataFrame,
+    *,
+    empty_text: str = "—",
+    height: int | None = None,
+) -> None:
+    if df.empty:
+        st.caption(empty_text)
+        return
+
+    dataframe_kwargs = {
+        "use_container_width": True,
+        "hide_index": True,
+    }
+    if height is not None:
+        dataframe_kwargs["height"] = height
+
+    st.dataframe(df, **dataframe_kwargs)
+
+
 # ==========================================================
-# Helpers de prazo
+# Regras de prazo
 # ==========================================================
 
 
@@ -150,47 +194,8 @@ def _prior_badge(prioridade: str | None) -> str:
     return "⚖️ Média"
 
 
-def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str, Any]:
-    if prazos_atrasados > 0:
-        return {
-            "tone": "danger",
-            "title": "Pendências críticas exigem ação imediata",
-            "text": f"Você possui <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s). Priorize o que já venceu antes de novas tarefas administrativas.",
-            "cta_label": "Abrir prazos atrasados",
-            "cta_page": "Prazos",
-            "cta_state": {
-                "prazos_section": "Lista",
-                "pz_nav_to": "Lista",
-                "pz_list_nav_to": "Atrasados",
-            },
-        }
-
-    if prazos_7dias > 0:
-        return {
-            "tone": "warning",
-            "title": "Há vencimentos próximos no radar",
-            "text": f"Você possui <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias. Vale revisar documentos, agenda e providências relacionadas.",
-            "cta_label": "Ver próximos 7 dias",
-            "cta_page": "Prazos",
-            "cta_state": {
-                "prazos_section": "Lista",
-                "pz_nav_to": "Lista",
-                "pz_list_nav_to": "Vencem (7 dias)",
-            },
-        }
-
-    return {
-        "tone": "success",
-        "title": "Tudo sob controle no momento",
-        "text": "Não há prazos críticos no painel. Bom momento para revisar agenda, financeiro e atualizar cadastros.",
-        "cta_label": "Cadastrar novo prazo",
-        "cta_page": "Prazos",
-        "cta_state": {"prazos_section": "Cadastro"},
-    }
-
-
 # ==========================================================
-# Helpers de agenda
+# Regras de agenda
 # ==========================================================
 
 
@@ -248,8 +253,8 @@ def _build_prazos_df(rows: Iterable[tuple]) -> pd.DataFrame:
         dias = int(_dias_restantes(data_limite))
         items.append(
             {
-                "Trabalho": f"{numero_processo} – {tipo_acao or 'Sem tipo'}",
-                "Evento": evento,
+                "Trabalho": f"{_safe_text(numero_processo, 'Sem referência')} – {_safe_text(tipo_acao, 'Sem tipo')}",
+                "Evento": _safe_text(evento, "Sem evento"),
                 "Vencimento": format_date_br(data_limite),
                 "Dias": dias,
                 "Status": _status_prazo(dias),
@@ -269,14 +274,103 @@ def _build_agenda_df(rows: Iterable[tuple]) -> pd.DataFrame:
     for _id, tipo, inicio, local, numero_processo, tipo_acao in rows:
         items.append(
             {
-                "Trabalho": f"{numero_processo} – {tipo_acao or 'Sem tipo'}",
-                "Tipo": tipo,
+                "Trabalho": f"{_safe_text(numero_processo, 'Sem referência')} – {_safe_text(tipo_acao, 'Sem tipo')}",
+                "Tipo": _safe_text(tipo, "Sem tipo"),
                 "Início": ensure_br(inicio).strftime("%d/%m/%Y %H:%M"),
-                "Local": local or "",
+                "Local": _safe_text(local, ""),
             }
         )
 
     return pd.DataFrame(items) if items else pd.DataFrame()
+
+
+def _build_trabalhos_df(rows: list[tuple]) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "id",
+            "numero_processo",
+            "tipo_acao",
+            "comarca",
+            "vara",
+            "status",
+            "tipo_trabalho",
+        ],
+    )
+
+    df["tipo_acao"] = df["tipo_acao"].fillna("Sem tipo")
+    df["tipo_trabalho"] = df["tipo_trabalho"].fillna("Assistente Técnico")
+    df["comarca"] = df["comarca"].fillna("—")
+    df["vara"] = df["vara"].fillna("—")
+    df["status"] = df["status"].fillna("—")
+
+    return df.rename(
+        columns={
+            "id": "ID",
+            "numero_processo": "Referência",
+            "tipo_acao": "Descrição",
+            "comarca": "Comarca",
+            "vara": "Vara",
+            "status": "Status",
+            "tipo_trabalho": "Atuação",
+        }
+    )
+
+
+# ==========================================================
+# Banner de prioridade
+# ==========================================================
+
+
+def _priority_banner_data(prazos_atrasados: int, prazos_7dias: int) -> dict[str, Any]:
+    if prazos_atrasados > 0:
+        return {
+            "tone": "danger",
+            "title": "Pendências críticas exigem ação imediata",
+            "text": (
+                f"Você possui <b>{int(prazos_atrasados)}</b> prazo(s) atrasado(s). "
+                "Priorize o que já venceu antes de novas tarefas administrativas."
+            ),
+            "cta_label": "Abrir prazos atrasados",
+            "cta_page": "Prazos",
+            "cta_state": {
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Atrasados",
+            },
+        }
+
+    if prazos_7dias > 0:
+        return {
+            "tone": "warning",
+            "title": "Há vencimentos próximos no radar",
+            "text": (
+                f"Você possui <b>{int(prazos_7dias)}</b> prazo(s) vencendo em até 7 dias. "
+                "Vale revisar documentos, agenda e providências relacionadas."
+            ),
+            "cta_label": "Ver próximos 7 dias",
+            "cta_page": "Prazos",
+            "cta_state": {
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Vencem (7 dias)",
+            },
+        }
+
+    return {
+        "tone": "success",
+        "title": "Tudo sob controle no momento",
+        "text": (
+            "Não há prazos críticos no painel. Bom momento para revisar agenda, "
+            "financeiro e atualizar cadastros."
+        ),
+        "cta_label": "Cadastrar novo prazo",
+        "cta_page": "Prazos",
+        "cta_state": {"prazos_section": "Cadastro"},
+    }
 
 
 # ==========================================================
@@ -308,195 +402,41 @@ def _go_trabalhos_cadastro() -> None:
     navigate("Trabalhos", state={"trabalhos_section": "Cadastro"})
 
 
-def _make_nav_callback(page: str, state: dict[str, Any] | None = None):
-    def _callback() -> None:
-        navigate(page, state=state)
-
-    return _callback
-
-
 # ==========================================================
-# Render utilitário
+# Render helpers de cards/listas
 # ==========================================================
 
 
-def _render_dataframe_or_caption(df: pd.DataFrame, empty_text: str = "—") -> None:
-    if df.empty:
-        st.caption(empty_text)
-        return
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-
-def _render_nav_button(
-    label: str,
+def _render_surface_list_item(
     *,
-    page: str,
-    state: dict[str, Any] | None = None,
-    key: str,
-    type: str = "secondary",
+    tone: str,
+    title: str,
+    body_lines: list[str] | None = None,
+    chips: list[str] | None = None,
 ) -> None:
-    st.button(
-        label,
-        use_container_width=True,
-        key=key,
-        type=type,
-        on_click=_make_nav_callback(page, state),
+    body_lines = body_lines or []
+    chips = chips or []
+
+    body_html = "".join(
+        f"<div style='margin-top:6px; color:rgba(15,23,42,0.78);'>{line}</div>"
+        for line in body_lines
+        if line
     )
+    chips_html = "".join(chips)
 
-
-def _render_dashboard_summary(k: dict[str, Any], atuacao_label: str) -> None:
-    with section(divider=False):
-        st.markdown(f"### {_greeting()}")
-        st.caption(f"{_today_label()} • visão atual: {atuacao_label}")
-
-        c1, c2, c3, c4 = grid(4, columns_mobile=1)
-
-        with c1:
-            card(
-                "Trabalhos ativos",
-                f"{k['ativos']}",
-                f"{k['total_proc']} cadastrados no total",
-                tone="neutral",
-            )
-
-        with c2:
-            tone_pz = (
-                "danger"
-                if k["prazos_atrasados"] > 0
-                else ("warning" if k["prazos_7dias"] > 0 else "success")
-            )
-            subtitle = (
-                f"{k['prazos_atrasados']} atrasados • {k['prazos_7dias']} em 7 dias"
-                if k["prazos_abertos"] > 0
-                else "nenhum prazo em aberto"
-            )
-            card(
-                "Prazos em aberto",
-                f"{k['prazos_abertos']}",
-                subtitle,
-                tone=tone_pz,
-                emphasize=(k["prazos_atrasados"] > 0),
-            )
-
-        with c3:
-            ag_tone, ag_emph = _kpi_agenda_tone(k["ag_24h"], k["ag_72h"], k["ag_7d"])
-            card(
-                "Agenda próxima",
-                f"{k['ag_7d']}",
-                _kpi_agenda_subtitle(k["ag_24h"], k["ag_72h"], k["ag_7d"]),
-                tone=ag_tone,
-                emphasize=ag_emph,
-            )
-
-        with c4:
-            card(
-                "Saldo atual",
-                f"R$ {_fmt_money_br(k['saldo'])}",
-                f"Receitas R$ {_fmt_money_br(k['receitas'])} • Despesas R$ {_fmt_money_br(k['despesas'])}",
-                tone=("success" if k["saldo"] >= 0 else "danger"),
-                emphasize=True,
-            )
-
-
-def _render_priority_banner(k: dict[str, Any]) -> None:
-    banner = _priority_banner_data(k["prazos_atrasados"], k["prazos_7dias"])
-
-    col1, col2 = grid(2, columns_mobile=1)
-
-    with col1:
-        _render_html(
-            f"""
-            <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
-              <div style="font-size:1.05rem; font-weight:900;">{banner['title']}</div>
-              <div style="margin-top:8px; line-height:1.45;">{banner['text']}</div>
-            </div>
-            """
-        )
-
-    with col2:
-        _render_nav_button(
-            banner["cta_label"],
-            page=banner["cta_page"],
-            state=banner["cta_state"],
-            key="dash_priority_cta",
-            type="primary",
-        )
-
-
-def _render_quick_actions_inline() -> None:
-    with section("Ações rápidas", subtitle="Atalhos operacionais", divider=False):
-        c1, c2, c3, c4 = grid(4, columns_mobile=2)
-
-        with c1:
-            _action_button(
-                "⏳ Novo prazo",
-                key="dash_quick_new_prazo",
-                button_type="primary",
-                on_click=_go_prazos_cadastro,
-            )
-
-        with c2:
-            _action_button(
-                "📁 Novo trabalho",
-                key="dash_quick_new_trabalho",
-                on_click=_go_trabalhos_cadastro,
-            )
-
-        with c3:
-            _action_button(
-                "📅 Agenda",
-                key="dash_quick_agenda",
-                on_click=_go_agenda,
-            )
-
-        with c4:
-            _action_button(
-                "💰 Financeiro",
-                key="dash_quick_financeiro",
-                on_click=_go_financeiro_lancamentos,
-            )
-
-
-def _render_compact_finance(k: dict[str, Any]) -> None:
-    with section(
-        "Financeiro", subtitle="Resumo rápido da posição atual", divider=False
-    ):
-        c1, c2, c3, c4 = grid(4, columns_mobile=2)
-
-        with c1:
-            card(
-                "Receitas",
-                f"R$ {_fmt_money_br(k['receitas'])}",
-                "acumulado",
-                tone="success",
-            )
-
-        with c2:
-            card(
-                "Despesas",
-                f"R$ {_fmt_money_br(k['despesas'])}",
-                "acumulado",
-                tone="danger",
-            )
-
-        with c3:
-            saldo_tone = "success" if k["saldo"] >= 0 else "danger"
-            card(
-                "Saldo",
-                f"R$ {_fmt_money_br(k['saldo'])}",
-                "posição atual",
-                tone=saldo_tone,
-                emphasize=True,
-            )
-
-        with c4:
-            _render_nav_button(
-                "Abrir financeiro",
-                page="Financeiro",
-                state={"financeiro_section": "Lançamentos"},
-                key="dash_open_financeiro_compact",
-                type="primary",
-            )
+    _render_html(
+        f"""
+        <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
+          <div style="font-weight:850; font-size:0.99rem;">
+            {title}
+          </div>
+          {body_html}
+          <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+            {chips_html}
+          </div>
+        </div>
+        """
+    )
 
 
 def _render_prazo_cards(rows: list, empty_msg: str) -> None:
@@ -507,30 +447,24 @@ def _render_prazo_cards(rows: list, empty_msg: str) -> None:
     for _id, evento, data_limite, prioridade, numero_processo, tipo_acao in rows:
         dias = int(_dias_restantes(data_limite))
         status = _status_prazo(dias)
-        prior = _prior_badge(prioridade)
         tone = _tone_from_prazo_status(dias)
+        prior = _prior_badge(prioridade)
 
-        numero_processo_txt = _safe_html_text(numero_processo, "Sem referência")
-        tipo_acao_txt = _safe_html_text(tipo_acao, "Sem tipo")
-        evento_txt = _safe_html_text(evento, "Sem evento")
+        title = (
+            f"{_safe_text(numero_processo, 'Sem referência')} – "
+            f"{_safe_text(tipo_acao, 'Sem tipo')}"
+        )
 
-        _render_html(
-            f"""
-            <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
-              <div style="font-weight:850; font-size:0.99rem;">
-                {numero_processo_txt} – {tipo_acao_txt}
-              </div>
-              <div style="margin-top:6px; color:rgba(15,23,42,0.78);">
-                <b>Evento:</b> {evento_txt}
-              </div>
-              <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-                <span class="sp-chip">📅 {format_date_br(data_limite)}</span>
-                <span class="sp-chip">⏳ {dias} dia(s)</span>
-                <span class="sp-chip">{status}</span>
-                <span class="sp-chip">{prior}</span>
-              </div>
-            </div>
-            """
+        _render_surface_list_item(
+            tone=tone,
+            title=title,
+            body_lines=[f"<b>Evento:</b> {_safe_text(evento, 'Sem evento')}"],
+            chips=[
+                f"<span class='sp-chip'>📅 {format_date_br(data_limite)}</span>",
+                f"<span class='sp-chip'>⏳ {dias} dia(s)</span>",
+                f"<span class='sp-chip'>{status}</span>",
+                f"<span class='sp-chip'>{prior}</span>",
+            ],
         )
 
 
@@ -542,38 +476,34 @@ def _render_agenda_cards(rows: list, empty_msg: str) -> None:
     now_n = _naive(now_br())
 
     for _id, tipo, inicio, local, numero_processo, tipo_acao in rows:
-        inicio_n = _naive(ensure_br(inicio))
-        inicio_br_txt = ensure_br(inicio).strftime("%d/%m/%Y %H:%M")
+        inicio_br = ensure_br(inicio)
+        inicio_n = _naive(inicio_br)
+        inicio_br_txt = inicio_br.strftime("%d/%m/%Y %H:%M")
 
         hours_left = (inicio_n - now_n).total_seconds() / 3600.0
         alert_label, tone = _agenda_status(hours_left)
-        rest_chip = _agenda_rest_chip(hours_left)
 
-        numero_processo_txt = _safe_html_text(numero_processo, "Sem referência")
-        tipo_acao_txt = _safe_html_text(tipo_acao, "Sem tipo")
-        tipo_txt = _safe_html_text(tipo, "Sem tipo")
-
-        local_chip = (
-            f"<span class='sp-chip'>📍 {_safe_html_text(local, 'Local não informado')}</span>"
-            if local
-            else ""
+        title = (
+            f"{_safe_text(numero_processo, 'Sem referência')} – "
+            f"{_safe_text(tipo_acao, 'Sem tipo')}"
         )
 
-        _render_html(
-            f"""
-            <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
-              <div style="font-weight:850; font-size:0.99rem;">
-                {numero_processo_txt} – {tipo_acao_txt}
-              </div>
-              <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-                <span class="sp-chip">📌 {tipo_txt}</span>
-                <span class="sp-chip">🕒 {inicio_br_txt}</span>
-                {rest_chip}
-                <span class="sp-chip">{alert_label}</span>
-                {local_chip}
-              </div>
-            </div>
-            """
+        chips = [
+            f"<span class='sp-chip'>📌 {_safe_text(tipo, 'Sem tipo')}</span>",
+            f"<span class='sp-chip'>🕒 {inicio_br_txt}</span>",
+            _agenda_rest_chip(hours_left),
+            f"<span class='sp-chip'>{alert_label}</span>",
+        ]
+
+        if local:
+            chips.append(
+                f"<span class='sp-chip'>📍 {_safe_text(local, 'Local não informado')}</span>"
+            )
+
+        _render_surface_list_item(
+            tone=tone,
+            title=title,
+            chips=chips,
         )
 
 
@@ -688,7 +618,7 @@ def _fetch_kpis_cached(
                     func.sum(
                         case(
                             (
-                                (LancamentoFinanceiro.tipo == "Receita"),
+                                LancamentoFinanceiro.tipo == "Receita",
                                 LancamentoFinanceiro.valor,
                             ),
                             else_=0,
@@ -700,7 +630,7 @@ def _fetch_kpis_cached(
                     func.sum(
                         case(
                             (
-                                (LancamentoFinanceiro.tipo == "Despesa"),
+                                LancamentoFinanceiro.tipo == "Despesa",
                                 LancamentoFinanceiro.valor,
                             ),
                             else_=0,
@@ -856,11 +786,11 @@ def _fetch_ultimos_processos_cached(
 
 
 # ==========================================================
-# Header / filtros
+# Blocos visuais
 # ==========================================================
 
 
-def _render_header_actions() -> None:
+def _render_header() -> None:
     page_header(
         "Painel de Controle",
         "Visão consolidada de trabalhos, prazos, agenda e financeiro",
@@ -879,7 +809,7 @@ def _render_header_actions() -> None:
             ),
             HeaderAction(
                 "Financeiro",
-                key="dash_hdr_fin",
+                key="dash_hdr_financeiro",
                 type="secondary",
                 on_click=_go_financeiro_lancamentos,
             ),
@@ -913,6 +843,168 @@ def _render_filters() -> str | None:
     return ATUACAO_UI[atuacao_label]
 
 
+def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
+    with section(divider=False):
+        st.markdown(f"### {_greeting()}")
+        st.caption(f"{_today_label()} • visão atual: {atuacao_label}")
+
+        c1, c2, c3, c4 = grid(4, columns_mobile=1)
+
+        with c1:
+            card(
+                "Trabalhos ativos",
+                f"{kpis['ativos']}",
+                f"{kpis['total_proc']} cadastrados no total",
+                tone="neutral",
+            )
+
+        with c2:
+            tone_prazos = (
+                "danger"
+                if kpis["prazos_atrasados"] > 0
+                else ("warning" if kpis["prazos_7dias"] > 0 else "success")
+            )
+            subtitle = (
+                f"{kpis['prazos_atrasados']} atrasados • {kpis['prazos_7dias']} em 7 dias"
+                if kpis["prazos_abertos"] > 0
+                else "nenhum prazo em aberto"
+            )
+            card(
+                "Prazos em aberto",
+                f"{kpis['prazos_abertos']}",
+                subtitle,
+                tone=tone_prazos,
+                emphasize=(kpis["prazos_atrasados"] > 0),
+            )
+
+        with c3:
+            agenda_tone, agenda_emph = _kpi_agenda_tone(
+                kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]
+            )
+            card(
+                "Agenda próxima",
+                f"{kpis['ag_7d']}",
+                _kpi_agenda_subtitle(kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]),
+                tone=agenda_tone,
+                emphasize=agenda_emph,
+            )
+
+        with c4:
+            card(
+                "Saldo atual",
+                f"R$ {_fmt_money_br(kpis['saldo'])}",
+                (
+                    f"Receitas R$ {_fmt_money_br(kpis['receitas'])} • "
+                    f"Despesas R$ {_fmt_money_br(kpis['despesas'])}"
+                ),
+                tone=("success" if kpis["saldo"] >= 0 else "danger"),
+                emphasize=True,
+            )
+
+
+def _render_priority_banner(kpis: dict[str, Any]) -> None:
+    banner = _priority_banner_data(kpis["prazos_atrasados"], kpis["prazos_7dias"])
+
+    col1, col2 = grid(2, columns_mobile=1)
+
+    with col1:
+        _render_html(
+            f"""
+            <div class="sp-card sp-tone-{banner['tone']}" style="padding:18px;">
+              <div style="font-size:1.05rem; font-weight:860;">{banner['title']}</div>
+              <div style="margin-top:8px; line-height:1.45;">{banner['text']}</div>
+            </div>
+            """
+        )
+
+    with col2:
+        _render_nav_button(
+            banner["cta_label"],
+            page=banner["cta_page"],
+            state=banner["cta_state"],
+            key="dash_priority_cta",
+            type="primary",
+        )
+
+
+def _render_quick_actions() -> None:
+    with section("Ações rápidas", subtitle="Atalhos operacionais", divider=False):
+        c1, c2, c3, c4 = grid(4, columns_mobile=2)
+
+        with c1:
+            _render_action_button(
+                "⏳ Novo prazo",
+                key="dash_quick_new_prazo",
+                button_type="primary",
+                on_click=_go_prazos_cadastro,
+            )
+
+        with c2:
+            _render_action_button(
+                "📁 Novo trabalho",
+                key="dash_quick_new_trabalho",
+                on_click=_go_trabalhos_cadastro,
+            )
+
+        with c3:
+            _render_action_button(
+                "📅 Agenda",
+                key="dash_quick_agenda",
+                on_click=_go_agenda,
+            )
+
+        with c4:
+            _render_action_button(
+                "💰 Financeiro",
+                key="dash_quick_financeiro",
+                on_click=_go_financeiro_lancamentos,
+            )
+
+
+def _render_finance_summary(kpis: dict[str, Any]) -> None:
+    with section(
+        "Financeiro",
+        subtitle="Resumo rápido da posição atual",
+        divider=False,
+    ):
+        c1, c2, c3, c4 = grid(4, columns_mobile=2)
+
+        with c1:
+            card(
+                "Receitas",
+                f"R$ {_fmt_money_br(kpis['receitas'])}",
+                "acumulado",
+                tone="success",
+            )
+
+        with c2:
+            card(
+                "Despesas",
+                f"R$ {_fmt_money_br(kpis['despesas'])}",
+                "acumulado",
+                tone="danger",
+            )
+
+        with c3:
+            saldo_tone = "success" if kpis["saldo"] >= 0 else "danger"
+            card(
+                "Saldo",
+                f"R$ {_fmt_money_br(kpis['saldo'])}",
+                "posição atual",
+                tone=saldo_tone,
+                emphasize=True,
+            )
+
+        with c4:
+            _render_nav_button(
+                "Abrir financeiro",
+                page="Financeiro",
+                state={"financeiro_section": "Lançamentos"},
+                key="dash_open_financeiro_compact",
+                type="primary",
+            )
+
+
 # ==========================================================
 # Tabs
 # ==========================================================
@@ -921,14 +1013,14 @@ def _render_filters() -> str | None:
 def _render_tab_prazos(
     owner_user_id: int,
     tipo_val: str | None,
-    k: dict[str, Any],
+    kpis: dict[str, Any],
     version: int,
 ) -> None:
     rows_atrasados, rows_7d = _fetch_prazos_tables_cached(
         owner_user_id,
         tipo_val,
-        k["start_today"].isoformat(timespec="seconds"),
-        k["end_7d"].isoformat(timespec="seconds"),
+        kpis["start_today"].isoformat(timespec="seconds"),
+        kpis["end_7d"].isoformat(timespec="seconds"),
         version,
     )
 
@@ -967,13 +1059,13 @@ def _render_tab_prazos(
 def _render_tab_agenda(
     owner_user_id: int,
     tipo_val: str | None,
-    k: dict[str, Any],
+    kpis: dict[str, Any],
     version: int,
 ) -> None:
-    rows_24h, rows_ag_7d = _fetch_agendamentos_cached(
+    rows_24h, rows_7d = _fetch_agendamentos_cached(
         owner_user_id,
         tipo_val,
-        k["now_n"].isoformat(timespec="seconds"),
+        kpis["now_n"].isoformat(timespec="seconds"),
         version,
     )
 
@@ -994,7 +1086,7 @@ def _render_tab_agenda(
     spacer(0.20)
 
     with section("Próximos 7 dias", subtitle="Planejamento da semana", divider=False):
-        _render_agenda_cards(rows_ag_7d, "✅ Nenhum agendamento nos próximos 7 dias.")
+        _render_agenda_cards(rows_7d, "✅ Nenhum agendamento nos próximos 7 dias.")
 
     with st.expander("Ver em tabela", expanded=False):
         col1, col2 = grid(2, columns_mobile=1)
@@ -1005,7 +1097,7 @@ def _render_tab_agenda(
 
         with col2:
             st.caption("7 dias")
-            _render_dataframe_or_caption(_build_agenda_df(rows_ag_7d))
+            _render_dataframe_or_caption(_build_agenda_df(rows_7d))
 
 
 def _render_tab_trabalhos(
@@ -1013,49 +1105,21 @@ def _render_tab_trabalhos(
     tipo_val: str | None,
     version: int,
 ) -> None:
-    procs = _fetch_ultimos_processos_cached(owner_user_id, tipo_val, version)
+    rows = _fetch_ultimos_processos_cached(owner_user_id, tipo_val, version)
 
     with section(
         "Últimos trabalhos",
         subtitle="Registros mais recentes conforme o filtro de atuação",
         divider=False,
     ):
-        if not procs:
+        if not rows:
             st.caption("Nenhum trabalho cadastrado ainda para esta atuação.")
             return
 
-        dfp = pd.DataFrame(
-            procs,
-            columns=[
-                "id",
-                "numero_processo",
-                "tipo_acao",
-                "comarca",
-                "vara",
-                "status",
-                "tipo_trabalho",
-            ],
+        _render_dataframe_or_caption(
+            _build_trabalhos_df(rows),
+            height=420,
         )
-
-        dfp["tipo_acao"] = dfp["tipo_acao"].fillna("Sem tipo")
-        dfp["tipo_trabalho"] = dfp["tipo_trabalho"].fillna("Assistente Técnico")
-        dfp["comarca"] = dfp["comarca"].fillna("—")
-        dfp["vara"] = dfp["vara"].fillna("—")
-        dfp["status"] = dfp["status"].fillna("—")
-
-        dfp = dfp.rename(
-            columns={
-                "id": "ID",
-                "numero_processo": "Referência",
-                "tipo_acao": "Descrição",
-                "comarca": "Comarca",
-                "vara": "Vara",
-                "status": "Status",
-                "tipo_trabalho": "Atuação",
-            }
-        )
-
-        st.dataframe(dfp, use_container_width=True, hide_index=True, height=420)
 
         spacer(0.10)
         _render_nav_button(
@@ -1073,7 +1137,7 @@ def _render_tab_trabalhos(
 
 
 def render(owner_user_id: int) -> None:
-    _render_header_actions()
+    _render_header()
 
     tipo_val = _render_filters()
     atuacao_label = st.session_state.get("dash_atuacao_ui", "(Todas)")
@@ -1081,7 +1145,7 @@ def render(owner_user_id: int) -> None:
     hoje_sp = now_br().date()
     version = _cache_buster(owner_user_id)
 
-    k = _fetch_kpis_cached(
+    kpis = _fetch_kpis_cached(
         owner_user_id=owner_user_id,
         tipo_val=tipo_val,
         hoje_iso=hoje_sp.isoformat(),
@@ -1089,31 +1153,31 @@ def render(owner_user_id: int) -> None:
     )
 
     spacer(0.12)
-    _render_dashboard_summary(k, atuacao_label)
+    _render_dashboard_summary(kpis, atuacao_label)
 
     spacer(0.18)
-    _render_priority_banner(k)
+    _render_priority_banner(kpis)
 
     spacer(0.18)
-    _render_quick_actions_inline()
+    _render_quick_actions()
 
     spacer(0.18)
-    _render_compact_finance(k)
+    _render_finance_summary(kpis)
 
     spacer(0.24)
     tab1, tab2, tab3 = st.tabs(
         [
-            f"⏳ Prazos ({k['prazos_atrasados']})",
-            f"📅 Agenda ({k['ag_7d']})",
-            f"🗂️ Trabalhos ({k['ativos']})",
+            f"⏳ Prazos ({kpis['prazos_atrasados']})",
+            f"📅 Agenda ({kpis['ag_7d']})",
+            f"🗂️ Trabalhos ({kpis['ativos']})",
         ]
     )
 
     with tab1:
-        _render_tab_prazos(owner_user_id, tipo_val, k, version)
+        _render_tab_prazos(owner_user_id, tipo_val, kpis, version)
 
     with tab2:
-        _render_tab_agenda(owner_user_id, tipo_val, k, version)
+        _render_tab_agenda(owner_user_id, tipo_val, kpis, version)
 
     with tab3:
         _render_tab_trabalhos(owner_user_id, tipo_val, version)

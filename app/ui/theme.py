@@ -12,7 +12,7 @@ __all__ = [
     "app_error",
 ]
 
-_CSS_VERSION = "v16"
+_CSS_VERSION = "v17"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -71,8 +71,8 @@ ROOT VARIABLES
 
   --shadow-xs:0 1px 2px rgba(15,23,42,0.04);
   --shadow-sm:0 4px 10px rgba(15,23,42,0.04);
-  --shadow-soft:0 8px 22px rgba(15,23,42,0.05);
-  --shadow-md:0 14px 32px rgba(15,23,42,0.07);
+  --shadow-soft:0 8px 22px rgba(15,23,42,0.045);
+  --shadow-md:0 14px 30px rgba(15,23,42,0.06);
 
   --transition:all .18s ease;
 }
@@ -82,7 +82,7 @@ ROOT VARIABLES
 BASE
 ====================================================== */
 
-html, body, [class*="css"]{
+html, body{
   color:var(--text);
 }
 
@@ -95,6 +95,10 @@ body{
   -moz-osx-font-smoothing:grayscale;
 }
 
+p, li, label, span, div{
+  color:inherit;
+}
+
 .stApp{
   background:
     radial-gradient(circle at top right, rgba(53,94,87,0.045), transparent 26%),
@@ -104,8 +108,12 @@ body{
 }
 
 header[data-testid="stHeader"]{
-  background:transparent;
-  height:0;
+  background:transparent !important;
+  border:none !important;
+}
+
+div[data-testid="stToolbar"]{
+  right:0.5rem;
 }
 
 div[data-testid="stAppViewContainer"]{
@@ -118,20 +126,20 @@ section.main{
 
 
 /* ======================================================
-LAYOUT COMPACTO
+LAYOUT
 ====================================================== */
 
 .block-container{
-  padding-top:0.55rem;
-  padding-bottom:1.10rem;
-  padding-left:1.10rem;
-  padding-right:1.10rem;
+  padding-top:0.85rem;
+  padding-bottom:1.35rem;
+  padding-left:1.20rem;
+  padding-right:1.20rem;
   max-width:1360px;
   overflow:visible !important;
 }
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.18rem;
+  margin-bottom:0.32rem;
 }
 
 
@@ -142,35 +150,31 @@ TYPOGRAPHY
 h1,h2,h3,h4{
   letter-spacing:-0.02em;
   color:var(--text);
-  margin-bottom:0.12rem;
+  margin-bottom:0.16rem;
 }
 
 h1{
-  font-size:1.86rem;
-  line-height:1.05;
-  font-weight:850;
+  font-size:1.82rem;
+  line-height:1.08;
+  font-weight:820;
 }
 
 h2{
-  font-size:1.36rem;
-  line-height:1.10;
-  font-weight:800;
+  font-size:1.34rem;
+  line-height:1.12;
+  font-weight:790;
 }
 
 h3{
-  font-size:1.06rem;
-  line-height:1.2;
-  font-weight:750;
+  font-size:1.05rem;
+  line-height:1.24;
+  font-weight:740;
 }
 
 h4{
   font-size:0.96rem;
-  line-height:1.25;
-  font-weight:710;
-}
-
-p, li, label, span{
-  color:var(--text);
+  line-height:1.28;
+  font-weight:700;
 }
 
 small,
@@ -184,21 +188,21 @@ PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.02rem 0 0.04rem 0;
+  padding:0.06rem 0 0.10rem 0;
 }
 
 .sp-page-title{
-  font-size:1.74rem;
-  font-weight:870;
-  line-height:1.03;
-  letter-spacing:-0.030em;
+  font-size:1.68rem;
+  font-weight:820;
+  line-height:1.06;
+  letter-spacing:-0.028em;
   color:var(--text);
 }
 
 .sp-page-subtitle{
-  margin-top:0.22rem;
+  margin-top:0.28rem;
   font-size:0.95rem;
-  line-height:1.48;
+  line-height:1.50;
   color:var(--muted);
   max-width:82ch;
 }
@@ -209,20 +213,20 @@ SECTION HEADER
 ====================================================== */
 
 .sp-section-header{
-  margin-bottom:0.06rem;
+  margin-bottom:0.12rem;
 }
 
 .sp-section-title{
-  font-size:1.02rem;
-  font-weight:820;
-  letter-spacing:-0.013em;
+  font-size:1.01rem;
+  font-weight:780;
+  letter-spacing:-0.012em;
   color:var(--text);
 }
 
 .sp-section-subtitle{
-  margin-top:0.08rem;
+  margin-top:0.10rem;
   font-size:0.90rem;
-  line-height:1.42;
+  line-height:1.44;
   color:var(--muted);
 }
 
@@ -241,19 +245,18 @@ SURFACE
 ====================================================== */
 
 .sp-surface{
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #ffffff 100%);
+  background:linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #ffffff 100%);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
-  padding:14px 16px;
-  box-shadow:var(--shadow-soft);
+  padding:15px 17px;
+  box-shadow:var(--shadow-xs);
   transition:var(--transition);
   overflow:visible;
 }
 
 .sp-surface:hover{
   border-color:var(--border-strong);
-  box-shadow:var(--shadow-md);
+  box-shadow:var(--shadow-sm);
 }
 
 .sp-surface-no-pad{
@@ -310,17 +313,16 @@ SIDEBAR
 ====================================================== */
 
 section[data-testid="stSidebar"]{
-  background:
-    linear-gradient(180deg, #f3f7f5 0%, #eef4f1 100%);
+  background:linear-gradient(180deg, #f3f7f5 0%, #eef4f1 100%);
   border-right:1px solid #dbe5e1;
 }
 
 section[data-testid="stSidebar"] .block-container{
-  padding:0.82rem !important;
+  padding:0.92rem !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.20rem !important;
+  margin-bottom:0.24rem !important;
 }
 
 
@@ -346,7 +348,7 @@ label[data-baseweb="radio"]{
   border:1px solid rgba(15,23,42,0.08);
   background:rgba(255,255,255,0.92);
   font-size:0.93rem;
-  transition:var(--transition);
+  transition:background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
   box-shadow:0 1px 2px rgba(15,23,42,0.02);
 }
 
@@ -355,7 +357,7 @@ div[role="radiogroup"]
 label[data-baseweb="radio"]:hover{
   background:#ffffff;
   border-color:rgba(15,23,42,0.14);
-  transform:translateX(1px);
+  box-shadow:0 2px 6px rgba(15,23,42,0.04);
 }
 
 section[data-testid="stSidebar"]
@@ -366,7 +368,7 @@ label[data-baseweb="radio"][aria-checked="true"]{
   border-top-color:rgba(53,94,87,0.10);
   border-right-color:rgba(53,94,87,0.10);
   border-bottom-color:rgba(53,94,87,0.10);
-  font-weight:780;
+  font-weight:760;
 }
 
 
@@ -376,13 +378,13 @@ BUTTONS
 
 .stButton > button{
   border-radius:12px;
-  padding:0.58rem 0.98rem;
+  padding:0.60rem 1rem;
   min-height:42px;
-  font-weight:680;
+  font-weight:670;
   border:1px solid rgba(15,23,42,0.10);
   background:#ffffff;
   color:var(--text);
-  transition:var(--transition);
+  transition:background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
   box-shadow:none;
 }
 
@@ -402,7 +404,7 @@ BUTTONS
   background:linear-gradient(180deg, var(--primary) 0%, #2f544d 100%) !important;
   border:1px solid var(--primary) !important;
   color:#ffffff !important;
-  box-shadow:0 8px 18px rgba(53,94,87,0.18) !important;
+  box-shadow:0 8px 18px rgba(53,94,87,0.16) !important;
 }
 
 .stButton > button[kind="primary"]:hover,
@@ -423,7 +425,7 @@ div[data-baseweb="select"] > div{
   border-color:rgba(15,23,42,0.10) !important;
   background:#ffffff !important;
   min-height:42px;
-  transition:var(--transition) !important;
+  transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease !important;
 }
 
 div[data-baseweb="input"] > div:hover,
@@ -490,6 +492,7 @@ details{
   border-radius:14px;
   border:1px solid var(--border);
   background:#ffffff;
+  box-shadow:var(--shadow-xs);
 }
 
 summary{
@@ -502,14 +505,13 @@ CARD KPI
 ====================================================== */
 
 .sp-card{
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
+  background:linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
-  padding:14px 16px;
+  padding:15px 16px;
   box-shadow:var(--shadow-soft);
   transition:var(--transition);
-  min-height:112px;
+  min-height:116px;
   position:relative;
   overflow:hidden;
 }
@@ -533,7 +535,7 @@ CARD KPI
 
 .sp-card-title{
   font-size:0.77rem;
-  color:rgba(15,23,42,0.58);
+  color:rgba(15,23,42,0.64);
   margin-bottom:7px;
   font-weight:780;
   text-transform:uppercase;
@@ -542,14 +544,14 @@ CARD KPI
 
 .sp-card-value{
   font-size:1.46rem;
-  font-weight:860;
+  font-weight:840;
   color:var(--text);
   line-height:1.06;
 }
 
 .sp-card-value.emph{
-  font-size:1.76rem;
-  font-weight:900;
+  font-size:1.72rem;
+  font-weight:880;
 }
 
 .sp-card-sub{
@@ -596,7 +598,7 @@ EMPTY STATE
 
 .sp-empty-state{
   text-align:center;
-  padding:30px 20px;
+  padding:32px 20px;
 }
 
 .sp-empty-state-icon{
@@ -607,7 +609,7 @@ EMPTY STATE
 
 .sp-empty-state-title{
   font-size:1rem;
-  font-weight:820;
+  font-weight:800;
   color:var(--text);
 }
 
@@ -629,13 +631,13 @@ APP ERROR
   border-left:5px solid var(--danger);
   border-radius:16px;
   padding:14px 16px;
-  margin-bottom:0.35rem;
+  margin-bottom:0.40rem;
 }
 
 .sp-app-error-title{
   color:#991b1b;
   font-size:0.98rem;
-  font-weight:830;
+  font-weight:820;
 }
 
 .sp-app-error-subtitle{
@@ -653,7 +655,7 @@ DIVIDER
 .sp-divider{
   border:0;
   border-top:1px solid #e5e7eb;
-  margin:0.50rem 0;
+  margin:0.70rem 0;
 }
 
 
@@ -701,12 +703,12 @@ MOBILE
 @media (max-width:768px){
 
   .block-container{
-    padding:0.86rem !important;
+    padding:0.92rem !important;
     max-width:100% !important;
   }
 
   .sp-page-title{
-    font-size:1.44rem;
+    font-size:1.42rem;
   }
 
   .sp-page-subtitle{
@@ -723,7 +725,7 @@ MOBILE
   }
 
   .sp-card-value.emph{
-    font-size:1.36rem;
+    font-size:1.34rem;
   }
 
   .sp-surface{

@@ -21,7 +21,7 @@ __all__ = [
 # Constantes
 # ==========================================================
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v7"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v8"
 
 
 # ==========================================================
@@ -30,35 +30,57 @@ _PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v7"
 
 
 def _render_html(content: str) -> None:
-    """Renderiza HTML controlado pela aplicação."""
     st.markdown(content, unsafe_allow_html=True)
 
 
 def _escape(text: str | None, *, quote: bool = False) -> str:
-    """Escapa texto para uso seguro em HTML."""
     return html.escape(text or "", quote=quote)
 
 
 def _safe_key(text: str) -> str:
-    """Gera uma key estável para widgets."""
     normalized = (text or "").strip().lower()
     normalized = re.sub(r"\s+", "_", normalized)
     normalized = re.sub(r"[^a-z0-9_]+", "", normalized)
     return normalized or "key"
 
 
+def _normalize_actions_align(value: str | None) -> str:
+    align = (value or "right").strip().lower()
+    return align if align in {"left", "right"} else "right"
+
+
+def _normalize_action_type(value: str | None) -> str:
+    kind = (value or "primary").strip().lower()
+    return kind if kind in {"primary", "secondary"} else "primary"
+
+
+def _action_key(action: "HeaderAction", *, base_key: str) -> str:
+    return action.key or f"{base_key}_{_safe_key(action.label)}"
+
+
 def _normalize_actions(
     *,
     title: str,
-    actions: list[HeaderAction] | None,
+    actions: list["HeaderAction"] | None,
     right_button_label: str | None,
     right_button_key: str | None,
     right_button_help: str | None,
     right_button_on_click: Callable[[], None] | None,
 ) -> list["HeaderAction"]:
-    """Normaliza ações do header mantendo compatibilidade com botão único."""
     if actions:
-        return list(actions)
+        return [
+            HeaderAction(
+                label=action.label,
+                key=action.key,
+                help=action.help,
+                type=_normalize_action_type(action.type),
+                use_container_width=action.use_container_width,
+                disabled=action.disabled,
+                on_click=action.on_click,
+            )
+            for action in actions
+            if (action.label or "").strip()
+        ]
 
     if right_button_label:
         base_key = f"ph_{_safe_key(title)}"
@@ -75,19 +97,7 @@ def _normalize_actions(
     return []
 
 
-def _normalize_actions_align(value: str | None) -> str:
-    """Normaliza alinhamento das ações."""
-    align = (value or "right").strip().lower()
-    return align if align in {"left", "right"} else "right"
-
-
-def _action_key(action: "HeaderAction", *, base_key: str) -> str:
-    """Resolve key estável para um botão de ação."""
-    return action.key or f"{base_key}_{_safe_key(action.label)}"
-
-
 def _mobile_action(action: "HeaderAction") -> "HeaderAction":
-    """Garante comportamento full width no mobile."""
     return HeaderAction(
         label=action.label,
         key=action.key,
@@ -100,7 +110,7 @@ def _mobile_action(action: "HeaderAction") -> "HeaderAction":
 
 
 # ==========================================================
-# Models
+# Model
 # ==========================================================
 
 
@@ -116,12 +126,11 @@ class HeaderAction:
 
 
 # ==========================================================
-# CSS local do header
+# CSS local
 # ==========================================================
 
 
 def _inject_page_header_css() -> None:
-    """Injeta CSS local do page header uma única vez por sessão."""
     if st.session_state.get(_PAGE_HEADER_CSS_KEY, False):
         return
 
@@ -134,29 +143,28 @@ def _inject_page_header_css() -> None:
             width:100%;
         }
 
-        .sp-page-header{
-            padding:0.02rem 0 0.02rem 0;
+        .sp-page-header-local{
+            width:100%;
         }
 
-        .sp-page-header-title{
-            display:block;
-            width:100%;
+        .sp-page-header-title-block{
             min-width:0;
+            width:100%;
         }
 
         .sp-page-header-title-text{
             color:var(--text);
-            letter-spacing:-0.025em;
+            letter-spacing:-0.028em;
             margin:0;
             display:block;
+            min-width:0;
         }
 
-        .sp-page-header-subtitle{
-            margin-top:0.20rem;
-            font-size:0.94rem;
-            line-height:1.45;
+        .sp-page-header-subtitle-text{
+            margin-top:0.24rem;
             color:var(--muted);
-            max-width:76ch;
+            line-height:1.48;
+            max-width:78ch;
         }
 
         .sp-page-header-actions{
@@ -173,14 +181,13 @@ def _inject_page_header_css() -> None:
 
         .sp-page-header-actions [data-testid="stButton"] > button{
             width:100%;
-            height:42px !important;
             min-height:42px !important;
-            max-height:42px !important;
+            height:42px !important;
+            border-radius:12px !important;
             padding:0 14px !important;
             display:flex !important;
             align-items:center !important;
             justify-content:center !important;
-            border-radius:12px;
             white-space:nowrap !important;
             overflow:hidden !important;
             text-overflow:ellipsis !important;
@@ -191,7 +198,6 @@ def _inject_page_header_css() -> None:
             align-items:center !important;
             justify-content:center !important;
             width:100%;
-            line-height:1 !important;
         }
 
         .sp-page-header-actions [data-testid="stButton"] > button div[data-testid="stMarkdownContainer"] p{
@@ -199,7 +205,7 @@ def _inject_page_header_css() -> None:
             white-space:nowrap !important;
             overflow:hidden !important;
             text-overflow:ellipsis !important;
-            line-height:1 !important;
+            line-height:1.1 !important;
         }
 
         .sp-page-header-actions-stack > div{
@@ -219,20 +225,14 @@ def _inject_page_header_css() -> None:
         }
 
         @media (max-width:768px){
-            .sp-page-header{
-                padding:0.02rem 0 0.02rem 0;
-            }
-
-            .sp-page-header-subtitle{
+            .sp-page-header-subtitle-text{
                 font-size:0.92rem;
-                margin-top:0.22rem;
                 max-width:100%;
             }
 
             .sp-page-header-actions [data-testid="stButton"] > button{
-                height:44px !important;
                 min-height:44px !important;
-                max-height:44px !important;
+                height:44px !important;
             }
         }
         </style>
@@ -251,24 +251,23 @@ def _render_title_block(
     *,
     compact: bool = False,
 ) -> None:
-    """Renderiza bloco de título e subtítulo."""
     title_html = _escape(title)
     subtitle_html = _escape(subtitle) if subtitle else ""
 
     if compact:
-        title_size = "1.05rem"
-        title_weight = "800"
-        title_line_height = "1.16"
+        title_size = "1.06rem"
+        title_weight = "780"
+        title_line_height = "1.18"
         subtitle_size = "0.88rem"
     else:
-        title_size = "1.72rem"
-        title_weight = "860"
-        title_line_height = "1.05"
-        subtitle_size = "0.94rem"
+        title_size = "1.68rem"
+        title_weight = "820"
+        title_line_height = "1.06"
+        subtitle_size = "0.95rem"
 
     subtitle_block = (
         f"""
-        <div class="sp-page-header-subtitle" style="font-size:{subtitle_size};">
+        <div class="sp-page-header-subtitle-text" style="font-size:{subtitle_size};">
             {subtitle_html}
         </div>
         """
@@ -278,25 +277,24 @@ def _render_title_block(
 
     _render_html(
         f"""
-        <div class="sp-page-header-title">
-          <div
-            class="sp-page-header-title-text"
-            style="
-              font-size:{title_size};
-              font-weight:{title_weight};
-              line-height:{title_line_height};
-            "
-          >
-            {title_html}
-          </div>
-          {subtitle_block}
+        <div class="sp-page-header-title-block">
+            <div
+                class="sp-page-header-title-text"
+                style="
+                    font-size:{title_size};
+                    font-weight:{title_weight};
+                    line-height:{title_line_height};
+                "
+            >
+                {title_html}
+            </div>
+            {subtitle_block}
         </div>
         """
     )
 
 
 def _render_single_action(action: HeaderAction, *, key: str) -> bool:
-    """Renderiza um botão de ação individual."""
     return st.button(
         action.label,
         key=key,
@@ -309,7 +307,6 @@ def _render_single_action(action: HeaderAction, *, key: str) -> bool:
 
 
 def _render_actions_mobile(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
-    """Renderiza ações empilhadas no mobile."""
     clicked = False
 
     spacer(0.20)
@@ -326,7 +323,6 @@ def _render_actions_mobile(actions: Sequence[HeaderAction], *, base_key: str) ->
 
 
 def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
-    """Renderiza ações em linha no desktop com overflow em expander."""
     clicked = False
     action_list = list(actions)
 
@@ -338,9 +334,8 @@ def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -
         cols = st.columns(len(inline_actions), gap="small")
         for col, action in zip(cols, inline_actions):
             with col:
-                if _render_single_action(
-                    action, key=_action_key(action, base_key=base_key)
-                ):
+                resolved_key = _action_key(action, base_key=base_key)
+                if _render_single_action(action, key=resolved_key):
                     clicked = True
 
     if extra_actions:
@@ -358,7 +353,6 @@ def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -
 
 
 def _render_actions(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
-    """Renderiza bloco de ações conforme contexto responsivo."""
     if not actions:
         return False
 
@@ -390,15 +384,15 @@ def page_header(
     actions_align: str = "right",
     actions_width_ratio: tuple[float, float] = (4.8, 2.2),
     top_spacing_rem: float = 0.04,
-    bottom_spacing_rem: float = 0.16,
+    bottom_spacing_rem: float = 0.18,
 ) -> bool:
     """
-    Renderiza header padrão de página.
+    Renderiza o header padrão de página.
     Retorna True se algum botão foi clicado.
     """
     _inject_page_header_css()
 
-    if not title:
+    if not (title or "").strip():
         return False
 
     base_key = f"ph_{_safe_key(title)}"
@@ -412,13 +406,13 @@ def page_header(
     )
     align = _normalize_actions_align(actions_align)
 
-    if top_spacing_rem:
+    if top_spacing_rem > 0:
         spacer(top_spacing_rem)
 
     clicked = False
 
     _render_html('<div class="sp-page-header-wrap">')
-    _render_html('<div class="sp-page-header">')
+    _render_html('<div class="sp-page-header-local">')
     try:
         if is_mobile():
             _render_title_block(title, subtitle, compact=compact)
@@ -450,10 +444,10 @@ def page_header(
         _render_html("</div>")
 
     if divider:
-        spacer(0.14)
+        spacer(0.16)
         st.divider()
 
-    if bottom_spacing_rem:
+    if bottom_spacing_rem > 0:
         spacer(bottom_spacing_rem)
 
     return clicked
@@ -465,17 +459,16 @@ def page_header(
 
 
 def surface_start(class_name: str | None = None, style: str | None = None) -> None:
-    """Abre manualmente uma surface HTML."""
-    classes = "sp-surface"
-    if class_name and class_name.strip():
-        classes = f"{classes} {class_name.strip()}"
+    classes = ["sp-surface"]
 
-    class_attr = _escape(classes, quote=True)
+    if class_name and class_name.strip():
+        classes.append(class_name.strip())
+
+    class_attr = _escape(" ".join(classes), quote=True)
     style_attr = f' style="{_escape(style, quote=True)}"' if style else ""
 
     _render_html(f'<div class="{class_attr}"{style_attr}>')
 
 
 def surface_end() -> None:
-    """Fecha manualmente uma surface HTML."""
     _render_html("</div>")
