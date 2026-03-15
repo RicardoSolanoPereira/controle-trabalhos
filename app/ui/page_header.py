@@ -16,12 +16,11 @@ __all__ = [
     "surface_end",
 ]
 
-
 # ==========================================================
 # Constantes
 # ==========================================================
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v9"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v10"
 _MAX_INLINE_ACTIONS = 3
 
 
@@ -66,11 +65,13 @@ def _normalize_actions(
     if actions:
         normalized: list[HeaderAction] = []
         for action in actions:
-            if not (action.label or "").strip():
+            label = (action.label or "").strip()
+            if not label:
                 continue
+
             normalized.append(
                 HeaderAction(
-                    label=action.label.strip(),
+                    label=label,
                     key=action.key,
                     help=action.help,
                     type=_normalize_action_type(action.type),
@@ -81,7 +82,7 @@ def _normalize_actions(
             )
         return normalized
 
-    if right_button_label:
+    if right_button_label and right_button_label.strip():
         base_key = f"ph_{_safe_key(title)}"
         return [
             HeaderAction(
@@ -155,16 +156,16 @@ def _inject_page_header_css() -> None:
 
         .sp-page-header-title-text{
             color:var(--text);
-            letter-spacing:-0.028em;
+            letter-spacing:-0.03em;
             margin:0;
             display:block;
             min-width:0;
         }
 
         .sp-page-header-subtitle-text{
-            margin-top:0.28rem;
+            margin-top:0.34rem;
             color:var(--muted);
-            line-height:1.48;
+            line-height:1.55;
             max-width:78ch;
         }
 
@@ -192,8 +193,16 @@ def _inject_page_header_css() -> None:
             text-overflow:ellipsis !important;
         }
 
+        .sp-page-header-actions-inline{
+            width:100%;
+        }
+
+        .sp-page-header-actions-inline > div{
+            align-items:center;
+        }
+
         .sp-page-header-actions-stack > div{
-            margin-bottom:0.34rem;
+            margin-bottom:0.42rem;
         }
 
         .sp-page-header-actions-stack > div:last-child{
@@ -201,16 +210,21 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-more-actions{
-            margin-top:0.35rem;
+            margin-top:0.45rem;
         }
 
         .sp-page-header-more-actions summary{
-            font-weight:640;
+            font-weight:650;
+        }
+
+        .sp-page-header-more-actions details{
+            background:transparent;
+            box-shadow:none;
         }
 
         @media (max-width:768px){
             .sp-page-header-subtitle-text{
-                font-size:0.92rem;
+                font-size:0.91rem;
                 max-width:100%;
             }
 
@@ -238,14 +252,14 @@ def _render_title_block(
     subtitle_html = _escape(subtitle) if subtitle else ""
 
     if compact:
-        title_size = "1.04rem"
+        title_size = "1.06rem"
         title_weight = "760"
-        title_line_height = "1.20"
+        title_line_height = "1.18"
         subtitle_size = "0.88rem"
     else:
-        title_size = "1.62rem"
+        title_size = "1.68rem"
         title_weight = "820"
-        title_line_height = "1.08"
+        title_line_height = "1.04"
         subtitle_size = "0.95rem"
 
     subtitle_block = (
@@ -292,7 +306,7 @@ def _render_single_action(action: HeaderAction, *, key: str) -> bool:
 def _render_actions_mobile(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
     clicked = False
 
-    spacer(0.20)
+    spacer(0.22)
     _render_html('<div class="sp-page-header-actions-stack">')
     try:
         for action in actions:
@@ -313,12 +327,16 @@ def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -
     extra_actions = action_list[_MAX_INLINE_ACTIONS:]
 
     if inline_actions:
-        cols = st.columns(len(inline_actions), gap="small")
-        for col, action in zip(cols, inline_actions):
-            with col:
-                resolved_key = _action_key(action, base_key=base_key)
-                if _render_single_action(action, key=resolved_key):
-                    clicked = True
+        _render_html('<div class="sp-page-header-actions-inline">')
+        try:
+            cols = st.columns(len(inline_actions), gap="small")
+            for col, action in zip(cols, inline_actions):
+                with col:
+                    resolved_key = _action_key(action, base_key=base_key)
+                    if _render_single_action(action, key=resolved_key):
+                        clicked = True
+        finally:
+            _render_html("</div>")
 
     if extra_actions:
         _render_html('<div class="sp-page-header-more-actions">')
@@ -363,9 +381,9 @@ def page_header(
     actions: list[HeaderAction] | None = None,
     divider: bool = False,
     compact: bool = False,
-    actions_width_ratio: tuple[float, float] = (4.2, 2.0),
-    top_spacing_rem: float = 0.08,
-    bottom_spacing_rem: float = 0.32,
+    actions_width_ratio: tuple[float, float] = (4.3, 1.9),
+    top_spacing_rem: float = 0.10,
+    bottom_spacing_rem: float = 0.40,
 ) -> bool:
     """
     Renderiza o header padrão de página.
@@ -419,7 +437,7 @@ def page_header(
         _render_html("</div>")
 
     if divider:
-        spacer(0.20)
+        spacer(0.22)
         st.divider()
 
     if bottom_spacing_rem > 0:

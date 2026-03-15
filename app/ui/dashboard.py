@@ -44,7 +44,7 @@ def _inject_dashboard_css() -> None:
     _render_html(
         """
         <style>
-        .sp-dashboard-top-note{
+        .sp-dashboard-filter-note{
             display:flex;
             align-items:center;
             justify-content:space-between;
@@ -53,36 +53,36 @@ def _inject_dashboard_css() -> None:
             padding:12px 14px;
             border:1px solid rgba(15,23,42,.08);
             border-radius:16px;
-            background:rgba(255,255,255,.96);
+            background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.88) 100%);
         }
 
-        .sp-dashboard-top-note-copy{
+        .sp-dashboard-filter-note-copy{
             color:rgba(15,23,42,.72);
             font-size:.92rem;
             line-height:1.45;
         }
 
-        .sp-banner-row{
+        .sp-alert-row{
             display:grid;
             grid-template-columns:repeat(3, minmax(0, 1fr));
             gap:10px;
-            margin:.15rem 0 .70rem 0;
+            margin:.10rem 0 .75rem 0;
         }
 
-        .sp-banner{
+        .sp-alert-banner{
             border-radius:16px;
-            padding:12px 13px;
+            padding:13px 14px;
             border:1px solid rgba(15,23,42,.08);
             background:#fff;
             box-shadow:0 4px 14px rgba(15,23,42,.04);
         }
 
-        .sp-banner-danger{ border-left:4px solid #dc2626; }
-        .sp-banner-warning{ border-left:4px solid #f59e0b; }
-        .sp-banner-info{ border-left:4px solid #2563eb; }
-        .sp-banner-success{ border-left:4px solid #16a34a; }
+        .sp-alert-danger{ border-left:4px solid #dc2626; }
+        .sp-alert-warning{ border-left:4px solid #f59e0b; }
+        .sp-alert-info{ border-left:4px solid #2563eb; }
+        .sp-alert-success{ border-left:4px solid #16a34a; }
 
-        .sp-banner-title{
+        .sp-alert-kicker{
             font-size:.72rem;
             font-weight:800;
             letter-spacing:.05em;
@@ -91,21 +91,21 @@ def _inject_dashboard_css() -> None:
             margin-bottom:4px;
         }
 
-        .sp-banner-text{
-            font-size:.90rem;
+        .sp-alert-copy{
+            font-size:.91rem;
             font-weight:760;
             color:#0f172a;
             line-height:1.38;
         }
 
-        .sp-quick-strip{
+        .sp-executive-strip{
             border:1px dashed rgba(15,23,42,.12);
-            background:rgba(248,250,252,.72);
+            background:rgba(248,250,252,.70);
             border-radius:16px;
             padding:10px 12px;
         }
 
-        .sp-quick-strip-title{
+        .sp-executive-strip-title{
             font-size:.73rem;
             font-weight:800;
             letter-spacing:.05em;
@@ -114,10 +114,10 @@ def _inject_dashboard_css() -> None:
             margin-bottom:4px;
         }
 
-        .sp-quick-strip-copy{
+        .sp-executive-strip-copy{
             color:rgba(15,23,42,.72);
-            font-size:.88rem;
-            line-height:1.42;
+            font-size:.89rem;
+            line-height:1.46;
         }
 
         .sp-list-card{
@@ -136,7 +136,7 @@ def _inject_dashboard_css() -> None:
 
         .sp-list-card-head{
             display:flex;
-            align-items:start;
+            align-items:flex-start;
             justify-content:space-between;
             gap:10px;
             margin-bottom:8px;
@@ -145,25 +145,26 @@ def _inject_dashboard_css() -> None:
         .sp-list-card-title{
             font-weight:800;
             color:#0f172a;
-            line-height:1.30;
+            line-height:1.32;
             font-size:.95rem;
         }
 
         .sp-list-card-sub{
             color:rgba(15,23,42,.64);
             font-size:.86rem;
-            line-height:1.40;
+            line-height:1.42;
             margin-top:4px;
         }
 
-        .sp-focus-panel{
-            padding:14px;
+        .sp-priority-panel{
+            padding:15px;
             border:1px solid rgba(15,23,42,.08);
             border-radius:16px;
             background:#fff;
+            box-shadow:0 4px 12px rgba(15,23,42,.03);
         }
 
-        .sp-focus-kicker{
+        .sp-priority-kicker{
             margin-bottom:6px;
             font-size:.74rem;
             font-weight:800;
@@ -172,14 +173,14 @@ def _inject_dashboard_css() -> None:
             color:rgba(15,23,42,.42);
         }
 
-        .sp-focus-title{
+        .sp-priority-title{
             font-size:1.04rem;
             font-weight:820;
             line-height:1.24;
             color:#0f172a;
         }
 
-        .sp-focus-copy{
+        .sp-priority-copy{
             margin-top:8px;
             color:rgba(15,23,42,.74);
             line-height:1.50;
@@ -194,7 +195,7 @@ def _inject_dashboard_css() -> None:
         }
 
         .sp-assistant-panel{
-            padding:14px;
+            padding:15px;
             border:1px solid rgba(15,23,42,.08);
             border-radius:16px;
             background:#fff;
@@ -213,7 +214,7 @@ def _inject_dashboard_css() -> None:
         .sp-assistant-title{
             font-size:1.04rem;
             font-weight:820;
-            line-height:1.24;
+            line-height:1.28;
             color:#0f172a;
         }
 
@@ -241,6 +242,37 @@ def _inject_dashboard_css() -> None:
             line-height:1.35;
         }
 
+        .sp-timeline-card{
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            padding:12px 13px;
+            background:#fff;
+            box-shadow:0 4px 12px rgba(15,23,42,.03);
+            margin-bottom:10px;
+        }
+
+        .sp-timeline-card-head{
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:10px;
+            margin-bottom:8px;
+        }
+
+        .sp-timeline-card-title{
+            font-weight:800;
+            color:#0f172a;
+            line-height:1.32;
+            font-size:.95rem;
+        }
+
+        .sp-timeline-card-sub{
+            color:rgba(15,23,42,.64);
+            font-size:.86rem;
+            line-height:1.42;
+            margin-top:4px;
+        }
+
         div[data-baseweb="tab-list"]{
             gap:.35rem;
         }
@@ -262,7 +294,7 @@ def _inject_dashboard_css() -> None:
         }
 
         @media (max-width:980px){
-            .sp-banner-row{
+            .sp-alert-row{
                 grid-template-columns:1fr;
             }
         }
@@ -606,7 +638,7 @@ def _build_assistant_state(kpis: dict[str, Any]) -> dict[str, Any]:
     score += prazos_atrasados * 5
     score += ag_24h * 4
     score += prazos_7dias * 2
-    score += ag_7d * 1
+    score += ag_7d
     score += 2 if saldo < 0 else 0
     score += 1 if ativos >= 15 else 0
 
@@ -902,7 +934,7 @@ def _render_priority_banners(
         )
         text = f"{kpis['prazos_atrasados']} prazo(s) atrasado(s). Priorize {ref}."
         banners.append(
-            f"<div class='sp-banner sp-banner-danger'><div class='sp-banner-title'>Urgência crítica</div><div class='sp-banner-text'>{escape(text)}</div></div>"
+            f"<div class='sp-alert-banner sp-alert-danger'><div class='sp-alert-kicker'>Urgência crítica</div><div class='sp-alert-copy'>{escape(text)}</div></div>"
         )
 
     if kpis["ag_24h"] > 0:
@@ -917,7 +949,7 @@ def _render_priority_banners(
         )
         text = f"{kpis['ag_24h']} compromisso(s) em 24h. Próximo: {ref} às {horario}."
         banners.append(
-            f"<div class='sp-banner sp-banner-warning'><div class='sp-banner-title'>Agenda imediata</div><div class='sp-banner-text'>{escape(text)}</div></div>"
+            f"<div class='sp-alert-banner sp-alert-warning'><div class='sp-alert-kicker'>Agenda imediata</div><div class='sp-alert-copy'>{escape(text)}</div></div>"
         )
 
     if kpis["prazos_7dias"] > 0 and kpis["prazos_atrasados"] == 0:
@@ -928,15 +960,15 @@ def _render_priority_banners(
         )
         text = f"{kpis['prazos_7dias']} prazo(s) na semana. Próximo: {ref} em {venc}."
         banners.append(
-            f"<div class='sp-banner sp-banner-info'><div class='sp-banner-title'>Planejamento da semana</div><div class='sp-banner-text'>{escape(text)}</div></div>"
+            f"<div class='sp-alert-banner sp-alert-info'><div class='sp-alert-kicker'>Planejamento da semana</div><div class='sp-alert-copy'>{escape(text)}</div></div>"
         )
 
     if not banners:
         banners.append(
-            "<div class='sp-banner sp-banner-success'><div class='sp-banner-title'>Situação estável</div><div class='sp-banner-text'>Sem pendências críticas no momento. Bom momento para atualizar processos, organizar documentos e registrar novos itens.</div></div>"
+            "<div class='sp-alert-banner sp-alert-success'><div class='sp-alert-kicker'>Situação estável</div><div class='sp-alert-copy'>Sem pendências críticas no momento. Bom momento para atualizar processos, organizar documentos e registrar novos itens.</div></div>"
         )
 
-    _render_html(f"<div class='sp-banner-row'>{''.join(banners)}</div>")
+    _render_html(f"<div class='sp-alert-row'>{''.join(banners)}</div>")
 
 
 def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
@@ -961,13 +993,14 @@ def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
                 "info": "sp-chip-info",
                 "success": "sp-chip-success",
             }.get(tone, "")
+
             _render_html(
                 f"""
-                <div class="sp-list-card">
-                    <div class="sp-list-card-head">
+                <div class="sp-timeline-card">
+                    <div class="sp-timeline-card-head">
                         <div>
-                            <div class="sp-list-card-title">{_esc(item['headline'])}</div>
-                            <div class="sp-list-card-sub">{_esc(item['detail'])}</div>
+                            <div class="sp-timeline-card-title">{_esc(item['headline'])}</div>
+                            <div class="sp-timeline-card-sub">{_esc(item['detail'])}</div>
                         </div>
                         <span class="sp-chip {pill_class}">{_esc(item['kind'])}</span>
                     </div>
@@ -1046,10 +1079,10 @@ def _render_radar_panel(
 
         _render_html(
             f"""
-            <div class="sp-focus-panel">
-              <div class="sp-focus-kicker">foco do momento</div>
-              <div class="sp-focus-title">{title}</div>
-              <div class="sp-focus-copy">
+            <div class="sp-priority-panel">
+              <div class="sp-priority-kicker">foco do momento</div>
+              <div class="sp-priority-title">{title}</div>
+              <div class="sp-priority-copy">
                 {'<br>'.join(lines)}
               </div>
               <div class="sp-chip-row" style="margin-top:12px;">
@@ -1132,15 +1165,15 @@ def _render_assistant_panel(kpis: dict[str, Any]) -> None:
             )
 
 
-def _render_quick_context_strip(kpis: dict[str, Any], atuacao_label: str) -> None:
+def _render_executive_strip(kpis: dict[str, Any], atuacao_label: str) -> None:
     saldo_txt = f"R$ {_fmt_money_br(kpis['saldo'])}"
     tone_cls = "sp-chip-success" if kpis["saldo"] >= 0 else "sp-chip-danger"
 
     _render_html(
         f"""
-        <div class="sp-quick-strip">
-            <div class="sp-quick-strip-title">leitura executiva</div>
-            <div class="sp-quick-strip-copy">
+        <div class="sp-executive-strip">
+            <div class="sp-executive-strip-title">leitura executiva</div>
+            <div class="sp-executive-strip-copy">
                 Atuação atual: <b>{escape(atuacao_label)}</b> •
                 {kpis['ativos']} processo(s) ativo(s) •
                 {kpis['prazos_abertos']} prazo(s) em aberto •
@@ -1481,7 +1514,7 @@ def _render_top_bar() -> str | None:
         divider=False,
         compact=True,
     ):
-        left, right = grid_weights((1.1, 0.9), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.08, 0.92), weights_mobile=(1, 1), gap="medium")
 
         with left:
             atuacao_label = st.selectbox(
@@ -1494,8 +1527,8 @@ def _render_top_bar() -> str | None:
         with right:
             _render_html(
                 """
-                <div class="sp-dashboard-top-note">
-                  <div class="sp-dashboard-top-note-copy">
+                <div class="sp-dashboard-filter-note">
+                  <div class="sp-dashboard-filter-note-copy">
                     O painel reflete somente a atuação selecionada e atualiza automaticamente conforme o uso.
                   </div>
                   <span class="sp-chip">Atualizado em tempo real</span>
@@ -1569,7 +1602,9 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
 
 def _render_quick_actions() -> None:
     with section(
-        "Ações rápidas", subtitle="Atalhos operacionais do dia", divider=False
+        "Ações rápidas",
+        subtitle="Atalhos operacionais do dia",
+        divider=False,
     ):
         c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
@@ -1667,7 +1702,9 @@ def _render_tab_prazos(
     )
 
     with section(
-        "Prazos atrasados", subtitle="Top 10 com maior urgência", divider=False
+        "Prazos atrasados",
+        subtitle="Top 10 com maior urgência",
+        divider=False,
     ):
         _render_prazo_cards(
             rows_atrasados,
@@ -1751,7 +1788,11 @@ def _render_tab_agenda(
 
     spacer(0.18)
 
-    with section("Próximos 7 dias", subtitle="Planejamento da semana", divider=False):
+    with section(
+        "Próximos 7 dias",
+        subtitle="Planejamento da semana",
+        divider=False,
+    ):
         _render_agenda_cards(
             rows_7d,
             "Nenhum agendamento nos próximos 7 dias",
@@ -1866,7 +1907,7 @@ def render(owner_user_id: int) -> None:
             rows_prazos_7d,
         )
 
-        _render_quick_context_strip(kpis, atuacao_label)
+        _render_executive_strip(kpis, atuacao_label)
 
         spacer(0.14)
         _render_dashboard_summary(kpis, atuacao_label)
@@ -1875,12 +1916,12 @@ def render(owner_user_id: int) -> None:
         _render_quick_actions()
 
         spacer(0.18)
-        left, right = grid_weights((1.05, 0.95), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.02, 0.98), weights_mobile=(1, 1), gap="medium")
 
         with left:
-            _render_assistant_panel(kpis)
-            spacer(0.16)
             _render_radar_panel(kpis=kpis)
+            spacer(0.16)
+            _render_assistant_panel(kpis)
 
         with right:
             timeline_items = _build_timeline_items(

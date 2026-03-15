@@ -36,21 +36,22 @@ __all__ = [
 
 MOBILE_FLAG_KEY = "force_mobile"
 
-
 # ==========================================================
 # Tokens de espaçamento e largura
 # ==========================================================
 
-SPACE_XS = 0.16
-SPACE_SM = 0.24
-SPACE_MD = 0.40
-SPACE_LG = 0.56
-SPACE_XL = 0.80
+SPACE_2XS = 0.10
+SPACE_XS = 0.20
+SPACE_SM = 0.40
+SPACE_MD = 0.72
+SPACE_LG = 1.04
+SPACE_XL = 1.44
 
 PAGE_MAX_WIDTH = "1280px"
-PAGE_PADDING_DESKTOP = "0px"
-PAGE_PADDING_MOBILE = "0px"
+PAGE_PADDING_DESKTOP = "20px"
+PAGE_PADDING_MOBILE = "14px"
 
+DEFAULT_GRID_GAP = "medium"
 
 # ==========================================================
 # Helpers privados
@@ -93,8 +94,7 @@ def _optional_class_attr(class_name: str | None) -> str:
 
 
 def _stack_slots(count: int) -> list:
-    total = max(1, int(count))
-    return [st.container() for _ in range(total)]
+    return [st.container() for _ in range(max(1, int(count)))]
 
 
 def _wrap_columns(count: int, *, per_row: int, gap: str) -> list:
@@ -126,8 +126,10 @@ def _section_header(title: str, subtitle: str | None = None) -> None:
     _render_html(
         f"""
         <div class="sp-section-header">
-          <div class="sp-section-title">{title_html}</div>
-          {subtitle_block}
+            <div class="sp-section-title-row">
+                <div class="sp-section-title">{title_html}</div>
+            </div>
+            {subtitle_block}
         </div>
         """
     )
@@ -144,8 +146,10 @@ def _page_title_block(meta: "PageMeta") -> None:
     _render_html(
         f"""
         <div class="sp-page-header">
-          <div class="sp-page-title">{title_html}</div>
-          {subtitle_block}
+            <div class="sp-page-title-wrap">
+                <div class="sp-page-title">{title_html}</div>
+                {subtitle_block}
+            </div>
         </div>
         """
     )
@@ -231,6 +235,7 @@ def content_shell(
     class_name: str | None = None,
 ) -> Iterator[None]:
     extra_class = _clean_class_name(class_name)
+
     shell_class = "sp-content-shell"
     if extra_class:
         shell_class = f"{shell_class} {extra_class}"
@@ -242,10 +247,11 @@ def content_shell(
     )
 
     style = (
-        f"max-width:{max_width}; "
-        f"margin:0 auto; "
-        f"width:100%; "
+        f"max-width:{max_width};"
+        f"margin:0 auto;"
+        f"width:100%;"
         f"padding-inline:{effective_padding};"
+        f"box-sizing:border-box;"
     )
 
     _render_html(
@@ -268,7 +274,7 @@ def grid(
     columns_desktop: int = 3,
     *,
     columns_mobile: int = 1,
-    gap: str = "medium",
+    gap: str = DEFAULT_GRID_GAP,
 ) -> list:
     total = max(1, int(columns_desktop))
 
@@ -287,7 +293,7 @@ def grid_weights(
     weights_desktop: Sequence[float],
     *,
     weights_mobile: Sequence[float] | None = None,
-    gap: str = "medium",
+    gap: str = DEFAULT_GRID_GAP,
 ) -> list:
     desktop_weights = tuple(
         w for w in (float(v) for v in weights_desktop) if w > 0
@@ -308,10 +314,10 @@ def grid_weights(
 
 
 def content_columns(
-    left: float = 1.6,
+    left: float = 1.55,
     right: float = 1.0,
     *,
-    gap: str = "medium",
+    gap: str = DEFAULT_GRID_GAP,
 ) -> tuple:
     if is_mobile():
         return st.container(), st.container()
@@ -322,9 +328,9 @@ def content_columns(
 
 def split_hero(
     *,
-    left_ratio: float = 1.4,
+    left_ratio: float = 1.35,
     right_ratio: float = 1.0,
-    gap: str = "medium",
+    gap: str = DEFAULT_GRID_GAP,
 ) -> tuple:
     if is_mobile():
         return st.container(), st.container()
@@ -415,19 +421,23 @@ def section(
         if header_actions and not is_mobile():
             left, right = _two_column_row(
                 left_ratio=4.0,
-                right_ratio=1.8,
-                gap="medium",
+                right_ratio=1.6,
+                gap=DEFAULT_GRID_GAP,
                 vertical_alignment="center",
             )
             with left:
                 _section_header(title, subtitle)
             with right:
-                header_actions()
+                with plain_block(class_name="sp-section-actions"):
+                    header_actions()
         else:
             _section_header(title, subtitle)
             if header_actions:
                 compact_gap()
-                header_actions()
+                with plain_block(
+                    class_name="sp-section-actions sp-section-actions-mobile"
+                ):
+                    header_actions()
 
     if divider:
         divider_space()
@@ -480,7 +490,7 @@ def section_surface(
 
 @contextmanager
 def toolbar(
-    gap: str = "medium",
+    gap: str = DEFAULT_GRID_GAP,
     *,
     left_ratio: float = 3.0,
     right_ratio: float = 2.0,
@@ -503,13 +513,14 @@ def toolbar(
 def toolbar_actions(
     actions: Callable[[], None],
     *,
-    gap: str = "medium",
+    gap: str = DEFAULT_GRID_GAP,
     left_ratio: float = 3.0,
     right_ratio: float = 2.0,
 ) -> None:
     if is_mobile():
         compact_gap()
-        actions()
+        with plain_block(class_name="sp-toolbar-actions-mobile"):
+            actions()
         return
 
     _, right = _two_column_row(
@@ -519,14 +530,15 @@ def toolbar_actions(
         vertical_alignment="center",
     )
     with right:
-        actions()
+        with plain_block(class_name="sp-toolbar-actions"):
+            actions()
 
 
 def toolbar_row(
     left_content: Callable[[], None] | None = None,
     right_actions: Callable[[], None] | None = None,
     *,
-    gap: str = "medium",
+    gap: str = DEFAULT_GRID_GAP,
     left_ratio: float = 3.0,
     right_ratio: float = 2.0,
     bottom_space: float = SPACE_SM,
@@ -536,7 +548,8 @@ def toolbar_row(
             left_content()
         if right_actions:
             compact_gap()
-            right_actions()
+            with plain_block(class_name="sp-toolbar-actions-mobile"):
+                right_actions()
         if bottom_space > 0:
             spacer(bottom_space)
         return
@@ -554,7 +567,8 @@ def toolbar_row(
 
     with right:
         if right_actions:
-            right_actions()
+            with plain_block(class_name="sp-toolbar-actions"):
+                right_actions()
 
     if bottom_space > 0:
         spacer(bottom_space)
@@ -566,7 +580,8 @@ def actions_row(
     bottom_space: float = SPACE_SM,
 ) -> None:
     with st.container():
-        render_actions()
+        with plain_block(class_name="sp-actions-row"):
+            render_actions()
 
     if bottom_space > 0:
         spacer(bottom_space)
@@ -628,8 +643,8 @@ def page_header(
     if right_actions and not is_mobile():
         left, right = _two_column_row(
             left_ratio=4.0,
-            right_ratio=1.8,
-            gap="medium",
+            right_ratio=1.6,
+            gap=DEFAULT_GRID_GAP,
             vertical_alignment="center",
         )
 
@@ -637,13 +652,17 @@ def page_header(
             _page_title_block(meta)
 
         with right:
-            right_actions()
+            with plain_block(class_name="sp-page-header-actions"):
+                right_actions()
     else:
         _page_title_block(meta)
 
         if right_actions:
             compact_gap()
-            right_actions()
+            with plain_block(
+                class_name="sp-page-header-actions sp-page-header-actions-mobile"
+            ):
+                right_actions()
 
     if bottom_space > 0:
         spacer(bottom_space)

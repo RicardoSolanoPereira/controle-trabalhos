@@ -24,6 +24,9 @@ STATE_DEFAULTS: dict[str, Any] = {
     "ui_debug": False,
 }
 
+_TRUE_VALUES = {"1", "true", "yes", "on", "sim"}
+_FALSE_VALUES = {"0", "false", "no", "off", "nao", "não"}
+
 
 # ==========================================================
 # Init
@@ -35,6 +38,45 @@ def init_state() -> None:
     for key, value in STATE_DEFAULTS.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+
+# ==========================================================
+# Helpers de sessão
+# ==========================================================
+
+
+def _get_state(key: str, default: Any = None) -> Any:
+    return st.session_state.get(key, default)
+
+
+def _set_state(key: str, value: Any) -> None:
+    st.session_state[key] = value
+
+
+def _as_clean_str(value: Any, default: str | None = None) -> str | None:
+    if value is None:
+        return default
+
+    text = str(value).strip()
+    return text if text else default
+
+
+def _as_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value is None:
+        return default
+
+    normalized = str(value).strip().lower()
+
+    if normalized in _TRUE_VALUES:
+        return True
+
+    if normalized in _FALSE_VALUES:
+        return False
+
+    return default
 
 
 # ==========================================================
@@ -115,12 +157,9 @@ def get_qp_str(key: str, default: str | None = None) -> str | None:
     value = qp[key]
 
     if isinstance(value, list):
-        return str(value[0]) if value else default
+        return _as_clean_str(value[0], default=default) if value else default
 
-    if value is None:
-        return default
-
-    return str(value)
+    return _as_clean_str(value, default=default)
 
 
 def get_qp_json(key: str, default: Any = None) -> Any:
@@ -139,11 +178,7 @@ def get_qp_json(key: str, default: Any = None) -> Any:
 def get_qp_bool(key: str, default: bool = False) -> bool:
     """Lê um query param booleano em formatos comuns."""
     value = get_qp_str(key)
-
-    if value is None:
-        return default
-
-    return str(value).strip().lower() in {"1", "true", "yes", "on", "sim"}
+    return _as_bool(value, default=default)
 
 
 # ==========================================================
@@ -156,24 +191,29 @@ def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> boo
     Valida se o menu é uma string não vazia e, se informado,
     pertence ao conjunto permitido.
     """
-    if not isinstance(menu, str) or not menu.strip():
+    menu_value = _as_clean_str(menu)
+    if not menu_value:
         return False
 
     if allowed is None:
         return True
 
-    allowed_set = {item for item in allowed if isinstance(item, str) and item.strip()}
-    return menu in allowed_set
+    allowed_set = {
+        item.strip() for item in allowed if isinstance(item, str) and item.strip()
+    }
+    return menu_value in allowed_set
 
 
 def get_current_menu(default: str = MENU_DEFAULT) -> str:
     """Retorna o menu atual persistido na sessão."""
-    value = st.session_state.get("_last_menu", default)
+    value = _as_clean_str(_get_state("_last_menu"), default=default)
+    return value or default
 
-    if not isinstance(value, str) or not value.strip():
-        return default
 
-    return value
+def _sync_menu_controls(menu: str) -> None:
+    _set_state("_last_menu", menu)
+    _set_state("sidebar_menu", menu)
+    _set_state("top_nav_menu", menu)
 
 
 def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
@@ -181,16 +221,15 @@ def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
     Define o menu atual e sincroniza os controles visuais de navegação.
     Esta é a fonte oficial de verdade do menu corrente.
     """
-    if not isinstance(menu, str) or not menu.strip():
+    menu_value = _as_clean_str(menu)
+    if not menu_value:
         return
 
-    st.session_state["_last_menu"] = menu
-    st.session_state["sidebar_menu"] = menu
-    st.session_state["top_nav_menu"] = menu
-    st.session_state["nav_target"] = None
+    _sync_menu_controls(menu_value)
+    _set_state("nav_target", None)
 
     if update_qp:
-        _set_qp(menu=menu)
+        _set_qp(menu=menu_value)
 
 
 def navigate(
@@ -208,9 +247,10 @@ def navigate(
     """
     payload: dict[str, Any] = {}
 
-    if menu is not None and isinstance(menu, str) and menu.strip():
-        st.session_state["nav_target"] = menu
-        payload["menu"] = menu
+    menu_value = _as_clean_str(menu)
+    if menu_value:
+        _set_state("nav_target", menu_value)
+        payload["menu"] = menu_value
 
     if state:
         payload.update(state)
@@ -224,22 +264,22 @@ def navigate(
 
 def consume_nav_target(default: str | None = None) -> str | None:
     """Consome uma única vez o alvo de navegação pendente."""
-    target = st.session_state.get("nav_target")
-    st.session_state["nav_target"] = None
-    return target if target is not None else default
+    target = _as_clean_str(_get_state("nav_target"), default=default)
+    _set_state("nav_target", None)
+    return target
 
 
 def on_top_nav_change() -> None:
     """Callback do menu superior."""
-    menu = st.session_state.get("top_nav_menu", MENU_DEFAULT)
-    if menu != st.session_state.get("_last_menu"):
+    menu = _as_clean_str(_get_state("top_nav_menu"), default=MENU_DEFAULT)
+    if menu and menu != _get_state("_last_menu"):
         set_current_menu(menu)
 
 
 def on_sidebar_menu_change() -> None:
     """Callback do menu lateral."""
-    menu = st.session_state.get("sidebar_menu", MENU_DEFAULT)
-    if menu != st.session_state.get("_last_menu"):
+    menu = _as_clean_str(_get_state("sidebar_menu"), default=MENU_DEFAULT)
+    if menu and menu != _get_state("_last_menu"):
         set_current_menu(menu)
 
 
@@ -260,8 +300,9 @@ def apply_menu_from_qp(
     qp_menu = get_qp_str("menu")
 
     if is_valid_menu(qp_menu, allowed):
-        set_current_menu(qp_menu, update_qp=False)
-        return qp_menu  # type: ignore[return-value]
+        menu_value = _as_clean_str(qp_menu, default=default) or default
+        set_current_menu(menu_value, update_qp=False)
+        return menu_value
 
     current = get_current_menu(default=default)
 
@@ -270,6 +311,19 @@ def apply_menu_from_qp(
         set_current_menu(current, update_qp=False)
 
     return current
+
+
+# ==========================================================
+# Preferências visuais
+# ==========================================================
+
+
+def get_ui_flag(key: str, default: bool = False) -> bool:
+    return _as_bool(_get_state(key, default), default=default)
+
+
+def set_ui_flag(key: str, value: bool) -> None:
+    _set_state(key, bool(value))
 
 
 # ==========================================================
@@ -303,13 +357,13 @@ def bump_data_version(owner_user_id: int | None = None) -> int:
     """
     key = _resolve_data_version_key(owner_user_id)
 
-    current = int(st.session_state.get(key, 0)) + 1
-    st.session_state[key] = current
+    current = int(_get_state(key, 0)) + 1
+    _set_state(key, current)
 
     # Compatibilidade com telas legadas que dependem da versão global
     if owner_user_id is not None:
         global_key = _global_data_version_key()
-        st.session_state[global_key] = int(st.session_state.get(global_key, 0)) + 1
+        _set_state(global_key, int(_get_state(global_key, 0)) + 1)
 
     return current
 
@@ -323,7 +377,7 @@ def get_data_version(owner_user_id: int | None = None) -> int:
     - get_data_version(owner_user_id) -> versão por usuário
     """
     key = _resolve_data_version_key(owner_user_id)
-    return int(st.session_state.get(key, 0))
+    return int(_get_state(key, 0))
 
 
 def reset_data_version(owner_user_id: int | None = None) -> None:
@@ -335,4 +389,4 @@ def reset_data_version(owner_user_id: int | None = None) -> None:
     - reset_data_version(owner_user_id) -> por usuário
     """
     key = _resolve_data_version_key(owner_user_id)
-    st.session_state[key] = 0
+    _set_state(key, 0)
