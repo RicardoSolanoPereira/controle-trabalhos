@@ -8,15 +8,19 @@ import streamlit as st
 MENU_DEFAULT = "Painel"
 
 STATE_DEFAULTS: dict[str, Any] = {
+    # navegação
     "sidebar_menu": MENU_DEFAULT,
     "top_nav_menu": MENU_DEFAULT,
     "_last_menu": MENU_DEFAULT,
     "nav_target": None,
+    # sincronização / refresh
     "data_version": 0,
     "_qp_applied": None,
+    # preferências visuais
     "ui_show_top_nav": True,
     "ui_mobile_cards": True,
     "force_mobile": False,
+    # suporte / diagnóstico
     "ui_debug": False,
 }
 
@@ -29,7 +33,8 @@ STATE_DEFAULTS: dict[str, Any] = {
 def init_state() -> None:
     """Inicializa os valores padrão da UI apenas uma vez por sessão."""
     for key, value in STATE_DEFAULTS.items():
-        st.session_state.setdefault(key, value)
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 
 # ==========================================================
@@ -49,7 +54,7 @@ def _normalize_qp_value(value: Any) -> Any:
     - None remove a chave
     - dict vira JSON string
     - list/tuple/set vira lista de strings
-    - bool vira "1"/"0"
+    - bool vira "1" / "0"
     - demais tipos viram string
     """
     if value is None:
@@ -157,7 +162,7 @@ def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> boo
     if allowed is None:
         return True
 
-    allowed_set = {item for item in allowed if isinstance(item, str)}
+    allowed_set = {item for item in allowed if isinstance(item, str) and item.strip()}
     return menu in allowed_set
 
 
@@ -173,7 +178,7 @@ def get_current_menu(default: str = MENU_DEFAULT) -> str:
 
 def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
     """
-    Define o menu atual e sincroniza os controles de navegação.
+    Define o menu atual e sincroniza os controles visuais de navegação.
     Esta é a fonte oficial de verdade do menu corrente.
     """
     if not isinstance(menu, str) or not menu.strip():
@@ -182,6 +187,7 @@ def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
     st.session_state["_last_menu"] = menu
     st.session_state["sidebar_menu"] = menu
     st.session_state["top_nav_menu"] = menu
+    st.session_state["nav_target"] = None
 
     if update_qp:
         _set_qp(menu=menu)
@@ -193,7 +199,7 @@ def navigate(
     **params: Any,
 ) -> None:
     """
-    Navega para um menu e injeta estado opcional via query params.
+    Solicita navegação para um menu e injeta estado opcional via query params.
 
     Exemplos:
         navigate("Prazos")
@@ -202,7 +208,7 @@ def navigate(
     """
     payload: dict[str, Any] = {}
 
-    if menu is not None:
+    if menu is not None and isinstance(menu, str) and menu.strip():
         st.session_state["nav_target"] = menu
         payload["menu"] = menu
 
@@ -212,7 +218,8 @@ def navigate(
     if params:
         payload.update(params)
 
-    _set_qp(**payload)
+    if payload:
+        _set_qp(**payload)
 
 
 def consume_nav_target(default: str | None = None) -> str | None:
@@ -248,7 +255,7 @@ def apply_menu_from_qp(
 ) -> str:
     """
     Aplica o menu vindo da URL, se válido, e retorna o menu efetivo.
-    Mantém navegação previsível após refresh ou links internos.
+    Mantém a navegação previsível após refresh ou links internos.
     """
     qp_menu = get_qp_str("menu")
 
@@ -266,7 +273,7 @@ def apply_menu_from_qp(
 
 
 # ==========================================================
-# Cache / refresh visual
+# Refresh / cache visual
 # ==========================================================
 
 
@@ -279,9 +286,11 @@ def _user_data_version_key(owner_user_id: int) -> str:
 
 
 def _resolve_data_version_key(owner_user_id: int | None = None) -> str:
-    if owner_user_id is None:
-        return _global_data_version_key()
-    return _user_data_version_key(owner_user_id)
+    return (
+        _global_data_version_key()
+        if owner_user_id is None
+        else _user_data_version_key(owner_user_id)
+    )
 
 
 def bump_data_version(owner_user_id: int | None = None) -> int:

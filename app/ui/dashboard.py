@@ -44,337 +44,226 @@ def _inject_dashboard_css() -> None:
     _render_html(
         """
         <style>
-        .block-container {
-            padding-top: 0.90rem;
-            padding-bottom: 2rem;
+        .sp-dashboard-top-note{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            flex-wrap:wrap;
+            padding:12px 14px;
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            background:rgba(255,255,255,.96);
         }
 
-        /* -------------------------------------------------- */
-        /* Layout base                                        */
-        /* -------------------------------------------------- */
-        .sp-panel {
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            background: rgba(255,255,255,0.96);
-            border-radius: 18px;
-            box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+        .sp-dashboard-top-note-copy{
+            color:rgba(15,23,42,.72);
+            font-size:.92rem;
+            line-height:1.45;
         }
 
-        .sp-panel-soft {
-            border: 1px solid rgba(15, 23, 42, 0.07);
-            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
-            border-radius: 18px;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035);
+        .sp-banner-row{
+            display:grid;
+            grid-template-columns:repeat(3, minmax(0, 1fr));
+            gap:10px;
+            margin:.15rem 0 .70rem 0;
         }
 
-        .sp-muted {
-            color: rgba(15,23,42,.62);
+        .sp-banner{
+            border-radius:16px;
+            padding:12px 13px;
+            border:1px solid rgba(15,23,42,.08);
+            background:#fff;
+            box-shadow:0 4px 14px rgba(15,23,42,.04);
         }
 
-        .sp-caption {
-            font-size: .75rem;
-            font-weight: 800;
-            letter-spacing: .05em;
-            text-transform: uppercase;
-            color: rgba(15,23,42,.42);
+        .sp-banner-danger{ border-left:4px solid #dc2626; }
+        .sp-banner-warning{ border-left:4px solid #f59e0b; }
+        .sp-banner-info{ border-left:4px solid #2563eb; }
+        .sp-banner-success{ border-left:4px solid #16a34a; }
+
+        .sp-banner-title{
+            font-size:.72rem;
+            font-weight:800;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:rgba(15,23,42,.45);
+            margin-bottom:4px;
         }
 
-        /* -------------------------------------------------- */
-        /* Hero                                               */
-        /* -------------------------------------------------- */
-        .sp-page-hero {
-            padding: 1rem 1rem 0.95rem 1rem;
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            border-radius: 20px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,252,0.96));
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
-            margin-bottom: 0.85rem;
+        .sp-banner-text{
+            font-size:.90rem;
+            font-weight:760;
+            color:#0f172a;
+            line-height:1.38;
         }
 
-        .sp-page-hero-grid {
-            display: grid;
-            grid-template-columns: 1.45fr .95fr;
-            gap: 14px;
-            align-items: start;
+        .sp-quick-strip{
+            border:1px dashed rgba(15,23,42,.12);
+            background:rgba(248,250,252,.72);
+            border-radius:16px;
+            padding:10px 12px;
         }
 
-        .sp-page-kicker {
-            font-size: 0.72rem;
-            font-weight: 900;
-            letter-spacing: .08em;
-            text-transform: uppercase;
-            color: rgba(15,23,42,.45);
-            margin-bottom: 4px;
+        .sp-quick-strip-title{
+            font-size:.73rem;
+            font-weight:800;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:rgba(15,23,42,.42);
+            margin-bottom:4px;
         }
 
-        .sp-page-title {
-            font-size: 1.55rem;
-            font-weight: 900;
-            line-height: 1.10;
-            color: #0f172a;
+        .sp-quick-strip-copy{
+            color:rgba(15,23,42,.72);
+            font-size:.88rem;
+            line-height:1.42;
         }
 
-        .sp-page-subtitle {
-            margin-top: 7px;
-            color: rgba(15,23,42,.68);
-            line-height: 1.48;
-            font-size: .93rem;
-            max-width: 780px;
+        .sp-list-card{
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            padding:12px 13px;
+            background:#fff;
+            box-shadow:0 4px 12px rgba(15,23,42,.03);
+            margin-bottom:10px;
         }
 
-        .sp-chip-row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 10px;
+        .sp-list-card-danger{ border-left:4px solid #dc2626; }
+        .sp-list-card-warning{ border-left:4px solid #f59e0b; }
+        .sp-list-card-info{ border-left:4px solid #2563eb; }
+        .sp-list-card-success{ border-left:4px solid #16a34a; }
+
+        .sp-list-card-head{
+            display:flex;
+            align-items:start;
+            justify-content:space-between;
+            gap:10px;
+            margin-bottom:8px;
         }
 
-        .sp-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 10px;
-            border-radius: 999px;
-            background: rgba(15,23,42,.06);
-            color: rgba(15,23,42,.80);
-            font-size: .79rem;
-            font-weight: 750;
-            line-height: 1;
+        .sp-list-card-title{
+            font-weight:800;
+            color:#0f172a;
+            line-height:1.30;
+            font-size:.95rem;
         }
 
-        .sp-chip-danger { background: rgba(220,38,38,.10); color: #991b1b; }
-        .sp-chip-warning { background: rgba(245,158,11,.13); color: #92400e; }
-        .sp-chip-info { background: rgba(37,99,235,.10); color: #1d4ed8; }
-        .sp-chip-success { background: rgba(22,163,74,.10); color: #166534; }
-        .sp-chip-neutral { background: rgba(15,23,42,.06); color: rgba(15,23,42,.78); }
-
-        .sp-inline-metrics {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+        .sp-list-card-sub{
+            color:rgba(15,23,42,.64);
+            font-size:.86rem;
+            line-height:1.40;
+            margin-top:4px;
         }
 
-        .sp-mini-stat {
-            min-height: 88px;
-            border-radius: 16px;
-            border: 1px solid rgba(15,23,42,.08);
-            background: #ffffff;
-            padding: 12px 13px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+        .sp-focus-panel{
+            padding:14px;
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            background:#fff;
         }
 
-        .sp-mini-stat-label {
-            font-size: .70rem;
-            font-weight: 900;
-            letter-spacing: .05em;
-            text-transform: uppercase;
-            color: rgba(15,23,42,.45);
+        .sp-focus-kicker{
+            margin-bottom:6px;
+            font-size:.74rem;
+            font-weight:800;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:rgba(15,23,42,.42);
         }
 
-        .sp-mini-stat-value {
-            font-size: 1.18rem;
-            font-weight: 900;
-            color: #0f172a;
-            margin-top: 3px;
-            line-height: 1.1;
+        .sp-focus-title{
+            font-size:1.04rem;
+            font-weight:820;
+            line-height:1.24;
+            color:#0f172a;
         }
 
-        .sp-mini-stat-sub {
-            margin-top: 5px;
-            color: rgba(15,23,42,.60);
-            font-size: .80rem;
-            line-height: 1.25;
+        .sp-focus-copy{
+            margin-top:8px;
+            color:rgba(15,23,42,.74);
+            line-height:1.50;
+            font-size:.92rem;
         }
 
-        /* -------------------------------------------------- */
-        /* Banner / summary                                   */
-        /* -------------------------------------------------- */
-        .sp-banner-row {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin: .65rem 0 .95rem 0;
+        .sp-chip-row{
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-top:10px;
         }
 
-        .sp-banner {
-            border-radius: 16px;
-            padding: 12px 13px;
-            border: 1px solid rgba(15,23,42,.08);
-            background: #fff;
-            box-shadow: 0 6px 18px rgba(15,23,42,.04);
+        .sp-assistant-panel{
+            padding:14px;
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            background:#fff;
+            box-shadow:0 4px 12px rgba(15,23,42,.03);
         }
 
-        .sp-banner-danger { border-left: 5px solid #dc2626; }
-        .sp-banner-warning { border-left: 5px solid #f59e0b; }
-        .sp-banner-info { border-left: 5px solid #2563eb; }
-        .sp-banner-success { border-left: 5px solid #16a34a; }
-
-        .sp-banner-title {
-            font-size: .72rem;
-            font-weight: 900;
-            letter-spacing: .05em;
-            text-transform: uppercase;
-            color: rgba(15,23,42,.45);
-            margin-bottom: 4px;
+        .sp-assistant-kicker{
+            margin-bottom:6px;
+            font-size:.74rem;
+            font-weight:800;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:rgba(15,23,42,.42);
         }
 
-        .sp-banner-text {
-            font-size: .90rem;
-            font-weight: 800;
-            color: #0f172a;
-            line-height: 1.35;
+        .sp-assistant-title{
+            font-size:1.04rem;
+            font-weight:820;
+            line-height:1.24;
+            color:#0f172a;
         }
 
-        /* -------------------------------------------------- */
-        /* Surface section                                    */
-        /* -------------------------------------------------- */
-        .sp-surface {
-            border-radius: 18px;
-            border: 1px solid rgba(15,23,42,.08);
-            background: rgba(255,255,255,.97);
-            padding: 14px;
-            box-shadow: 0 8px 24px rgba(15,23,42,.04);
+        .sp-assistant-copy{
+            margin-top:8px;
+            color:rgba(15,23,42,.74);
+            line-height:1.50;
+            font-size:.92rem;
         }
 
-        .sp-surface-title {
-            margin-bottom: 8px;
-            font-size: .78rem;
-            font-weight: 900;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-            color: rgba(15,23,42,.42);
+        .sp-assistant-list{
+            margin-top:12px;
+            display:flex;
+            flex-direction:column;
+            gap:8px;
         }
 
-        .sp-focus-title {
-            font-size: 1.08rem;
-            font-weight: 900;
-            line-height: 1.22;
-            color: #0f172a;
+        .sp-assistant-item{
+            padding:9px 10px;
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:12px;
+            background:rgba(248,250,252,.72);
+            color:#0f172a;
+            font-size:.88rem;
+            line-height:1.35;
         }
 
-        .sp-focus-copy {
-            margin-top: 8px;
-            color: rgba(15,23,42,.74);
-            line-height: 1.52;
-            font-size: .92rem;
+        div[data-baseweb="tab-list"]{
+            gap:.35rem;
         }
 
-        /* -------------------------------------------------- */
-        /* List cards                                          */
-        /* -------------------------------------------------- */
-        .sp-list-card {
-            border: 1px solid rgba(15,23,42,.08);
-            border-radius: 16px;
-            padding: 12px 13px;
-            background: #fff;
-            box-shadow: 0 4px 14px rgba(15,23,42,.03);
-            margin-bottom: 10px;
+        div[data-baseweb="tab"]{
+            border-radius:12px !important;
+            padding:.55rem .90rem !important;
+            background:rgba(15,23,42,.04);
+            font-weight:780 !important;
         }
 
-        .sp-list-card-danger { border-left: 4px solid #dc2626; }
-        .sp-list-card-warning { border-left: 4px solid #f59e0b; }
-        .sp-list-card-info { border-left: 4px solid #2563eb; }
-        .sp-list-card-success { border-left: 4px solid #16a34a; }
-
-        .sp-list-card-head {
-            display: flex;
-            align-items: start;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 8px;
+        div[data-baseweb="tab-highlight"]{
+            border-radius:999px !important;
         }
 
-        .sp-list-card-title {
-            font-weight: 850;
-            color: #0f172a;
-            line-height: 1.30;
-            font-size: .95rem;
+        [data-testid="stDataFrame"]{
+            border-radius:14px;
+            overflow:hidden;
         }
 
-        .sp-list-card-sub {
-            color: rgba(15,23,42,.64);
-            font-size: .86rem;
-            line-height: 1.40;
-            margin-top: 4px;
-        }
-
-        /* -------------------------------------------------- */
-        /* Quick strip                                         */
-        /* -------------------------------------------------- */
-        .sp-quick-strip {
-            border: 1px dashed rgba(15,23,42,.12);
-            background: rgba(248,250,252,.75);
-            border-radius: 16px;
-            padding: 10px 12px;
-        }
-
-        .sp-quick-strip-title {
-            font-size: .73rem;
-            font-weight: 900;
-            letter-spacing: .05em;
-            text-transform: uppercase;
-            color: rgba(15,23,42,.42);
-            margin-bottom: 4px;
-        }
-
-        .sp-quick-strip-copy {
-            color: rgba(15,23,42,.72);
-            font-size: .88rem;
-            line-height: 1.42;
-        }
-
-        /* -------------------------------------------------- */
-        /* Streamlit adjustments                               */
-        /* -------------------------------------------------- */
-        div[data-baseweb="tab-list"] {
-            gap: .35rem;
-        }
-
-        div[data-baseweb="tab"] {
-            border-radius: 12px !important;
-            padding: .55rem .90rem !important;
-            background: rgba(15,23,42,.04);
-            font-weight: 800 !important;
-        }
-
-        div[data-baseweb="tab-highlight"] {
-            border-radius: 999px !important;
-        }
-
-        [data-testid="stDataFrame"] {
-            border-radius: 14px;
-            overflow: hidden;
-        }
-
-        /* -------------------------------------------------- */
-        /* Responsive                                          */
-        /* -------------------------------------------------- */
-        @media (max-width: 980px) {
-            .sp-page-hero-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .sp-inline-metrics {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .sp-banner-row {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .sp-inline-metrics {
-                grid-template-columns: 1fr;
-            }
-
-            .sp-page-title {
-                font-size: 1.35rem;
-            }
-
-            .sp-list-card-title {
-                font-size: .92rem;
+        @media (max-width:980px){
+            .sp-banner-row{
+                grid-template-columns:1fr;
             }
         }
         </style>
@@ -698,6 +587,86 @@ def _go_prazos_cadastro() -> None:
 
 def _go_trabalhos_cadastro() -> None:
     navigate("Trabalhos", state={"trabalhos_section": "Cadastro"})
+
+
+# ==========================================================
+# Assistente operacional
+# ==========================================================
+
+
+def _build_assistant_state(kpis: dict[str, Any]) -> dict[str, Any]:
+    prazos_atrasados = int(kpis.get("prazos_atrasados", 0) or 0)
+    prazos_7dias = int(kpis.get("prazos_7dias", 0) or 0)
+    ag_24h = int(kpis.get("ag_24h", 0) or 0)
+    ag_7d = int(kpis.get("ag_7d", 0) or 0)
+    ativos = int(kpis.get("ativos", 0) or 0)
+    saldo = float(kpis.get("saldo", 0) or 0)
+
+    score = 0
+    score += prazos_atrasados * 5
+    score += ag_24h * 4
+    score += prazos_7dias * 2
+    score += ag_7d * 1
+    score += 2 if saldo < 0 else 0
+    score += 1 if ativos >= 15 else 0
+
+    if prazos_atrasados > 0:
+        level = "Crítica"
+        tone = "danger"
+        summary = "Hoje o foco principal deve ser regularizar prazos vencidos antes de abrir novas frentes."
+        primary_cta = ("Abrir prazos atrasados", _go_prazos_lista)
+    elif ag_24h > 0:
+        level = "Alta"
+        tone = "warning"
+        summary = "Sua agenda imediata exige atenção. Revise horários, documentos e deslocamentos."
+        primary_cta = ("Abrir agenda", _go_agenda)
+    elif prazos_7dias > 0:
+        level = "Moderada"
+        tone = "info"
+        summary = "Há demandas da semana que merecem preparação antecipada para evitar urgência."
+        primary_cta = ("Ver próximos prazos", _go_prazos_lista)
+    elif saldo < 0:
+        level = "Atenção"
+        tone = "warning"
+        summary = "A operação está estável, mas a posição financeira pede revisão."
+        primary_cta = ("Abrir financeiro", _go_financeiro_lancamentos)
+    else:
+        level = "Estável"
+        tone = "success"
+        summary = "Painel sob controle. Bom momento para atualizar processos e organizar a semana."
+        primary_cta = ("Novo processo", _go_trabalhos_cadastro)
+
+    if score >= 16:
+        load = "Crítica"
+    elif score >= 10:
+        load = "Alta"
+    elif score >= 5:
+        load = "Moderada"
+    else:
+        load = "Leve"
+
+    suggestions: list[tuple[str, Callable[[], None]]] = []
+
+    if prazos_atrasados > 0:
+        suggestions.append(("Resolver prazos vencidos", _go_prazos_lista))
+    if ag_24h > 0:
+        suggestions.append(("Conferir agenda de 24h", _go_agenda))
+    if prazos_7dias > 0:
+        suggestions.append(("Planejar próximos prazos", _go_prazos_lista))
+    if saldo < 0:
+        suggestions.append(("Revisar financeiro", _go_financeiro_lancamentos))
+    if not suggestions:
+        suggestions.append(("Cadastrar novo processo", _go_trabalhos_cadastro))
+        suggestions.append(("Revisar processos ativos", _go_trabalhos_lista))
+
+    return {
+        "level": level,
+        "tone": tone,
+        "summary": summary,
+        "load": load,
+        "primary_cta": primary_cta,
+        "suggestions": suggestions[:3],
+    }
 
 
 # ==========================================================
@@ -1077,8 +1046,8 @@ def _render_radar_panel(
 
         _render_html(
             f"""
-            <div class="sp-surface">
-              <div class="sp-surface-title">foco do momento</div>
+            <div class="sp-focus-panel">
+              <div class="sp-focus-kicker">foco do momento</div>
               <div class="sp-focus-title">{title}</div>
               <div class="sp-focus-copy">
                 {'<br>'.join(lines)}
@@ -1101,6 +1070,66 @@ def _render_radar_panel(
             key="dash_radar_cta",
             type="primary",
         )
+
+
+def _render_assistant_panel(kpis: dict[str, Any]) -> None:
+    assistant = _build_assistant_state(kpis)
+
+    tone_cls = {
+        "danger": "sp-chip-danger",
+        "warning": "sp-chip-warning",
+        "info": "sp-chip-info",
+        "success": "sp-chip-success",
+    }.get(assistant["tone"], "sp-chip-neutral")
+
+    with section(
+        "Assistente do dia",
+        subtitle="Sugestões automáticas com base no seu painel atual",
+        divider=False,
+    ):
+        _render_html(
+            f"""
+            <div class="sp-assistant-panel">
+              <div class="sp-assistant-kicker">prioridade do dia</div>
+              <div class="sp-assistant-title">{escape(assistant['summary'])}</div>
+              <div class="sp-assistant-copy">
+                Nível de atenção:
+                <span class="sp-chip {tone_cls}">{escape(assistant['level'])}</span>
+                &nbsp;&nbsp;•&nbsp;&nbsp;
+                Carga da semana:
+                <span class="sp-chip">{escape(assistant['load'])}</span>
+              </div>
+              <div class="sp-assistant-list">
+                {''.join(f"<div class='sp-assistant-item'>• {escape(label)}</div>" for label, _ in assistant["suggestions"])}
+              </div>
+            </div>
+            """
+        )
+
+        spacer(0.10)
+
+        c1, c2 = grid(2, columns_mobile=1)
+
+        primary_label, primary_callback = assistant["primary_cta"]
+        with c1:
+            _render_action_button(
+                primary_label,
+                key="dash_assistant_primary",
+                button_type="primary",
+                on_click=primary_callback,
+            )
+
+        with c2:
+            first_secondary = (
+                assistant["suggestions"][0]
+                if assistant["suggestions"]
+                else ("Abrir processos", _go_trabalhos_lista)
+            )
+            _render_action_button(
+                first_secondary[0],
+                key="dash_assistant_secondary",
+                on_click=first_secondary[1],
+            )
 
 
 def _render_quick_context_strip(kpis: dict[str, Any], atuacao_label: str) -> None:
@@ -1410,60 +1439,15 @@ def _render_header(kpis: dict[str, Any] | None = None) -> None:
     atrasados = (kpis or {}).get("prazos_atrasados", 0)
     agenda_24h = (kpis or {}).get("ag_24h", 0)
     ativos = (kpis or {}).get("ativos", 0)
-    saldo = (kpis or {}).get("saldo", 0.0)
 
-    saldo_sub = "posição consolidada"
-    agenda_sub = "compromissos próximos" if agenda_24h > 0 else "sem urgência imediata"
-    atraso_sub = "prioridade máxima" if atrasados > 0 else "nenhum vencido"
-    ativos_sub = "em andamento"
-
-    _render_html(
-        f"""
-        <div class="sp-page-hero">
-          <div class="sp-page-hero-grid">
-            <div>
-              <div class="sp-page-kicker">gestão técnica</div>
-              <div class="sp-page-title">Painel de Controle</div>
-              <div class="sp-page-subtitle">
-                Visão consolidada dos seus processos, prazos, agenda e posição financeira,
-                com foco no que exige ação imediata e no que precisa ser planejado para os próximos dias.
-              </div>
-              <div class="sp-chip-row">
-                <span class="sp-chip">{escape(_greeting())}</span>
-                <span class="sp-chip">{escape(_today_label())}</span>
-                <span class="sp-chip">Painel executivo</span>
-              </div>
-            </div>
-            <div class="sp-inline-metrics">
-              <div class="sp-mini-stat">
-                <div class="sp-mini-stat-label">processos ativos</div>
-                <div class="sp-mini-stat-value">{ativos}</div>
-                <div class="sp-mini-stat-sub">{escape(ativos_sub)}</div>
-              </div>
-              <div class="sp-mini-stat">
-                <div class="sp-mini-stat-label">prazos atrasados</div>
-                <div class="sp-mini-stat-value">{atrasados}</div>
-                <div class="sp-mini-stat-sub">{escape(atraso_sub)}</div>
-              </div>
-              <div class="sp-mini-stat">
-                <div class="sp-mini-stat-label">agenda 24h</div>
-                <div class="sp-mini-stat-value">{agenda_24h}</div>
-                <div class="sp-mini-stat-sub">{escape(agenda_sub)}</div>
-              </div>
-              <div class="sp-mini-stat">
-                <div class="sp-mini-stat-label">saldo atual</div>
-                <div class="sp-mini-stat-value">R$ {_fmt_money_br(saldo)}</div>
-                <div class="sp-mini-stat-sub">{escape(saldo_sub)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        """
+    subtitle = (
+        f"{_greeting()}. Hoje é {_today_label()}. "
+        f"{ativos} processo(s) ativo(s), {atrasados} prazo(s) atrasado(s) e {agenda_24h} compromisso(s) nas próximas 24 horas."
     )
 
     page_header(
-        "",
-        "",
+        "Painel de Controle",
+        subtitle,
         actions=[
             HeaderAction(
                 "Prazos",
@@ -1484,19 +1468,20 @@ def _render_header(kpis: dict[str, Any] | None = None) -> None:
                 on_click=_go_financeiro_lancamentos,
             ),
         ],
-        compact=True,
+        compact=False,
         divider=False,
+        bottom_spacing_rem=0.22,
     )
 
 
 def _render_top_bar() -> str | None:
     with section(
         "Visão atual",
-        subtitle="Escolha a atuação para filtrar o painel",
+        subtitle="Escolha a atuação para filtrar os indicadores e listas do painel",
         divider=False,
         compact=True,
     ):
-        left, right = grid_weights((1.0, 1.0), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.1, 0.9), weights_mobile=(1, 1), gap="medium")
 
         with left:
             atuacao_label = st.selectbox(
@@ -1509,12 +1494,11 @@ def _render_top_bar() -> str | None:
         with right:
             _render_html(
                 """
-                <div class="sp-surface" style="min-height:58px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                  <div>
-                    <div class="sp-surface-title" style="margin-bottom:3px;">modo do painel</div>
-                    <div style="color:rgba(15,23,42,0.74); font-weight:700;">Filtro aplicado somente à atuação selecionada</div>
+                <div class="sp-dashboard-top-note">
+                  <div class="sp-dashboard-top-note-copy">
+                    O painel reflete somente a atuação selecionada e atualiza automaticamente conforme o uso.
                   </div>
-                  <div class="sp-chip">Atualizado em tempo real</div>
+                  <span class="sp-chip">Atualizado em tempo real</span>
                 </div>
                 """
             )
@@ -1842,7 +1826,7 @@ def _render_tab_trabalhos(
 def render(owner_user_id: int) -> None:
     st.set_page_config(layout="wide")
 
-    with content_shell(max_width="1500px"):
+    with content_shell():
         _inject_dashboard_css()
 
         tipo_val = _render_top_bar()
@@ -1891,9 +1875,11 @@ def render(owner_user_id: int) -> None:
         _render_quick_actions()
 
         spacer(0.18)
-        left, right = grid_weights((1.1, 0.9), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.05, 0.95), weights_mobile=(1, 1), gap="medium")
 
         with left:
+            _render_assistant_panel(kpis)
+            spacer(0.16)
             _render_radar_panel(kpis=kpis)
 
         with right:

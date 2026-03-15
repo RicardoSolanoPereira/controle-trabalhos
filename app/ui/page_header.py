@@ -21,7 +21,8 @@ __all__ = [
 # Constantes
 # ==========================================================
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v8"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v9"
+_MAX_INLINE_ACTIONS = 3
 
 
 # ==========================================================
@@ -44,11 +45,6 @@ def _safe_key(text: str) -> str:
     return normalized or "key"
 
 
-def _normalize_actions_align(value: str | None) -> str:
-    align = (value or "right").strip().lower()
-    return align if align in {"left", "right"} else "right"
-
-
 def _normalize_action_type(value: str | None) -> str:
     kind = (value or "primary").strip().lower()
     return kind if kind in {"primary", "secondary"} else "primary"
@@ -68,28 +64,33 @@ def _normalize_actions(
     right_button_on_click: Callable[[], None] | None,
 ) -> list["HeaderAction"]:
     if actions:
-        return [
-            HeaderAction(
-                label=action.label,
-                key=action.key,
-                help=action.help,
-                type=_normalize_action_type(action.type),
-                use_container_width=action.use_container_width,
-                disabled=action.disabled,
-                on_click=action.on_click,
+        normalized: list[HeaderAction] = []
+        for action in actions:
+            if not (action.label or "").strip():
+                continue
+            normalized.append(
+                HeaderAction(
+                    label=action.label.strip(),
+                    key=action.key,
+                    help=action.help,
+                    type=_normalize_action_type(action.type),
+                    use_container_width=bool(action.use_container_width),
+                    disabled=bool(action.disabled),
+                    on_click=action.on_click,
+                )
             )
-            for action in actions
-            if (action.label or "").strip()
-        ]
+        return normalized
 
     if right_button_label:
         base_key = f"ph_{_safe_key(title)}"
         return [
             HeaderAction(
-                label=right_button_label,
+                label=right_button_label.strip(),
                 key=right_button_key or f"{base_key}_btn",
                 help=right_button_help,
                 type="primary",
+                use_container_width=True,
+                disabled=False,
                 on_click=right_button_on_click,
             )
         ]
@@ -161,7 +162,7 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-subtitle-text{
-            margin-top:0.24rem;
+            margin-top:0.28rem;
             color:var(--muted);
             line-height:1.48;
             max-width:78ch;
@@ -175,37 +176,20 @@ def _inject_page_header_css() -> None:
             min-width:0 !important;
         }
 
-        .sp-page-header-actions [data-testid="stButton"]{
+        .sp-page-header-actions .stButton{
             width:100%;
         }
 
-        .sp-page-header-actions [data-testid="stButton"] > button{
+        .sp-page-header-actions .stButton > button{
             width:100%;
             min-height:42px !important;
-            height:42px !important;
             border-radius:12px !important;
-            padding:0 14px !important;
             display:flex !important;
             align-items:center !important;
             justify-content:center !important;
             white-space:nowrap !important;
             overflow:hidden !important;
             text-overflow:ellipsis !important;
-        }
-
-        .sp-page-header-actions [data-testid="stButton"] > button div[data-testid="stMarkdownContainer"]{
-            display:flex !important;
-            align-items:center !important;
-            justify-content:center !important;
-            width:100%;
-        }
-
-        .sp-page-header-actions [data-testid="stButton"] > button div[data-testid="stMarkdownContainer"] p{
-            margin:0 !important;
-            white-space:nowrap !important;
-            overflow:hidden !important;
-            text-overflow:ellipsis !important;
-            line-height:1.1 !important;
         }
 
         .sp-page-header-actions-stack > div{
@@ -216,12 +200,12 @@ def _inject_page_header_css() -> None:
             margin-bottom:0;
         }
 
-        .sp-page-header-more-actions details[data-testid="stExpander"]{
-            margin-top:0.12rem;
+        .sp-page-header-more-actions{
+            margin-top:0.35rem;
         }
 
         .sp-page-header-more-actions summary{
-            font-weight:650;
+            font-weight:640;
         }
 
         @media (max-width:768px){
@@ -230,9 +214,8 @@ def _inject_page_header_css() -> None:
                 max-width:100%;
             }
 
-            .sp-page-header-actions [data-testid="stButton"] > button{
+            .sp-page-header-actions .stButton > button{
                 min-height:44px !important;
-                height:44px !important;
             }
         }
         </style>
@@ -255,14 +238,14 @@ def _render_title_block(
     subtitle_html = _escape(subtitle) if subtitle else ""
 
     if compact:
-        title_size = "1.06rem"
-        title_weight = "780"
-        title_line_height = "1.18"
+        title_size = "1.04rem"
+        title_weight = "760"
+        title_line_height = "1.20"
         subtitle_size = "0.88rem"
     else:
-        title_size = "1.68rem"
+        title_size = "1.62rem"
         title_weight = "820"
-        title_line_height = "1.06"
+        title_line_height = "1.08"
         subtitle_size = "0.95rem"
 
     subtitle_block = (
@@ -326,9 +309,8 @@ def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -
     clicked = False
     action_list = list(actions)
 
-    max_inline = 3
-    inline_actions = action_list[:max_inline]
-    extra_actions = action_list[max_inline:]
+    inline_actions = action_list[:_MAX_INLINE_ACTIONS]
+    extra_actions = action_list[_MAX_INLINE_ACTIONS:]
 
     if inline_actions:
         cols = st.columns(len(inline_actions), gap="small")
@@ -379,12 +361,11 @@ def page_header(
     right_button_help: str | None = None,
     right_button_on_click: Callable[[], None] | None = None,
     actions: list[HeaderAction] | None = None,
-    divider: bool = True,
+    divider: bool = False,
     compact: bool = False,
-    actions_align: str = "right",
-    actions_width_ratio: tuple[float, float] = (4.8, 2.2),
-    top_spacing_rem: float = 0.04,
-    bottom_spacing_rem: float = 0.18,
+    actions_width_ratio: tuple[float, float] = (4.2, 2.0),
+    top_spacing_rem: float = 0.08,
+    bottom_spacing_rem: float = 0.32,
 ) -> bool:
     """
     Renderiza o header padrão de página.
@@ -404,7 +385,6 @@ def page_header(
         right_button_help=right_button_help,
         right_button_on_click=right_button_on_click,
     )
-    align = _normalize_actions_align(actions_align)
 
     if top_spacing_rem > 0:
         spacer(top_spacing_rem)
@@ -427,16 +407,11 @@ def page_header(
                     gap="medium",
                 )
 
-                if align == "left":
-                    with left:
-                        clicked = _render_actions(normalized_actions, base_key=base_key)
-                    with right:
-                        _render_title_block(title, subtitle, compact=compact)
-                else:
-                    with left:
-                        _render_title_block(title, subtitle, compact=compact)
-                    with right:
-                        clicked = _render_actions(normalized_actions, base_key=base_key)
+                with left:
+                    _render_title_block(title, subtitle, compact=compact)
+
+                with right:
+                    clicked = _render_actions(normalized_actions, base_key=base_key)
             else:
                 _render_title_block(title, subtitle, compact=compact)
     finally:
@@ -444,7 +419,7 @@ def page_header(
         _render_html("</div>")
 
     if divider:
-        spacer(0.16)
+        spacer(0.20)
         st.divider()
 
     if bottom_spacing_rem > 0:

@@ -12,7 +12,7 @@ __all__ = [
     "app_error",
 ]
 
-_CSS_VERSION = "v18"
+_CSS_VERSION = "v19"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -28,15 +28,13 @@ ROOT VARIABLES
 
   --bg:#f4f7f6;
   --bg-soft:#f8fbfa;
-  --bg-panel:#eef3f1;
 
   --surface:#ffffff;
   --surface-soft:#fbfcfc;
   --surface-muted:#f3f6f5;
-  --surface-elevated:#ffffff;
 
   --border:#dde5e1;
-  --border-strong:#c9d5cf;
+  --border-strong:#cfd9d4;
   --border-soft:rgba(15,23,42,0.06);
 
   --text:#0f172a;
@@ -45,9 +43,8 @@ ROOT VARIABLES
   --muted-strong:#475467;
 
   --primary:#355e57;
-  --primary-hover:#294942;
+  --primary-hover:#2b4c46;
   --primary-soft:rgba(53,94,87,0.08);
-  --primary-soft-2:rgba(53,94,87,0.12);
   --primary-ring:rgba(53,94,87,0.16);
 
   --danger:#dc2626;
@@ -62,17 +59,14 @@ ROOT VARIABLES
   --info-bg:rgba(37,99,235,0.09);
   --neutral-bg:rgba(15,23,42,0.045);
 
-  --radius-2xl:26px;
-  --radius-xl:22px;
-  --radius-lg:18px;
-  --radius-md:14px;
-  --radius-sm:12px;
-  --radius-xs:10px;
+  --radius-xl:20px;
+  --radius-lg:16px;
+  --radius-md:12px;
+  --radius-sm:10px;
 
   --shadow-xs:0 1px 2px rgba(15,23,42,0.04);
-  --shadow-sm:0 4px 10px rgba(15,23,42,0.04);
-  --shadow-soft:0 8px 22px rgba(15,23,42,0.045);
-  --shadow-md:0 14px 30px rgba(15,23,42,0.06);
+  --shadow-sm:0 6px 18px rgba(15,23,42,0.05);
+  --shadow-md:0 12px 28px rgba(15,23,42,0.06);
 
   --transition:all .18s ease;
 }
@@ -101,9 +95,8 @@ p, li, label, span, div{
 
 .stApp{
   background:
-    radial-gradient(circle at top right, rgba(53,94,87,0.045), transparent 26%),
-    radial-gradient(circle at top left, rgba(37,99,235,0.025), transparent 18%),
-    linear-gradient(180deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.16) 100%),
+    radial-gradient(circle at top right, rgba(53,94,87,0.04), transparent 24%),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.16) 100%),
     var(--bg);
 }
 
@@ -130,16 +123,16 @@ LAYOUT
 ====================================================== */
 
 .block-container{
-  padding-top:0.85rem;
-  padding-bottom:1.35rem;
+  padding-top:0.90rem;
+  padding-bottom:1.25rem;
   padding-left:1.20rem;
   padding-right:1.20rem;
-  max-width:1360px;
+  max-width:1320px;
   overflow:visible !important;
 }
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.32rem;
+  margin-bottom:0.28rem;
 }
 
 
@@ -150,29 +143,29 @@ TYPOGRAPHY
 h1,h2,h3,h4{
   letter-spacing:-0.02em;
   color:var(--text);
-  margin-bottom:0.16rem;
+  margin-bottom:0.14rem;
 }
 
 h1{
-  font-size:1.82rem;
+  font-size:1.78rem;
   line-height:1.08;
-  font-weight:820;
+  font-weight:800;
 }
 
 h2{
-  font-size:1.34rem;
-  line-height:1.12;
-  font-weight:790;
+  font-size:1.30rem;
+  line-height:1.14;
+  font-weight:760;
 }
 
 h3{
-  font-size:1.05rem;
+  font-size:1.03rem;
   line-height:1.24;
-  font-weight:740;
+  font-weight:720;
 }
 
 h4{
-  font-size:0.96rem;
+  font-size:0.95rem;
   line-height:1.28;
   font-weight:700;
 }
@@ -188,13 +181,13 @@ PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.06rem 0 0.10rem 0;
+  padding:0.05rem 0 0.10rem 0;
 }
 
 .sp-page-title{
-  font-size:1.68rem;
+  font-size:1.62rem;
   font-weight:820;
-  line-height:1.06;
+  line-height:1.08;
   letter-spacing:-0.028em;
   color:var(--text);
 }
@@ -204,7 +197,7 @@ PAGE HEADER
   font-size:0.95rem;
   line-height:1.50;
   color:var(--muted);
-  max-width:82ch;
+  max-width:78ch;
 }
 
 
@@ -213,12 +206,12 @@ SECTION HEADER
 ====================================================== */
 
 .sp-section-header{
-  margin-bottom:0.12rem;
+  margin-bottom:0.10rem;
 }
 
 .sp-section-title{
-  font-size:1.01rem;
-  font-weight:780;
+  font-size:1rem;
+  font-weight:760;
   letter-spacing:-0.012em;
   color:var(--text);
 }
@@ -245,7 +238,7 @@ SURFACE
 ====================================================== */
 
 .sp-surface{
-  background:linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #ffffff 100%);
+  background:var(--surface);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   padding:15px 17px;
@@ -277,7 +270,7 @@ CHIPS / PILLS
   background:var(--neutral-bg);
   border:1px solid rgba(15,23,42,0.08);
   font-size:0.80rem;
-  font-weight:660;
+  font-weight:650;
   line-height:1;
   color:var(--text-soft);
   white-space:nowrap;
@@ -315,7 +308,7 @@ CHIPS / PILLS
   padding:5px 10px;
   border-radius:999px;
   font-size:0.78rem;
-  font-weight:760;
+  font-weight:740;
   line-height:1;
   border:1px solid rgba(15,23,42,0.08);
   background:#fff;
@@ -358,7 +351,7 @@ SIDEBAR
 ====================================================== */
 
 section[data-testid="stSidebar"]{
-  background:linear-gradient(180deg, #f3f7f5 0%, #eef4f1 100%);
+  background:linear-gradient(180deg, #f4f8f6 0%, #eef4f1 100%);
   border-right:1px solid #dbe5e1;
 }
 
@@ -367,7 +360,7 @@ section[data-testid="stSidebar"] .block-container{
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.24rem !important;
+  margin-bottom:0.22rem !important;
 }
 
 
@@ -387,7 +380,7 @@ label[data-baseweb="radio"]{
   display:block;
   width:100%;
   padding:10px 12px;
-  border-radius:14px;
+  border-radius:12px;
   margin-bottom:5px;
   cursor:pointer;
   border:1px solid rgba(15,23,42,0.08);
@@ -408,12 +401,12 @@ label[data-baseweb="radio"]:hover{
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"][aria-checked="true"]{
-  background:linear-gradient(180deg, rgba(53,94,87,0.09) 0%, rgba(53,94,87,0.06) 100%);
+  background:rgba(53,94,87,0.08);
   border-left:4px solid var(--primary);
-  border-top-color:rgba(53,94,87,0.10);
-  border-right-color:rgba(53,94,87,0.10);
-  border-bottom-color:rgba(53,94,87,0.10);
-  font-weight:760;
+  border-top-color:rgba(53,94,87,0.12);
+  border-right-color:rgba(53,94,87,0.12);
+  border-bottom-color:rgba(53,94,87,0.12);
+  font-weight:740;
 }
 
 
@@ -425,7 +418,7 @@ BUTTONS
   border-radius:12px;
   padding:0.60rem 1rem;
   min-height:42px;
-  font-weight:670;
+  font-weight:660;
   border:1px solid rgba(15,23,42,0.10);
   background:#ffffff;
   color:var(--text);
@@ -446,15 +439,15 @@ BUTTONS
 
 .stButton > button[kind="primary"],
 .stButton > button[class*="primary"]{
-  background:linear-gradient(180deg, var(--primary) 0%, #2f544d 100%) !important;
+  background:var(--primary) !important;
   border:1px solid var(--primary) !important;
   color:#ffffff !important;
-  box-shadow:0 8px 18px rgba(53,94,87,0.16) !important;
+  box-shadow:0 6px 14px rgba(53,94,87,0.14) !important;
 }
 
 .stButton > button[kind="primary"]:hover,
 .stButton > button[class*="primary"]:hover{
-  background:linear-gradient(180deg, var(--primary-hover) 0%, #233f39 100%) !important;
+  background:var(--primary-hover) !important;
   border-color:var(--primary-hover) !important;
 }
 
@@ -487,7 +480,7 @@ div[data-baseweb="select"] > div:focus-within{
 }
 
 label[data-testid="stWidgetLabel"] p{
-  font-weight:630 !important;
+  font-weight:620 !important;
   color:var(--text-soft) !important;
 }
 
@@ -502,7 +495,7 @@ div[data-testid="stTabs"]{
 
 button[data-baseweb="tab"]{
   border-radius:12px 12px 0 0 !important;
-  font-weight:660 !important;
+  font-weight:650 !important;
   color:var(--muted-strong) !important;
 }
 
@@ -550,53 +543,42 @@ CARD KPI
 ====================================================== */
 
 .sp-card{
-  background:linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
+  background:var(--surface);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   padding:15px 16px;
-  box-shadow:var(--shadow-soft);
+  box-shadow:var(--shadow-xs);
   transition:var(--transition);
-  min-height:116px;
+  min-height:110px;
   position:relative;
   overflow:hidden;
 }
 
-.sp-card::after{
-  content:"";
-  position:absolute;
-  top:0;
-  right:0;
-  width:56px;
-  height:56px;
-  background:radial-gradient(circle, rgba(53,94,87,0.05) 0%, transparent 70%);
-  pointer-events:none;
-}
-
 .sp-card:hover{
   border-color:var(--border-strong);
+  box-shadow:var(--shadow-sm);
   transform:translateY(-1px);
-  box-shadow:var(--shadow-md);
 }
 
 .sp-card-title{
   font-size:0.77rem;
   color:rgba(15,23,42,0.64);
   margin-bottom:7px;
-  font-weight:780;
+  font-weight:760;
   text-transform:uppercase;
   letter-spacing:0.045em;
 }
 
 .sp-card-value{
-  font-size:1.46rem;
-  font-weight:840;
+  font-size:1.42rem;
+  font-weight:820;
   color:var(--text);
-  line-height:1.06;
+  line-height:1.08;
 }
 
 .sp-card-value.emph{
-  font-size:1.72rem;
-  font-weight:880;
+  font-size:1.66rem;
+  font-weight:860;
 }
 
 .sp-card-sub{
@@ -617,41 +599,36 @@ TONES
 ====================================================== */
 
 .sp-tone-danger{
-  border-left:5px solid var(--danger);
+  border-left:4px solid var(--danger);
   padding-left:13px;
 }
 
 .sp-tone-warning{
-  border-left:5px solid var(--warning);
+  border-left:4px solid var(--warning);
   padding-left:13px;
 }
 
 .sp-tone-success{
-  border-left:5px solid var(--success);
+  border-left:4px solid var(--success);
   padding-left:13px;
 }
 
 .sp-tone-info{
-  border-left:5px solid var(--info);
+  border-left:4px solid var(--info);
   padding-left:13px;
 }
 
 .sp-tone-neutral{
-  border-left:5px solid #cbd5e1;
+  border-left:4px solid #cbd5e1;
   padding-left:13px;
 }
 
 
 /* ======================================================
-RADAR / STRIP
+STRIPS / KEY VALUE
 ====================================================== */
 
-.sp-kpi-strip{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-}
-
+.sp-kpi-strip,
 .sp-highlight-strip{
   display:flex;
   flex-wrap:wrap;
@@ -680,7 +657,7 @@ RADAR / STRIP
 
 .sp-kv-value{
   color:var(--text);
-  font-weight:780;
+  font-weight:760;
   text-align:right;
   font-size:0.88rem;
   line-height:1.35;
@@ -713,7 +690,7 @@ TIMELINE
 .sp-timeline-rail-line{
   position:relative;
   width:2px;
-  min-height:66px;
+  min-height:64px;
   background:rgba(15,23,42,0.08);
   border-radius:999px;
 }
@@ -746,14 +723,14 @@ TIMELINE
 
 .sp-timeline-kind{
   color:rgba(15,23,42,0.58);
-  font-weight:780;
+  font-weight:760;
   font-size:0.78rem;
   text-transform:uppercase;
   letter-spacing:0.04em;
 }
 
 .sp-timeline-title{
-  font-weight:820;
+  font-weight:800;
   line-height:1.35;
   color:var(--text);
 }
@@ -806,8 +783,8 @@ APP ERROR
 .sp-app-error{
   background:linear-gradient(180deg, rgba(220,38,38,0.045) 0%, rgba(220,38,38,0.025) 100%);
   border:1px solid rgba(220,38,38,0.15);
-  border-left:5px solid var(--danger);
-  border-radius:16px;
+  border-left:4px solid var(--danger);
+  border-radius:14px;
   padding:14px 16px;
   margin-bottom:0.40rem;
 }
@@ -815,7 +792,7 @@ APP ERROR
 .sp-app-error-title{
   color:#991b1b;
   font-size:0.98rem;
-  font-weight:820;
+  font-weight:800;
 }
 
 .sp-app-error-subtitle{
@@ -870,7 +847,7 @@ SCROLLBAR
 }
 
 *::-webkit-scrollbar-thumb:hover{
-  background:rgba(53,94,87,0.32);
+  background:rgba(53,94,87,0.30);
 }
 
 
@@ -886,7 +863,7 @@ MOBILE
   }
 
   .sp-page-title{
-    font-size:1.42rem;
+    font-size:1.38rem;
   }
 
   .sp-page-subtitle{
@@ -899,16 +876,16 @@ MOBILE
   }
 
   .sp-card-value{
-    font-size:1.16rem;
+    font-size:1.14rem;
   }
 
   .sp-card-value.emph{
-    font-size:1.34rem;
+    font-size:1.30rem;
   }
 
   .sp-surface{
     padding:13px 14px;
-    border-radius:16px;
+    border-radius:15px;
   }
 
   .stButton > button{
@@ -935,7 +912,7 @@ MOBILE
   }
 
   .sp-timeline-rail-line{
-    min-height:72px;
+    min-height:68px;
   }
 }
 

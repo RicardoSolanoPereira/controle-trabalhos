@@ -38,6 +38,21 @@ MOBILE_FLAG_KEY = "force_mobile"
 
 
 # ==========================================================
+# Tokens de espaçamento e largura
+# ==========================================================
+
+SPACE_XS = 0.16
+SPACE_SM = 0.24
+SPACE_MD = 0.40
+SPACE_LG = 0.56
+SPACE_XL = 0.80
+
+PAGE_MAX_WIDTH = "1280px"
+PAGE_PADDING_DESKTOP = "0px"
+PAGE_PADDING_MOBILE = "0px"
+
+
+# ==========================================================
 # Helpers privados
 # ==========================================================
 
@@ -164,7 +179,7 @@ def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
         label,
         key=MOBILE_FLAG_KEY,
         value=is_mobile(),
-        help="Simula layout mobile para validar empilhamento, cards e espaçamentos.",
+        help="Simula layout mobile para validar empilhamento, espaçamentos e densidade visual.",
     )
 
 
@@ -173,14 +188,14 @@ def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
 # ==========================================================
 
 
-def spacer(height_rem: float = 0.5) -> None:
+def spacer(height_rem: float = SPACE_SM) -> None:
     height = _normalize_float(height_rem)
     _render_html(f"<div style='height:{height:.3f}rem'></div>")
 
 
-def divider_space(top: float = 0.20, bottom: float = 0.22) -> None:
-    top_value = _normalize_float(top)
-    bottom_value = _normalize_float(bottom)
+def divider_space(top: float | None = None, bottom: float | None = None) -> None:
+    top_value = SPACE_SM if top is None else _normalize_float(top)
+    bottom_value = SPACE_SM if bottom is None else _normalize_float(bottom)
 
     if top_value > 0:
         spacer(top_value)
@@ -192,15 +207,15 @@ def divider_space(top: float = 0.20, bottom: float = 0.22) -> None:
 
 
 def compact_gap() -> None:
-    spacer(0.16 if is_mobile() else 0.20)
+    spacer(SPACE_XS if is_mobile() else SPACE_SM)
 
 
 def section_gap() -> None:
-    spacer(0.30 if is_mobile() else 0.40)
+    spacer(SPACE_SM if is_mobile() else SPACE_MD)
 
 
 def page_gap() -> None:
-    spacer(0.42 if is_mobile() else 0.56)
+    spacer(SPACE_MD if is_mobile() else SPACE_LG)
 
 
 # ==========================================================
@@ -211,8 +226,8 @@ def page_gap() -> None:
 @contextmanager
 def content_shell(
     *,
-    max_width: str = "1320px",
-    padding_inline: str = "0px",
+    max_width: str = PAGE_MAX_WIDTH,
+    padding_inline: str | None = None,
     class_name: str | None = None,
 ) -> Iterator[None]:
     extra_class = _clean_class_name(class_name)
@@ -220,11 +235,17 @@ def content_shell(
     if extra_class:
         shell_class = f"{shell_class} {extra_class}"
 
+    effective_padding = (
+        padding_inline
+        if padding_inline is not None
+        else (PAGE_PADDING_MOBILE if is_mobile() else PAGE_PADDING_DESKTOP)
+    )
+
     style = (
         f"max-width:{max_width}; "
         f"margin:0 auto; "
         f"width:100%; "
-        f"padding-inline:{padding_inline};"
+        f"padding-inline:{effective_padding};"
     )
 
     _render_html(
@@ -287,7 +308,7 @@ def grid_weights(
 
 
 def content_columns(
-    left: float = 1.65,
+    left: float = 1.6,
     right: float = 1.0,
     *,
     gap: str = "medium",
@@ -301,7 +322,7 @@ def content_columns(
 
 def split_hero(
     *,
-    left_ratio: float = 1.45,
+    left_ratio: float = 1.4,
     right_ratio: float = 1.0,
     gap: str = "medium",
 ) -> tuple:
@@ -379,42 +400,39 @@ def section(
     compact: bool = False,
 ) -> Iterator[None]:
     top_pad = (
-        _normalize_float(top_pad_rem, minimum=0.0) if top_pad_rem is not None else None
+        _normalize_float(top_pad_rem, minimum=0.0) if top_pad_rem is not None else 0.0
     )
     bottom_pad = (
         _normalize_float(bottom_pad_rem, minimum=0.0)
         if bottom_pad_rem is not None
-        else None
+        else 0.0
     )
 
-    if top_pad and top_pad > 0:
+    if top_pad > 0:
         spacer(top_pad)
 
     if title:
         if header_actions and not is_mobile():
             left, right = _two_column_row(
-                left_ratio=4.2,
+                left_ratio=4.0,
                 right_ratio=1.8,
                 gap="medium",
                 vertical_alignment="center",
             )
-
             with left:
                 _section_header(title, subtitle)
-
             with right:
                 header_actions()
         else:
             _section_header(title, subtitle)
-
             if header_actions:
                 compact_gap()
                 header_actions()
 
     if divider:
-        divider_space(0.12, 0.20)
+        divider_space()
     elif title:
-        spacer(0.10 if compact else 0.16)
+        spacer(SPACE_XS if compact else SPACE_SM)
 
     if use_surface:
         with surface(class_name=surface_class, style=surface_style):
@@ -423,7 +441,7 @@ def section(
         with st.container():
             yield
 
-    if bottom_pad and bottom_pad > 0:
+    if bottom_pad > 0:
         spacer(bottom_pad)
 
 
@@ -464,7 +482,7 @@ def section_surface(
 def toolbar(
     gap: str = "medium",
     *,
-    left_ratio: float = 3.2,
+    left_ratio: float = 3.0,
     right_ratio: float = 2.0,
 ) -> Iterator[None]:
     if is_mobile():
@@ -486,7 +504,7 @@ def toolbar_actions(
     actions: Callable[[], None],
     *,
     gap: str = "medium",
-    left_ratio: float = 3.2,
+    left_ratio: float = 3.0,
     right_ratio: float = 2.0,
 ) -> None:
     if is_mobile():
@@ -509,9 +527,9 @@ def toolbar_row(
     right_actions: Callable[[], None] | None = None,
     *,
     gap: str = "medium",
-    left_ratio: float = 3.2,
+    left_ratio: float = 3.0,
     right_ratio: float = 2.0,
-    bottom_space: float = 0.26,
+    bottom_space: float = SPACE_SM,
 ) -> None:
     if is_mobile():
         if left_content:
@@ -545,7 +563,7 @@ def toolbar_row(
 def actions_row(
     render_actions: Callable[[], None],
     *,
-    bottom_space: float = 0.20,
+    bottom_space: float = SPACE_SM,
 ) -> None:
     with st.container():
         render_actions()
@@ -600,16 +618,16 @@ def page_header(
     meta: PageMeta,
     *,
     right_actions: Callable[[], None] | None = None,
-    bottom_space: float = 0.32,
+    bottom_space: float = SPACE_MD,
 ) -> None:
     if not meta.title:
         return
 
-    spacer(0.03 if is_mobile() else 0.05)
+    spacer(SPACE_XS)
 
     if right_actions and not is_mobile():
         left, right = _two_column_row(
-            left_ratio=4.2,
+            left_ratio=4.0,
             right_ratio=1.8,
             gap="medium",
             vertical_alignment="center",
@@ -624,7 +642,7 @@ def page_header(
         _page_title_block(meta)
 
         if right_actions:
-            spacer(0.18 if is_mobile() else 0.24)
+            compact_gap()
             right_actions()
 
     if bottom_space > 0:
