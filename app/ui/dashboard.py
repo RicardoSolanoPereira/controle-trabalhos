@@ -23,11 +23,9 @@ ATUACAO_UI = {
     "Particular / Outros serviços": "Trabalho Particular",
 }
 
-_COMMAND_PLACEHOLDER = "Selecione uma ação rápida..."
-
 
 # ==========================================================
-# Base UI helpers
+# Base helpers
 # ==========================================================
 
 
@@ -46,358 +44,179 @@ def _inject_dashboard_css() -> None:
     _render_html(
         """
         <style>
-        .sp-dashboard-filter-note{
+        .sp-dash-filter-note{
             display:flex;
             align-items:center;
             justify-content:space-between;
-            gap:12px;
+            gap:10px;
             flex-wrap:wrap;
             padding:12px 14px;
             border:1px solid rgba(15,23,42,.08);
             border-radius:16px;
-            background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.88) 100%);
-        }
-
-        .sp-dashboard-filter-note-copy{
-            color:rgba(15,23,42,.72);
-            font-size:.92rem;
-            line-height:1.45;
-        }
-
-        .sp-command-bar{
-            padding:14px;
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:18px;
             background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.92) 100%);
-            box-shadow:0 4px 14px rgba(15,23,42,.04);
+            box-shadow:0 1px 2px rgba(15,23,42,.03);
         }
 
-        .sp-command-bar-kicker{
-            margin-bottom:8px;
-            font-size:.72rem;
-            font-weight:800;
-            letter-spacing:.05em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.45);
-        }
-
-        .sp-command-bar-sub{
-            margin-top:8px;
-            color:rgba(15,23,42,.66);
-            font-size:.88rem;
-            line-height:1.45;
-        }
-
-        .sp-alert-row{
-            display:grid;
-            grid-template-columns:repeat(3, minmax(0, 1fr));
-            gap:10px;
-            margin:.08rem 0 .72rem 0;
-        }
-
-        .sp-alert-banner{
-            border-radius:16px;
-            padding:13px 14px;
-            border:1px solid rgba(15,23,42,.08);
-            background:#fff;
-            box-shadow:0 4px 14px rgba(15,23,42,.04);
-        }
-
-        .sp-alert-danger{ border-left:4px solid #dc2626; }
-        .sp-alert-warning{ border-left:4px solid #f59e0b; }
-        .sp-alert-info{ border-left:4px solid #2563eb; }
-        .sp-alert-success{ border-left:4px solid #16a34a; }
-
-        .sp-alert-kicker{
-            font-size:.72rem;
-            font-weight:800;
-            letter-spacing:.05em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.45);
-            margin-bottom:4px;
-        }
-
-        .sp-alert-copy{
-            font-size:.91rem;
-            font-weight:760;
-            color:#0f172a;
-            line-height:1.38;
-        }
-
-        .sp-executive-strip{
-            border:1px dashed rgba(15,23,42,.12);
-            background:rgba(248,250,252,.70);
-            border-radius:16px;
-            padding:10px 12px;
-        }
-
-        .sp-executive-strip-title{
-            font-size:.73rem;
-            font-weight:800;
-            letter-spacing:.05em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.42);
-            margin-bottom:4px;
-        }
-
-        .sp-executive-strip-copy{
-            color:rgba(15,23,42,.72);
+        .sp-dash-filter-note-copy{
+            color:rgba(15,23,42,.68);
             font-size:.89rem;
-            line-height:1.46;
-        }
-
-        .sp-list-card{
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
-            padding:12px 13px;
-            background:#fff;
-            box-shadow:0 4px 12px rgba(15,23,42,.03);
-            margin-bottom:10px;
-        }
-
-        .sp-list-card-danger{ border-left:4px solid #dc2626; }
-        .sp-list-card-warning{ border-left:4px solid #f59e0b; }
-        .sp-list-card-info{ border-left:4px solid #2563eb; }
-        .sp-list-card-success{ border-left:4px solid #16a34a; }
-
-        .sp-list-card-head{
-            display:flex;
-            align-items:flex-start;
-            justify-content:space-between;
-            gap:10px;
-            margin-bottom:8px;
-        }
-
-        .sp-list-card-title{
-            font-weight:800;
-            color:#0f172a;
-            line-height:1.32;
-            font-size:.95rem;
-        }
-
-        .sp-list-card-sub{
-            color:rgba(15,23,42,.64);
-            font-size:.86rem;
             line-height:1.42;
-            margin-top:4px;
         }
 
-        .sp-priority-panel{
+        .sp-dash-panel{
             padding:15px;
             border:1px solid rgba(15,23,42,.08);
             border-radius:16px;
             background:#fff;
-            box-shadow:0 4px 12px rgba(15,23,42,.03);
+            box-shadow:0 1px 3px rgba(15,23,42,.04);
         }
 
-        .sp-priority-kicker{
-            margin-bottom:6px;
-            font-size:.74rem;
-            font-weight:800;
-            letter-spacing:.05em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.42);
-        }
-
-        .sp-priority-title{
-            font-size:1.04rem;
-            font-weight:820;
-            line-height:1.24;
+        .sp-dash-panel-title{
+            font-size:1rem;
+            font-weight:810;
+            line-height:1.28;
             color:#0f172a;
         }
 
-        .sp-priority-copy{
-            margin-top:8px;
-            color:rgba(15,23,42,.74);
-            line-height:1.50;
-            font-size:.92rem;
+        .sp-dash-panel-copy{
+            margin-top:7px;
+            color:rgba(15,23,42,.70);
+            line-height:1.46;
+            font-size:.90rem;
         }
 
-        .sp-chip-row{
+        .sp-dash-panel-list{
+            margin-top:11px;
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+        }
+
+        .sp-dash-panel-item{
+            padding:9px 10px;
+            border:1px solid rgba(15,23,42,.07);
+            border-radius:12px;
+            background:rgba(248,250,252,.72);
+            color:#0f172a;
+            font-size:.86rem;
+            line-height:1.35;
+        }
+
+        .sp-dash-chip-row{
             display:flex;
             gap:8px;
             flex-wrap:wrap;
             margin-top:10px;
         }
 
-        .sp-assistant-panel{
-            padding:15px;
+        .sp-dash-note-card{
             border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
+            border-radius:15px;
+            padding:11px 12px;
             background:#fff;
-            box-shadow:0 4px 12px rgba(15,23,42,.03);
-        }
-
-        .sp-assistant-kicker{
-            margin-bottom:6px;
-            font-size:.74rem;
-            font-weight:800;
-            letter-spacing:.05em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.42);
-        }
-
-        .sp-assistant-title{
-            font-size:1.04rem;
-            font-weight:820;
-            line-height:1.28;
-            color:#0f172a;
-        }
-
-        .sp-assistant-copy{
-            margin-top:8px;
-            color:rgba(15,23,42,.74);
-            line-height:1.50;
-            font-size:.92rem;
-        }
-
-        .sp-assistant-list{
-            margin-top:12px;
-            display:flex;
-            flex-direction:column;
-            gap:8px;
-        }
-
-        .sp-assistant-item{
-            padding:9px 10px;
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:12px;
-            background:rgba(248,250,252,.72);
-            color:#0f172a;
-            font-size:.88rem;
-            line-height:1.35;
-        }
-
-        .sp-timeline-card{
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
-            padding:12px 13px;
-            background:#fff;
-            box-shadow:0 4px 12px rgba(15,23,42,.03);
+            box-shadow:0 1px 3px rgba(15,23,42,.03);
             margin-bottom:10px;
         }
 
-        .sp-timeline-card-head{
-            display:flex;
-            align-items:flex-start;
-            justify-content:space-between;
-            gap:10px;
-            margin-bottom:8px;
-        }
+        .sp-dash-note-card-danger{ border-left:3px solid #dc2626; }
+        .sp-dash-note-card-warning{ border-left:3px solid #f59e0b; }
+        .sp-dash-note-card-info{ border-left:3px solid #2563eb; }
+        .sp-dash-note-card-success{ border-left:3px solid #16a34a; }
 
-        .sp-timeline-card-title{
-            font-weight:800;
-            color:#0f172a;
-            line-height:1.32;
-            font-size:.95rem;
-        }
-
-        .sp-timeline-card-sub{
-            color:rgba(15,23,42,.64);
-            font-size:.86rem;
-            line-height:1.42;
-            margin-top:4px;
-        }
-
-        .sp-notification-card{
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
-            padding:12px 13px;
-            background:#fff;
-            box-shadow:0 4px 12px rgba(15,23,42,.03);
-            margin-bottom:10px;
-        }
-
-        .sp-notification-card-danger{ border-left:4px solid #dc2626; }
-        .sp-notification-card-warning{ border-left:4px solid #f59e0b; }
-        .sp-notification-card-info{ border-left:4px solid #2563eb; }
-        .sp-notification-card-success{ border-left:4px solid #16a34a; }
-
-        .sp-notification-kicker{
-            font-size:.72rem;
+        .sp-dash-note-kicker{
+            font-size:.71rem;
             font-weight:800;
             letter-spacing:.05em;
             text-transform:uppercase;
-            color:rgba(15,23,42,.45);
+            color:rgba(15,23,42,.43);
             margin-bottom:4px;
         }
 
-        .sp-notification-title{
-            font-size:.96rem;
-            font-weight:820;
+        .sp-dash-note-title{
+            font-size:.93rem;
+            font-weight:810;
             color:#0f172a;
             line-height:1.34;
         }
 
-        .sp-notification-copy{
-            margin-top:6px;
-            color:rgba(15,23,42,.70);
-            font-size:.89rem;
-            line-height:1.44;
+        .sp-dash-note-copy{
+            margin-top:5px;
+            color:rgba(15,23,42,.68);
+            font-size:.87rem;
+            line-height:1.42;
         }
 
-        .sp-today-panel{
-            padding:15px;
+        .sp-dash-list-card{
             border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
+            border-radius:15px;
+            padding:11px 12px;
             background:#fff;
-            box-shadow:0 4px 12px rgba(15,23,42,.03);
+            box-shadow:0 1px 3px rgba(15,23,42,.03);
+            margin-bottom:10px;
         }
 
-        .sp-today-kicker{
-            margin-bottom:6px;
-            font-size:.74rem;
+        .sp-dash-list-card-danger{ border-left:3px solid #dc2626; }
+        .sp-dash-list-card-warning{ border-left:3px solid #f59e0b; }
+        .sp-dash-list-card-info{ border-left:3px solid #2563eb; }
+        .sp-dash-list-card-success{ border-left:3px solid #16a34a; }
+
+        .sp-dash-list-card-title{
             font-weight:800;
-            letter-spacing:.05em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.42);
-        }
-
-        .sp-today-title{
-            font-size:1.06rem;
-            font-weight:820;
-            line-height:1.28;
             color:#0f172a;
+            line-height:1.32;
+            font-size:.93rem;
         }
 
-        .sp-today-copy{
-            margin-top:8px;
-            color:rgba(15,23,42,.74);
-            line-height:1.50;
+        .sp-dash-list-card-sub{
+            color:rgba(15,23,42,.62);
+            font-size:.85rem;
+            line-height:1.40;
+            margin-top:4px;
+        }
+
+        .sp-dash-timeline-item{
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:14px;
+            padding:10px 11px;
+            background:#fff;
+            margin-bottom:10px;
+        }
+
+        .sp-dash-timeline-head{
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:10px;
+        }
+
+        .sp-dash-timeline-title{
+            font-weight:790;
+            color:#0f172a;
+            line-height:1.32;
             font-size:.92rem;
         }
 
-        .sp-today-checklist{
-            margin-top:12px;
-            display:flex;
-            flex-direction:column;
-            gap:8px;
-        }
-
-        .sp-today-check{
-            padding:9px 10px;
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:12px;
-            background:rgba(248,250,252,.72);
-            color:#0f172a;
-            font-size:.88rem;
-            line-height:1.35;
+        .sp-dash-timeline-sub{
+            margin-top:4px;
+            color:rgba(15,23,42,.64);
+            font-size:.84rem;
+            line-height:1.40;
         }
 
         .sp-dashboard-action-grid .stButton > button{
-            min-height:48px !important;
+            min-height:46px !important;
             font-weight:720 !important;
         }
 
         div[data-baseweb="tab-list"]{
-            gap:.35rem;
+            gap:.30rem;
         }
 
         div[data-baseweb="tab"]{
             border-radius:12px !important;
-            padding:.55rem .90rem !important;
+            padding:.52rem .86rem !important;
             background:rgba(15,23,42,.04);
-            font-weight:780 !important;
+            font-weight:770 !important;
         }
 
         div[data-baseweb="tab-highlight"]{
@@ -407,12 +226,6 @@ def _inject_dashboard_css() -> None:
         [data-testid="stDataFrame"]{
             border-radius:14px;
             overflow:hidden;
-        }
-
-        @media (max-width:980px){
-            .sp-alert-row{
-                grid-template-columns:1fr;
-            }
         }
         </style>
         """
@@ -709,7 +522,7 @@ def _build_trabalhos_df(rows: list[tuple]) -> pd.DataFrame:
 
 
 # ==========================================================
-# Navegação rápida
+# Navegação
 # ==========================================================
 
 
@@ -738,207 +551,61 @@ def _go_trabalhos_cadastro() -> None:
 
 
 # ==========================================================
-# Assistente operacional / hoje inteligente
+# Estado visual
 # ==========================================================
-
-
-def _build_assistant_state(kpis: dict[str, Any]) -> dict[str, Any]:
-    prazos_atrasados = int(kpis.get("prazos_atrasados", 0) or 0)
-    prazos_7dias = int(kpis.get("prazos_7dias", 0) or 0)
-    ag_24h = int(kpis.get("ag_24h", 0) or 0)
-    ag_7d = int(kpis.get("ag_7d", 0) or 0)
-    ativos = int(kpis.get("ativos", 0) or 0)
-    saldo = float(kpis.get("saldo", 0) or 0)
-
-    score = 0
-    score += prazos_atrasados * 5
-    score += ag_24h * 4
-    score += prazos_7dias * 2
-    score += ag_7d
-    score += 2 if saldo < 0 else 0
-    score += 1 if ativos >= 15 else 0
-
-    if prazos_atrasados > 0:
-        level = "Crítica"
-        tone = "danger"
-        summary = "Hoje o foco principal deve ser regularizar prazos vencidos antes de abrir novas frentes."
-        primary_cta = ("Abrir prazos atrasados", _go_prazos_lista)
-    elif ag_24h > 0:
-        level = "Alta"
-        tone = "warning"
-        summary = "Sua agenda imediata exige atenção. Revise horários, documentos e deslocamentos."
-        primary_cta = ("Abrir agenda", _go_agenda)
-    elif prazos_7dias > 0:
-        level = "Moderada"
-        tone = "info"
-        summary = "Há demandas da semana que merecem preparação antecipada para evitar urgência."
-        primary_cta = ("Ver próximos prazos", _go_prazos_lista)
-    elif saldo < 0:
-        level = "Atenção"
-        tone = "warning"
-        summary = "A operação está estável, mas a posição financeira pede revisão."
-        primary_cta = ("Abrir financeiro", _go_financeiro_lancamentos)
-    else:
-        level = "Estável"
-        tone = "success"
-        summary = "Painel sob controle. Bom momento para atualizar processos e organizar a semana."
-        primary_cta = ("Novo processo", _go_trabalhos_cadastro)
-
-    if score >= 16:
-        load = "Crítica"
-    elif score >= 10:
-        load = "Alta"
-    elif score >= 5:
-        load = "Moderada"
-    else:
-        load = "Leve"
-
-    suggestions: list[tuple[str, Callable[[], None]]] = []
-
-    if prazos_atrasados > 0:
-        suggestions.append(("Resolver prazos vencidos", _go_prazos_lista))
-    if ag_24h > 0:
-        suggestions.append(("Conferir agenda de 24h", _go_agenda))
-    if prazos_7dias > 0:
-        suggestions.append(("Planejar próximos prazos", _go_prazos_lista))
-    if saldo < 0:
-        suggestions.append(("Revisar financeiro", _go_financeiro_lancamentos))
-    if not suggestions:
-        suggestions.append(("Cadastrar novo processo", _go_trabalhos_cadastro))
-        suggestions.append(("Revisar processos ativos", _go_trabalhos_lista))
-
-    return {
-        "level": level,
-        "tone": tone,
-        "summary": summary,
-        "load": load,
-        "primary_cta": primary_cta,
-        "suggestions": suggestions[:3],
-    }
 
 
 def _build_today_state(kpis: dict[str, Any]) -> dict[str, Any]:
     if kpis["prazos_atrasados"] > 0:
-        title = "Comece pelos prazos atrasados"
-        copy = (
-            "Sua manhã rende mais se você eliminar pendências vencidas antes de abrir "
-            "novas tarefas ou revisões administrativas."
-        )
-        checklist = [
-            "Abrir a lista de prazos atrasados",
-            "Priorizar os itens com maior urgência",
-            "Registrar atualização após cada ação",
-        ]
-        primary = ("Abrir prazos", _go_prazos_lista)
-        secondary = ("Novo prazo", _go_prazos_cadastro)
-    elif kpis["ag_24h"] > 0:
-        title = "Prepare a agenda imediata"
-        copy = (
-            "Há compromisso próximo. Vale confirmar horário, local, deslocamento e "
-            "documentos antes do início."
-        )
-        checklist = [
-            "Conferir horários e local dos compromissos",
-            "Separar documentos e observações",
-            "Validar próximos passos após a visita ou reunião",
-        ]
-        primary = ("Abrir agenda", _go_agenda)
-        secondary = ("Abrir processos", _go_trabalhos_lista)
-    elif kpis["prazos_7dias"] > 0:
-        title = "Organize a semana antes da urgência"
-        copy = (
-            "Seu painel está estável, mas há vencimentos próximos. Antecipar agora "
-            "evita pressão operacional depois."
-        )
-        checklist = [
-            "Revisar prazos com vencimento em 7 dias",
-            "Separar peças e documentos por trabalho",
-            "Distribuir a carga entre hoje e os próximos dias",
-        ]
-        primary = ("Ver próximos prazos", _go_prazos_lista)
-        secondary = ("Novo processo", _go_trabalhos_cadastro)
-    else:
-        title = "Bom momento para colocar a casa em ordem"
-        copy = (
-            "Sem urgências críticas no recorte atual. Aproveite para cadastrar, revisar "
-            "e atualizar trabalhos com calma."
-        )
-        checklist = [
+        return {
+            "title": "Comece pelos prazos vencidos",
+            "copy": "Regularize os itens atrasados antes de abrir novas frentes.",
+            "items": [
+                "Abrir a lista de atrasados",
+                "Tratar os itens mais urgentes",
+                "Registrar cada atualização",
+            ],
+            "primary": ("Abrir prazos", _go_prazos_lista),
+            "secondary": ("Novo prazo", _go_prazos_cadastro),
+        }
+
+    if kpis["ag_24h"] > 0:
+        return {
+            "title": "Prepare a agenda imediata",
+            "copy": "Confirme horários, local, deslocamento e documentos.",
+            "items": [
+                "Revisar agenda de 24h",
+                "Separar documentos",
+                "Confirmar logística",
+            ],
+            "primary": ("Abrir agenda", _go_agenda),
+            "secondary": ("Abrir processos", _go_trabalhos_lista),
+        }
+
+    if kpis["prazos_7dias"] > 0:
+        return {
+            "title": "Organize a semana com antecedência",
+            "copy": "Há vencimentos próximos. Antecipar agora evita urgência depois.",
+            "items": [
+                "Revisar próximos 7 dias",
+                "Separar peças por trabalho",
+                "Distribuir a carga da semana",
+            ],
+            "primary": ("Ver próximos prazos", _go_prazos_lista),
+            "secondary": ("Novo processo", _go_trabalhos_cadastro),
+        }
+
+    return {
+        "title": "Painel sob controle",
+        "copy": "Sem urgências críticas neste momento. Aproveite para atualizar a operação.",
+        "items": [
             "Atualizar processos ativos",
-            "Cadastrar novos itens pendentes",
-            "Revisar financeiro e agenda da semana",
-        ]
-        primary = ("Novo processo", _go_trabalhos_cadastro)
-        secondary = ("Abrir financeiro", _go_financeiro_lancamentos)
-
-    return {
-        "title": title,
-        "copy": copy,
-        "checklist": checklist,
-        "primary": primary,
-        "secondary": secondary,
+            "Cadastrar pendências novas",
+            "Revisar financeiro e agenda",
+        ],
+        "primary": ("Novo processo", _go_trabalhos_cadastro),
+        "secondary": ("Abrir financeiro", _go_financeiro_lancamentos),
     }
-
-
-# ==========================================================
-# Command bar / notificações
-# ==========================================================
-
-
-def _command_options() -> dict[str, Callable[[], None]]:
-    return {
-        _COMMAND_PLACEHOLDER: lambda: None,
-        "📁 Novo processo": _go_trabalhos_cadastro,
-        "🗂️ Abrir processos": _go_trabalhos_lista,
-        "⏳ Novo prazo": _go_prazos_cadastro,
-        "⚠️ Ver prazos": _go_prazos_lista,
-        "📅 Abrir agenda": _go_agenda,
-        "💰 Abrir financeiro": _go_financeiro_lancamentos,
-    }
-
-
-def _render_command_bar() -> None:
-    with section(
-        "Command bar",
-        subtitle="Acesso rápido às ações mais usadas do sistema",
-        divider=False,
-        compact=True,
-    ):
-        _render_html(
-            """
-            <div class="sp-command-bar">
-              <div class="sp-command-bar-kicker">atalho operacional</div>
-            """
-        )
-        try:
-            options = list(_command_options().keys())
-            selected = st.selectbox(
-                "Ação rápida",
-                options,
-                index=0,
-                key="dash_command_bar",
-                label_visibility="collapsed",
-            )
-
-            _render_html(
-                """
-                <div class="sp-command-bar-sub">
-                  Use esta barra para abrir rapidamente processos, prazos, agenda e financeiro.
-                </div>
-                """
-            )
-
-            if selected and selected != _COMMAND_PLACEHOLDER:
-                callback = _command_options().get(selected)
-                st.button(
-                    "Executar ação",
-                    key="dash_command_execute",
-                    type="primary",
-                    use_container_width=True,
-                    on_click=callback,
-                )
-        finally:
-            _render_html("</div>")
 
 
 def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
@@ -949,8 +616,8 @@ def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "tone": "danger",
                 "kicker": "atenção imediata",
-                "title": f"{kpis['prazos_atrasados']} prazo(s) vencido(s) precisam de ação",
-                "copy": "Abra a lista de prazos e trate primeiro os itens já vencidos.",
+                "title": f"{kpis['prazos_atrasados']} prazo(s) vencido(s)",
+                "copy": "Trate primeiro os itens já atrasados.",
                 "primary": ("Abrir prazos", _go_prazos_lista),
             }
         )
@@ -960,8 +627,8 @@ def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "tone": "warning",
                 "kicker": "agenda imediata",
-                "title": f"{kpis['ag_24h']} compromisso(s) nas próximas 24 horas",
-                "copy": "Revise local, horários e documentos antes do início.",
+                "title": f"{kpis['ag_24h']} compromisso(s) em 24h",
+                "copy": "Revise horário, local e documentos.",
                 "primary": ("Abrir agenda", _go_agenda),
             }
         )
@@ -971,8 +638,8 @@ def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "tone": "info",
                 "kicker": "janela da semana",
-                "title": f"{kpis['prazos_7dias']} prazo(s) vencem em até 7 dias",
-                "copy": "Antecipar organização agora reduz urgência nos próximos dias.",
+                "title": f"{kpis['prazos_7dias']} prazo(s) em até 7 dias",
+                "copy": "Organize agora para reduzir urgência depois.",
                 "primary": ("Ver próximos prazos", _go_prazos_lista),
             }
         )
@@ -981,9 +648,9 @@ def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
         notifications.append(
             {
                 "tone": "warning",
-                "kicker": "posição financeira",
-                "title": "O saldo atual está negativo",
-                "copy": "Vale revisar lançamentos, pendências e recebimentos previstos.",
+                "kicker": "financeiro",
+                "title": "Saldo atual negativo",
+                "copy": "Vale revisar lançamentos e recebimentos previstos.",
                 "primary": ("Abrir financeiro", _go_financeiro_lancamentos),
             }
         )
@@ -992,9 +659,9 @@ def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
         notifications.append(
             {
                 "tone": "success",
-                "kicker": "painel estável",
-                "title": "Nenhuma pendência crítica no recorte atual",
-                "copy": "Bom momento para atualizar processos, agenda e cadastros.",
+                "kicker": "situação estável",
+                "title": "Nenhuma pendência crítica",
+                "copy": "Bom momento para atualizar processos e cadastros.",
                 "primary": ("Novo processo", _go_trabalhos_cadastro),
             }
         )
@@ -1002,43 +669,8 @@ def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
     return notifications[:4]
 
 
-def _render_notifications_center(kpis: dict[str, Any]) -> None:
-    with section(
-        "Notificações",
-        subtitle="Resumo das situações operacionais que merecem atenção",
-        divider=False,
-    ):
-        notifications = _build_notifications(kpis)
-
-        for idx, item in enumerate(notifications):
-            tone_cls = {
-                "danger": "sp-notification-card-danger",
-                "warning": "sp-notification-card-warning",
-                "info": "sp-notification-card-info",
-                "success": "sp-notification-card-success",
-            }.get(item["tone"], "")
-
-            _render_html(
-                f"""
-                <div class="sp-notification-card {tone_cls}">
-                    <div class="sp-notification-kicker">{escape(item['kicker'])}</div>
-                    <div class="sp-notification-title">{escape(item['title'])}</div>
-                    <div class="sp-notification-copy">{escape(item['copy'])}</div>
-                </div>
-                """
-            )
-
-            label, callback = item["primary"]
-            st.button(
-                label,
-                key=f"dash_notification_action_{idx}",
-                use_container_width=True,
-                on_click=callback,
-            )
-
-
 # ==========================================================
-# Render helpers de cards/listas
+# Render helpers de listas
 # ==========================================================
 
 
@@ -1053,27 +685,25 @@ def _render_surface_list_item(
     chips = chips or []
 
     tone_cls = {
-        "danger": "sp-list-card-danger",
-        "warning": "sp-list-card-warning",
-        "info": "sp-list-card-info",
-        "success": "sp-list-card-success",
+        "danger": "sp-dash-list-card-danger",
+        "warning": "sp-dash-list-card-warning",
+        "info": "sp-dash-list-card-info",
+        "success": "sp-dash-list-card-success",
     }.get(tone, "")
 
     body_html = "".join(
-        f"<div class='sp-list-card-sub'>{line}</div>" for line in body_lines if line
+        f"<div class='sp-dash-list-card-sub'>{line}</div>"
+        for line in body_lines
+        if line
     )
     chips_html = "".join(chips)
 
     _render_html(
         f"""
-        <div class="sp-list-card {tone_cls}">
-          <div class="sp-list-card-head">
-            <div>
-              <div class="sp-list-card-title">{title}</div>
-              {body_html}
-            </div>
-          </div>
-          <div class="sp-chip-row">{chips_html}</div>
+        <div class="sp-dash-list-card {tone_cls}">
+          <div class="sp-dash-list-card-title">{title}</div>
+          {body_html}
+          <div class="sp-dash-chip-row">{chips_html}</div>
         </div>
         """
     )
@@ -1163,7 +793,7 @@ def _render_agenda_cards(rows: list, empty_title: str, empty_subtitle: str) -> N
 
 
 # ==========================================================
-# Timeline / radar / banners
+# Timeline
 # ==========================================================
 
 
@@ -1253,313 +883,6 @@ def _build_timeline_items(
 
     items.sort(key=lambda x: x["sort_dt"])
     return items[:8]
-
-
-def _render_priority_banners(
-    kpis: dict[str, Any],
-    rows_prazos_atrasados: list,
-    rows_ag_24h: list,
-    rows_prazos_7d: list,
-) -> None:
-    banners: list[str] = []
-
-    if kpis["prazos_atrasados"] > 0:
-        primeiro = rows_prazos_atrasados[0] if rows_prazos_atrasados else None
-        ref = (
-            _safe_text(primeiro[4], "Sem referência") if primeiro else "Sem referência"
-        )
-        text = f"{kpis['prazos_atrasados']} prazo(s) atrasado(s). Priorize {ref}."
-        banners.append(
-            f"<div class='sp-alert-banner sp-alert-danger'><div class='sp-alert-kicker'>Urgência crítica</div><div class='sp-alert-copy'>{escape(text)}</div></div>"
-        )
-
-    if kpis["ag_24h"] > 0:
-        primeiro = rows_ag_24h[0] if rows_ag_24h else None
-        horario = (
-            ensure_br(primeiro[2]).strftime("%d/%m %H:%M")
-            if primeiro
-            else "sem horário"
-        )
-        ref = (
-            _safe_text(primeiro[4], "Sem referência") if primeiro else "Sem referência"
-        )
-        text = f"{kpis['ag_24h']} compromisso(s) em 24h. Próximo: {ref} às {horario}."
-        banners.append(
-            f"<div class='sp-alert-banner sp-alert-warning'><div class='sp-alert-kicker'>Agenda imediata</div><div class='sp-alert-copy'>{escape(text)}</div></div>"
-        )
-
-    if kpis["prazos_7dias"] > 0 and kpis["prazos_atrasados"] == 0:
-        primeiro = rows_prazos_7d[0] if rows_prazos_7d else None
-        venc = format_date_br(primeiro[2]) if primeiro else "sem data"
-        ref = (
-            _safe_text(primeiro[4], "Sem referência") if primeiro else "Sem referência"
-        )
-        text = f"{kpis['prazos_7dias']} prazo(s) na semana. Próximo: {ref} em {venc}."
-        banners.append(
-            f"<div class='sp-alert-banner sp-alert-info'><div class='sp-alert-kicker'>Planejamento da semana</div><div class='sp-alert-copy'>{escape(text)}</div></div>"
-        )
-
-    if not banners:
-        banners.append(
-            "<div class='sp-alert-banner sp-alert-success'><div class='sp-alert-kicker'>Situação estável</div><div class='sp-alert-copy'>Sem pendências críticas no momento. Bom momento para atualizar processos, organizar documentos e registrar novos itens.</div></div>"
-        )
-
-    _render_html(f"<div class='sp-alert-row'>{''.join(banners)}</div>")
-
-
-def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
-    with section(
-        "Linha do tempo operacional",
-        subtitle="Próximos passos em ordem cronológica",
-        divider=False,
-    ):
-        if not items:
-            empty_state(
-                title="Nenhum evento próximo",
-                subtitle="Quando houver prazos ou compromissos no radar, eles aparecerão aqui.",
-                icon="🗓️",
-            )
-            return
-
-        for item in items:
-            tone = item["tone"]
-            pill_class = {
-                "danger": "sp-chip-danger",
-                "warning": "sp-chip-warning",
-                "info": "sp-chip-info",
-                "success": "sp-chip-success",
-            }.get(tone, "")
-
-            _render_html(
-                f"""
-                <div class="sp-timeline-card">
-                    <div class="sp-timeline-card-head">
-                        <div>
-                            <div class="sp-timeline-card-title">{_esc(item['headline'])}</div>
-                            <div class="sp-timeline-card-sub">{_esc(item['detail'])}</div>
-                        </div>
-                        <span class="sp-chip {pill_class}">{_esc(item['kind'])}</span>
-                    </div>
-                    <div class="sp-chip-row">
-                        <span class="sp-chip {pill_class}">{_esc(item['meta'])}</span>
-                    </div>
-                </div>
-                """
-            )
-
-
-def _render_radar_panel(
-    *,
-    kpis: dict[str, Any],
-) -> None:
-    with section(
-        "Radar do dia",
-        subtitle="O que merece sua atenção primeiro",
-        divider=False,
-    ):
-        if kpis["prazos_atrasados"] > 0:
-            title = "Prioridade máxima: regularizar prazos vencidos"
-            tone = "danger"
-            lines = [
-                f"Você possui <b>{kpis['prazos_atrasados']}</b> prazo(s) atrasado(s).",
-                "Comece pelos itens vencidos antes de abrir novas frentes administrativas.",
-            ]
-            cta_label = "Abrir prazos atrasados"
-            cta_page = "Prazos"
-            cta_state = {
-                "prazos_section": "Lista",
-                "pz_nav_to": "Lista",
-                "pz_list_nav_to": "Atrasados",
-            }
-        elif kpis["ag_24h"] > 0:
-            title = "Atenção operacional nas próximas 24 horas"
-            tone = "warning"
-            lines = [
-                f"Há <b>{kpis['ag_24h']}</b> compromisso(s) muito próximo(s).",
-                "Vale revisar deslocamento, documentos, endereço e horário antes do início.",
-            ]
-            cta_label = "Abrir agenda"
-            cta_page = "Agenda"
-            cta_state = None
-        elif kpis["prazos_7dias"] > 0:
-            title = "Organize a semana com antecedência"
-            tone = "info"
-            lines = [
-                f"Há <b>{kpis['prazos_7dias']}</b> prazo(s) vencendo em até 7 dias.",
-                "Bom momento para separar peças, documentos e prioridades por trabalho.",
-            ]
-            cta_label = "Ver próximos prazos"
-            cta_page = "Prazos"
-            cta_state = {
-                "prazos_section": "Lista",
-                "pz_nav_to": "Lista",
-                "pz_list_nav_to": "Vencem (7 dias)",
-            }
-        else:
-            title = "Painel sob controle no momento"
-            tone = "success"
-            lines = [
-                "Não há pendências críticas neste recorte.",
-                "Você pode usar este momento para cadastrar, revisar ou atualizar trabalhos.",
-            ]
-            cta_label = "Novo trabalho"
-            cta_page = "Trabalhos"
-            cta_state = {"trabalhos_section": "Cadastro"}
-
-        badge_class = {
-            "danger": "sp-chip-danger",
-            "warning": "sp-chip-warning",
-            "info": "sp-chip-info",
-            "success": "sp-chip-success",
-        }.get(tone, "sp-chip-neutral")
-
-        _render_html(
-            f"""
-            <div class="sp-priority-panel">
-              <div class="sp-priority-kicker">foco do momento</div>
-              <div class="sp-priority-title">{title}</div>
-              <div class="sp-priority-copy">
-                {'<br>'.join(lines)}
-              </div>
-              <div class="sp-chip-row" style="margin-top:12px;">
-                <span class="sp-chip {badge_class}">Prazos atrasados: {kpis['prazos_atrasados']}</span>
-                <span class="sp-chip">Prazos em 7 dias: {kpis['prazos_7dias']}</span>
-                <span class="sp-chip">Agenda em 24h: {kpis['ag_24h']}</span>
-                <span class="sp-chip">Agenda em 7 dias: {kpis['ag_7d']}</span>
-              </div>
-            </div>
-            """
-        )
-
-        spacer(0.10)
-        _render_nav_button(
-            cta_label,
-            page=cta_page,
-            state=cta_state,
-            key="dash_radar_cta",
-            type="primary",
-        )
-
-
-def _render_assistant_panel(kpis: dict[str, Any]) -> None:
-    assistant = _build_assistant_state(kpis)
-
-    tone_cls = {
-        "danger": "sp-chip-danger",
-        "warning": "sp-chip-warning",
-        "info": "sp-chip-info",
-        "success": "sp-chip-success",
-    }.get(assistant["tone"], "sp-chip-neutral")
-
-    with section(
-        "Assistente do dia",
-        subtitle="Sugestões automáticas com base no seu painel atual",
-        divider=False,
-    ):
-        _render_html(
-            f"""
-            <div class="sp-assistant-panel">
-              <div class="sp-assistant-kicker">prioridade do dia</div>
-              <div class="sp-assistant-title">{escape(assistant['summary'])}</div>
-              <div class="sp-assistant-copy">
-                Nível de atenção:
-                <span class="sp-chip {tone_cls}">{escape(assistant['level'])}</span>
-                &nbsp;&nbsp;•&nbsp;&nbsp;
-                Carga da semana:
-                <span class="sp-chip">{escape(assistant['load'])}</span>
-              </div>
-              <div class="sp-assistant-list">
-                {''.join(f"<div class='sp-assistant-item'>• {escape(label)}</div>" for label, _ in assistant["suggestions"])}
-              </div>
-            </div>
-            """
-        )
-
-        spacer(0.10)
-        c1, c2 = grid(2, columns_mobile=1)
-
-        primary_label, primary_callback = assistant["primary_cta"]
-        with c1:
-            _render_action_button(
-                primary_label,
-                key="dash_assistant_primary",
-                button_type="primary",
-                on_click=primary_callback,
-            )
-
-        with c2:
-            first_secondary = (
-                assistant["suggestions"][0]
-                if assistant["suggestions"]
-                else ("Abrir processos", _go_trabalhos_lista)
-            )
-            _render_action_button(
-                first_secondary[0],
-                key="dash_assistant_secondary",
-                on_click=first_secondary[1],
-            )
-
-
-def _render_today_panel(kpis: dict[str, Any]) -> None:
-    today = _build_today_state(kpis)
-
-    with section(
-        "Hoje",
-        subtitle="Plano rápido para você começar pelo que mais importa",
-        divider=False,
-    ):
-        _render_html(
-            f"""
-            <div class="sp-today-panel">
-              <div class="sp-today-kicker">roteiro do dia</div>
-              <div class="sp-today-title">{escape(today['title'])}</div>
-              <div class="sp-today-copy">{escape(today['copy'])}</div>
-              <div class="sp-today-checklist">
-                {''.join(f"<div class='sp-today-check'>• {escape(item)}</div>" for item in today["checklist"])}
-              </div>
-            </div>
-            """
-        )
-
-        spacer(0.10)
-        c1, c2 = grid(2, columns_mobile=1)
-        primary_label, primary_callback = today["primary"]
-        secondary_label, secondary_callback = today["secondary"]
-
-        with c1:
-            _render_action_button(
-                primary_label,
-                key="dash_today_primary",
-                button_type="primary",
-                on_click=primary_callback,
-            )
-
-        with c2:
-            _render_action_button(
-                secondary_label,
-                key="dash_today_secondary",
-                on_click=secondary_callback,
-            )
-
-
-def _render_executive_strip(kpis: dict[str, Any], atuacao_label: str) -> None:
-    saldo_txt = f"R$ {_fmt_money_br(kpis['saldo'])}"
-    tone_cls = "sp-chip-success" if kpis["saldo"] >= 0 else "sp-chip-danger"
-
-    _render_html(
-        f"""
-        <div class="sp-executive-strip">
-            <div class="sp-executive-strip-title">leitura executiva</div>
-            <div class="sp-executive-strip-copy">
-                Atuação atual: <b>{escape(atuacao_label)}</b> •
-                {kpis['ativos']} processo(s) ativo(s) •
-                {kpis['prazos_abertos']} prazo(s) em aberto •
-                {kpis['ag_7d']} compromisso(s) em 7 dias •
-                <span class="sp-chip {tone_cls}" style="vertical-align:middle;">Saldo {escape(saldo_txt)}</span>
-            </div>
-        </div>
-        """
-    )
 
 
 # ==========================================================
@@ -1851,12 +1174,12 @@ def _render_header(kpis: dict[str, Any] | None = None) -> None:
     ativos = (kpis or {}).get("ativos", 0)
 
     subtitle = (
-        f"{_greeting()}. Hoje é {_today_label()}. "
-        f"{ativos} processo(s) ativo(s), {atrasados} prazo(s) atrasado(s) e {agenda_24h} compromisso(s) nas próximas 24 horas."
+        f"{_greeting()}. {_today_label()}. "
+        f"{ativos} ativo(s), {atrasados} atraso(s), {agenda_24h} compromisso(s) em 24h."
     )
 
     page_header(
-        "Painel de Controle",
+        "Painel",
         subtitle,
         actions=[
             HeaderAction(
@@ -1880,18 +1203,18 @@ def _render_header(kpis: dict[str, Any] | None = None) -> None:
         ],
         compact=False,
         divider=False,
-        bottom_spacing_rem=0.22,
+        bottom_spacing_rem=0.16,
     )
 
 
 def _render_top_bar() -> str | None:
     with section(
         "Visão atual",
-        subtitle="Escolha a atuação para filtrar os indicadores e listas do painel",
+        subtitle="Filtre o painel por atuação",
         divider=False,
         compact=True,
     ):
-        left, right = grid_weights((1.08, 0.92), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.06, 0.94), weights_mobile=(1, 1), gap="medium")
 
         with left:
             atuacao_label = st.selectbox(
@@ -1904,11 +1227,11 @@ def _render_top_bar() -> str | None:
         with right:
             _render_html(
                 """
-                <div class="sp-dashboard-filter-note">
-                  <div class="sp-dashboard-filter-note-copy">
-                    O painel reflete somente a atuação selecionada e atualiza automaticamente conforme o uso.
+                <div class="sp-dash-filter-note">
+                  <div class="sp-dash-filter-note-copy">
+                    O painel se ajusta automaticamente conforme a atuação selecionada.
                   </div>
-                  <span class="sp-chip">Atualizado em tempo real</span>
+                  <span class="sp-chip">tempo real</span>
                 </div>
                 """
             )
@@ -1919,7 +1242,7 @@ def _render_top_bar() -> str | None:
 def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
     with section(
         "Indicadores principais",
-        subtitle=f"Leitura rápida do painel • atuação: {atuacao_label}",
+        subtitle=f"Leitura rápida • {atuacao_label}",
         divider=False,
     ):
         c1, c2, c3, c4 = grid(4, columns_mobile=2)
@@ -1928,7 +1251,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
             card(
                 "Processos ativos",
                 f"{kpis['ativos']}",
-                f"{kpis['total_proc']} cadastrados no total",
+                f"{kpis['total_proc']} cadastrados",
                 tone="neutral",
                 emphasize=True,
             )
@@ -1945,7 +1268,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
                 else "nenhum prazo em aberto"
             )
             card(
-                "Prazos críticos",
+                "Prazos",
                 f"{kpis['prazos_abertos']}",
                 subtitle,
                 tone=tone_prazos,
@@ -1957,7 +1280,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
                 kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]
             )
             card(
-                "Agenda da semana",
+                "Agenda",
                 f"{kpis['ag_7d']}",
                 _kpi_agenda_subtitle(kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]),
                 tone=agenda_tone,
@@ -1966,7 +1289,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
 
         with c4:
             card(
-                "Saldo atual",
+                "Saldo",
                 f"R$ {_fmt_money_br(kpis['saldo'])}",
                 (
                     f"Receitas R$ {_fmt_money_br(kpis['receitas'])} • "
@@ -1980,7 +1303,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
 def _render_quick_actions() -> None:
     with section(
         "Ações rápidas",
-        subtitle="Atalhos operacionais do dia",
+        subtitle="Atalhos do dia",
         divider=False,
     ):
         _render_html('<div class="sp-dashboard-action-grid">')
@@ -2019,10 +1342,204 @@ def _render_quick_actions() -> None:
             _render_html("</div>")
 
 
+def _render_radar_panel(kpis: dict[str, Any]) -> None:
+    with section(
+        "Radar do dia",
+        subtitle="O que merece atenção primeiro",
+        divider=False,
+    ):
+        if kpis["prazos_atrasados"] > 0:
+            title = "Prioridade: regularizar prazos vencidos"
+            copy = "Existem pendências atrasadas que devem ser tratadas antes das demais frentes."
+            cta_label = "Abrir prazos atrasados"
+            cta_page = "Prazos"
+            cta_state = {
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Atrasados",
+            }
+            chips = [
+                f"<span class='sp-chip sp-chip-danger'>Atrasados: {kpis['prazos_atrasados']}</span>",
+                f"<span class='sp-chip'>Em 7 dias: {kpis['prazos_7dias']}</span>",
+            ]
+        elif kpis["ag_24h"] > 0:
+            title = "Prioridade: preparar agenda imediata"
+            copy = "Há compromisso próximo. Vale revisar local, documentos e horários."
+            cta_label = "Abrir agenda"
+            cta_page = "Agenda"
+            cta_state = None
+            chips = [
+                f"<span class='sp-chip sp-chip-warning'>Agenda 24h: {kpis['ag_24h']}</span>",
+                f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
+            ]
+        elif kpis["prazos_7dias"] > 0:
+            title = "Prioridade: organizar a próxima semana"
+            copy = (
+                "Existem vencimentos próximos. Antecipar agora reduz urgência depois."
+            )
+            cta_label = "Ver próximos prazos"
+            cta_page = "Prazos"
+            cta_state = {
+                "prazos_section": "Lista",
+                "pz_nav_to": "Lista",
+                "pz_list_nav_to": "Vencem (7 dias)",
+            }
+            chips = [
+                f"<span class='sp-chip sp-chip-info'>Em 7 dias: {kpis['prazos_7dias']}</span>",
+                f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+            ]
+        else:
+            title = "Painel estável"
+            copy = "Sem urgências críticas neste recorte. Bom momento para atualizar a operação."
+            cta_label = "Novo processo"
+            cta_page = "Trabalhos"
+            cta_state = {"trabalhos_section": "Cadastro"}
+            chips = [
+                f"<span class='sp-chip sp-chip-success'>Sem urgência crítica</span>",
+                f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+            ]
+
+        _render_html(
+            f"""
+            <div class="sp-dash-panel">
+              <div class="sp-dash-panel-title">{escape(title)}</div>
+              <div class="sp-dash-panel-copy">{escape(copy)}</div>
+              <div class="sp-dash-chip-row">{''.join(chips)}</div>
+            </div>
+            """
+        )
+
+        spacer(0.08)
+        _render_nav_button(
+            cta_label,
+            page=cta_page,
+            state=cta_state,
+            key="dash_radar_cta",
+            type="primary",
+        )
+
+
+def _render_today_panel(kpis: dict[str, Any]) -> None:
+    today = _build_today_state(kpis)
+
+    with section(
+        "Hoje",
+        subtitle="Plano rápido para começar bem o dia",
+        divider=False,
+    ):
+        _render_html(
+            f"""
+            <div class="sp-dash-panel">
+              <div class="sp-dash-panel-title">{escape(today['title'])}</div>
+              <div class="sp-dash-panel-copy">{escape(today['copy'])}</div>
+              <div class="sp-dash-panel-list">
+                {''.join(f"<div class='sp-dash-panel-item'>• {escape(item)}</div>" for item in today["items"])}
+              </div>
+            </div>
+            """
+        )
+
+        spacer(0.08)
+        c1, c2 = grid(2, columns_mobile=1)
+
+        primary_label, primary_callback = today["primary"]
+        secondary_label, secondary_callback = today["secondary"]
+
+        with c1:
+            _render_action_button(
+                primary_label,
+                key="dash_today_primary",
+                button_type="primary",
+                on_click=primary_callback,
+            )
+
+        with c2:
+            _render_action_button(
+                secondary_label,
+                key="dash_today_secondary",
+                on_click=secondary_callback,
+            )
+
+
+def _render_notifications_center(kpis: dict[str, Any]) -> None:
+    with section(
+        "Notificações",
+        subtitle="Leitura rápida das pendências e sinais do painel",
+        divider=False,
+    ):
+        notifications = _build_notifications(kpis)
+
+        for idx, item in enumerate(notifications):
+            tone_cls = {
+                "danger": "sp-dash-note-card-danger",
+                "warning": "sp-dash-note-card-warning",
+                "info": "sp-dash-note-card-info",
+                "success": "sp-dash-note-card-success",
+            }.get(item["tone"], "")
+
+            _render_html(
+                f"""
+                <div class="sp-dash-note-card {tone_cls}">
+                    <div class="sp-dash-note-kicker">{escape(item['kicker'])}</div>
+                    <div class="sp-dash-note-title">{escape(item['title'])}</div>
+                    <div class="sp-dash-note-copy">{escape(item['copy'])}</div>
+                </div>
+                """
+            )
+
+            label, callback = item["primary"]
+            st.button(
+                label,
+                key=f"dash_notification_action_{idx}",
+                use_container_width=True,
+                on_click=callback,
+            )
+
+
+def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
+    with section(
+        "Próximos passos",
+        subtitle="Linha do tempo operacional",
+        divider=False,
+    ):
+        if not items:
+            empty_state(
+                title="Nenhum evento próximo",
+                subtitle="Quando houver prazos ou compromissos, eles aparecerão aqui.",
+                icon="🗓️",
+            )
+            return
+
+        for item in items:
+            pill_class = {
+                "danger": "sp-chip-danger",
+                "warning": "sp-chip-warning",
+                "info": "sp-chip-info",
+                "success": "sp-chip-success",
+            }.get(item["tone"], "")
+
+            _render_html(
+                f"""
+                <div class="sp-dash-timeline-item">
+                    <div class="sp-dash-timeline-head">
+                        <div>
+                            <div class="sp-dash-timeline-title">{_esc(item['headline'])}</div>
+                            <div class="sp-dash-timeline-sub">{_esc(item['detail'])}</div>
+                        </div>
+                        <span class="sp-chip {pill_class}">{_esc(item['kind'])}</span>
+                    </div>
+                    <div class="sp-dash-chip-row">
+                        <span class="sp-chip {pill_class}">{_esc(item['meta'])}</span>
+                    </div>
+                </div>
+                """
+            )
+
+
 def _render_finance_summary(kpis: dict[str, Any]) -> None:
     with section(
         "Financeiro",
-        subtitle="Resumo rápido da posição atual",
+        subtitle="Resumo da posição atual",
         divider=False,
     ):
         c1, c2, c3, c4 = grid(4, columns_mobile=2)
@@ -2090,7 +1607,7 @@ def _render_tab_prazos(
         _render_prazo_cards(
             rows_atrasados,
             "Nenhum prazo atrasado no momento",
-            "Ótimo sinal. Seu painel não possui pendências vencidas neste recorte.",
+            "Seu painel não possui pendências vencidas neste recorte.",
         )
         spacer(0.08)
         _render_nav_button(
@@ -2101,7 +1618,7 @@ def _render_tab_prazos(
             type="primary",
         )
 
-    spacer(0.18)
+    spacer(0.14)
 
     with section(
         "Prazos em até 7 dias",
@@ -2167,7 +1684,7 @@ def _render_tab_agenda(
             type="primary",
         )
 
-    spacer(0.18)
+    spacer(0.14)
 
     with section(
         "Próximos 7 dias",
@@ -2211,7 +1728,7 @@ def _render_tab_trabalhos(
 
     with section(
         "Últimos processos",
-        subtitle="Registros mais recentes conforme o filtro de atuação",
+        subtitle="Registros mais recentes conforme o filtro atual",
         divider=False,
     ):
         if not rows:
@@ -2262,9 +1779,6 @@ def render(owner_user_id: int) -> None:
             version=version,
         )
 
-        _render_header(kpis)
-        _render_command_bar()
-
         rows_prazos_atrasados, rows_prazos_7d = _fetch_prazos_tables_cached(
             owner_user_id,
             tipo_val,
@@ -2280,34 +1794,23 @@ def render(owner_user_id: int) -> None:
             version,
         )
 
-        _render_priority_banners(
-            kpis,
-            rows_prazos_atrasados,
-            rows_ag_24h,
-            rows_prazos_7d,
-        )
-
-        _render_executive_strip(kpis, atuacao_label)
-
-        spacer(0.14)
+        _render_header(kpis)
         _render_dashboard_summary(kpis, atuacao_label)
 
-        spacer(0.16)
+        spacer(0.14)
         _render_quick_actions()
 
-        spacer(0.18)
+        spacer(0.16)
         left, right = grid_weights((1.02, 0.98), weights_mobile=(1, 1), gap="medium")
 
         with left:
-            _render_radar_panel(kpis=kpis)
-            spacer(0.16)
+            _render_radar_panel(kpis)
+            spacer(0.14)
             _render_today_panel(kpis)
-            spacer(0.16)
-            _render_assistant_panel(kpis)
 
         with right:
             _render_notifications_center(kpis)
-            spacer(0.16)
+            spacer(0.14)
             timeline_items = _build_timeline_items(
                 rows_prazos_atrasados,
                 rows_prazos_7d,
@@ -2316,10 +1819,10 @@ def render(owner_user_id: int) -> None:
             )
             _render_timeline_preview(timeline_items)
 
-        spacer(0.18)
+        spacer(0.16)
         _render_finance_summary(kpis)
 
-        spacer(0.22)
+        spacer(0.18)
         tab1, tab2, tab3 = st.tabs(
             [
                 f"⏳ Prazos ({kpis['prazos_atrasados']})",

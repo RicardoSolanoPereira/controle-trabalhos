@@ -39,16 +39,16 @@ MOBILE_FLAG_KEY = "force_mobile"
 # Tokens de espaçamento e largura
 # ==========================================================
 
-SPACE_2XS = 0.10
-SPACE_XS = 0.20
-SPACE_SM = 0.40
-SPACE_MD = 0.72
-SPACE_LG = 1.04
-SPACE_XL = 1.44
+SPACE_2XS = 0.08
+SPACE_XS = 0.16
+SPACE_SM = 0.30
+SPACE_MD = 0.54
+SPACE_LG = 0.88
+SPACE_XL = 1.20
 
-PAGE_MAX_WIDTH = "1280px"
-PAGE_PADDING_DESKTOP = "20px"
-PAGE_PADDING_MOBILE = "14px"
+PAGE_MAX_WIDTH = "1360px"
+PAGE_PADDING_DESKTOP = "12px"
+PAGE_PADDING_MOBILE = "10px"
 
 DEFAULT_GRID_GAP = "medium"
 
@@ -153,7 +153,13 @@ def _page_title_block(meta: "PageMeta") -> None:
     subtitle_html = _escape(meta.subtitle) if meta.subtitle else ""
 
     subtitle_block = (
-        f"<div class='sp-page-subtitle'>{subtitle_html}</div>" if subtitle_html else ""
+        f"<div class='sp-page-subtitle'>{subtitle_html}</div>'"
+        if False
+        else (
+            f"<div class='sp-page-subtitle'>{subtitle_html}</div>"
+            if subtitle_html
+            else ""
+        )
     )
 
     _render_html(
@@ -328,7 +334,7 @@ def grid_weights(
 
 
 def content_columns(
-    left: float = 1.55,
+    left: float = 1.45,
     right: float = 1.0,
     *,
     gap: str = DEFAULT_GRID_GAP,
@@ -342,7 +348,7 @@ def content_columns(
 
 def split_hero(
     *,
-    left_ratio: float = 1.35,
+    left_ratio: float = 1.20,
     right_ratio: float = 1.0,
     gap: str = DEFAULT_GRID_GAP,
 ) -> tuple:
@@ -435,7 +441,7 @@ def section(
         if header_actions and not is_mobile():
             left, right = _two_column_row(
                 left_ratio=4.0,
-                right_ratio=1.6,
+                right_ratio=1.5,
                 gap=DEFAULT_GRID_GAP,
                 vertical_alignment="center",
             )
@@ -454,9 +460,9 @@ def section(
                     header_actions()
 
     if divider:
-        divider_space()
+        divider_space(SPACE_XS, SPACE_SM)
     elif title:
-        spacer(SPACE_XS if compact else SPACE_SM)
+        spacer(SPACE_2XS if compact else SPACE_XS)
 
     if use_surface:
         with surface(class_name=surface_class, style=surface_style):
@@ -607,12 +613,12 @@ def page_header(
     if not meta.title:
         return
 
-    spacer(SPACE_XS)
+    spacer(SPACE_2XS)
 
     if right_actions and not is_mobile():
         left, right = _two_column_row(
             left_ratio=4.0,
-            right_ratio=1.6,
+            right_ratio=1.5,
             gap=DEFAULT_GRID_GAP,
             vertical_alignment="center",
         )

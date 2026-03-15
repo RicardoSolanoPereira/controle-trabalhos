@@ -56,14 +56,14 @@ _FALSE_VALUES = {"0", "false", "no", "off", "nao", "não"}
 
 
 def init_state() -> None:
-    """Inicializa os valores padrão da UI uma vez por sessão."""
+    """Inicializa os valores padrão da sessão."""
     for key, value in STATE_DEFAULTS.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
 
 # ==========================================================
-# Helpers de sessão
+# Helpers internos
 # ==========================================================
 
 
@@ -101,6 +101,10 @@ def _as_bool(value: Any, default: bool = False) -> bool:
     return default
 
 
+def _json_dumps_safe(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
 # ==========================================================
 # Query params
 # ==========================================================
@@ -125,7 +129,7 @@ def _normalize_qp_value(value: Any) -> Any:
         return None
 
     if isinstance(value, dict):
-        return json.dumps(value, ensure_ascii=False)
+        return _json_dumps_safe(value)
 
     if isinstance(value, (list, tuple, set)):
         return [str(item) for item in value]
@@ -227,15 +231,6 @@ def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> boo
     return menu_value in allowed_set
 
 
-def get_current_menu(default: str = MENU_DEFAULT) -> str:
-    """
-    Retorna o menu corrente.
-    A fonte oficial de verdade é `_last_menu`.
-    """
-    value = _as_clean_str(_get_state("_last_menu"), default=default)
-    return value or default
-
-
 def _sync_menu_controls(menu: str) -> None:
     """
     Sincroniza todos os controles visuais de navegação
@@ -244,6 +239,15 @@ def _sync_menu_controls(menu: str) -> None:
     _set_state("_last_menu", menu)
     _set_state("sidebar_menu", menu)
     _set_state("top_nav_menu", menu)
+
+
+def get_current_menu(default: str = MENU_DEFAULT) -> str:
+    """
+    Retorna o menu corrente.
+    `_last_menu` é a fonte principal da sessão.
+    """
+    value = _as_clean_str(_get_state("_last_menu"), default=default)
+    return value or default
 
 
 def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
@@ -279,6 +283,7 @@ def navigate(
     menu_value = _as_clean_str(menu)
     if menu_value:
         _set_state("nav_target", menu_value)
+        _sync_menu_controls(menu_value)
         payload["menu"] = menu_value
 
     if state:
@@ -294,7 +299,6 @@ def navigate(
 def consume_nav_target(default: str | None = None) -> str | None:
     """
     Consome uma única vez o alvo de navegação pendente.
-    Útil para navegações disparadas programaticamente.
     """
     target = _as_clean_str(_get_state("nav_target"), default=default)
     _set_state("nav_target", None)
@@ -328,14 +332,16 @@ def apply_menu_from_qp(
 
     if is_valid_menu(qp_menu, allowed):
         menu_value = _as_clean_str(qp_menu, default=default) or default
-        set_current_menu(menu_value, update_qp=False)
+        _sync_menu_controls(menu_value)
+        _set_state("nav_target", None)
         return menu_value
 
     current = get_current_menu(default=default)
 
     if not is_valid_menu(current, allowed):
         current = default
-        set_current_menu(current, update_qp=False)
+        _sync_menu_controls(current)
+        _set_state("nav_target", None)
 
     return current
 
@@ -389,7 +395,6 @@ def bump_data_version(owner_user_id: int | None = None) -> int:
     current = int(_get_state(key, 0)) + 1
     _set_state(key, current)
 
-    # Compatibilidade com telas legadas que dependem da versão global
     if owner_user_id is not None:
         global_key = _global_data_version_key()
         _set_state(global_key, int(_get_state(global_key, 0)) + 1)

@@ -14,7 +14,7 @@ __all__ = [
     "page_header",
 ]
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v11"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v21"
 _MAX_INLINE_ACTIONS = 3
 
 
@@ -159,10 +159,10 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-subtitle-text{
-            margin-top:0.34rem;
-            max-width:78ch;
+            margin-top:0.28rem;
+            max-width:72ch;
             color:var(--muted);
-            line-height:1.55;
+            line-height:1.48;
         }
 
         .sp-page-header-actions{
@@ -185,8 +185,10 @@ def _inject_page_header_css() -> None:
             align-items:center !important;
             justify-content:center !important;
             white-space:nowrap !important;
+            word-break:keep-all !important;
             overflow:hidden !important;
             text-overflow:ellipsis !important;
+            padding-inline:14px !important;
         }
 
         .sp-page-header-actions-inline{
@@ -194,7 +196,7 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-actions-stack > div{
-            margin-bottom:0.42rem;
+            margin-bottom:0.36rem;
         }
 
         .sp-page-header-actions-stack > div:last-child{
@@ -202,7 +204,7 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-more-actions{
-            margin-top:0.45rem;
+            margin-top:0.40rem;
         }
 
         .sp-page-header-more-actions summary{
@@ -212,12 +214,13 @@ def _inject_page_header_css() -> None:
         .sp-page-header-more-actions details{
             background:transparent;
             box-shadow:none;
+            border:none;
         }
 
         @media (max-width:768px){
             .sp-page-header-subtitle-text{
                 max-width:100%;
-                font-size:0.91rem;
+                font-size:0.89rem;
             }
 
             .sp-page-header-actions .stButton > button{
@@ -244,15 +247,15 @@ def _render_title_block(
     subtitle_html = _escape(subtitle) if subtitle else ""
 
     if compact:
-        title_size = "1.06rem"
+        title_size = "1.02rem"
         title_weight = "760"
-        title_line_height = "1.18"
-        subtitle_size = "0.88rem"
+        title_line_height = "1.16"
+        subtitle_size = "0.86rem"
     else:
-        title_size = "1.68rem"
+        title_size = "1.54rem"
         title_weight = "820"
         title_line_height = "1.04"
-        subtitle_size = "0.95rem"
+        subtitle_size = "0.92rem"
 
     subtitle_block = (
         f"""
@@ -298,7 +301,7 @@ def _render_single_action(action: HeaderAction, *, key: str) -> bool:
 def _render_actions_mobile(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
     clicked = False
 
-    spacer(0.22)
+    spacer(0.18)
     _render_html('<div class="sp-page-header-actions-stack">')
     try:
         for action in actions:
@@ -373,9 +376,9 @@ def page_header(
     actions: Sequence[HeaderAction] | None = None,
     divider: bool = False,
     compact: bool = False,
-    actions_width_ratio: tuple[float, float] = (4.3, 1.9),
-    top_spacing_rem: float = 0.10,
-    bottom_spacing_rem: float = 0.40,
+    actions_width_ratio: tuple[float, float] = (4.0, 2.5),
+    top_spacing_rem: float = 0.06,
+    bottom_spacing_rem: float = 0.24,
 ) -> bool:
     """
     Renderiza o header padrão de página.
@@ -429,7 +432,7 @@ def page_header(
         _render_html("</div>")
 
     if divider:
-        spacer(0.22)
+        spacer(0.18)
         st.divider()
 
     if bottom_spacing_rem > 0:
