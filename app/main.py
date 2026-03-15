@@ -27,6 +27,10 @@ from ui_state import (
     set_current_menu,
 )
 
+# ==========================================================
+# Bootstrap local
+# ==========================================================
+
 Path("data").mkdir(parents=True, exist_ok=True)
 load_dotenv()
 
@@ -39,12 +43,19 @@ if DEFAULT_SIDEBAR_STATE not in {"expanded", "collapsed"}:
 BUILD_ID = os.getenv("BUILD_ID", "2026-02-28-DEF-1").strip()
 TOP_NAV_DEFAULT = os.getenv("TOP_NAV_DEFAULT", "1").strip() == "1"
 
+DEFAULT_EMAIL = os.getenv("DEFAULT_USER_EMAIL", "admin@local").strip()
+DEFAULT_NAME = os.getenv("DEFAULT_USER_NAME", "Administrador").strip()
+
 st.set_page_config(
     page_title="Gestão Técnica",
     page_icon="📐",
     layout="wide",
     initial_sidebar_state=DEFAULT_SIDEBAR_STATE,
 )
+
+# ==========================================================
+# Menu / rotas
+# ==========================================================
 
 MENU_KEYS = [
     "Painel",
@@ -64,7 +75,7 @@ MENU_LABELS = {
     "Financeiro": "💰 Financeiro",
 }
 
-ROUTES: dict[str, Callable] = {
+ROUTES: dict[str, Callable[[int], None]] = {
     "Painel": dashboard.render,
     "Trabalhos": processos.render,
     "Prazos": prazos.render,
@@ -73,7 +84,16 @@ ROUTES: dict[str, Callable] = {
     "Financeiro": financeiro.render,
 }
 
+# ==========================================================
+# Estado inicial
+# ==========================================================
+
 init_state()
+
+
+# ==========================================================
+# Bootstrap cacheado
+# ==========================================================
 
 
 @st.cache_resource
@@ -91,8 +111,10 @@ def _bootstrap_theme() -> bool:
 _bootstrap_db()
 _bootstrap_theme()
 
-DEFAULT_EMAIL = os.getenv("DEFAULT_USER_EMAIL", "admin@local").strip()
-DEFAULT_NAME = os.getenv("DEFAULT_USER_NAME", "Administrador").strip()
+
+# ==========================================================
+# Usuário dono padrão
+# ==========================================================
 
 
 def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
@@ -135,6 +157,11 @@ except Exception as e:
     st.stop()
 
 
+# ==========================================================
+# Roteamento inicial
+# ==========================================================
+
+
 def _apply_initial_route_sync() -> None:
     nav_target = consume_nav_target(default=None)
     qp_menu = get_qp_str("menu")
@@ -155,6 +182,11 @@ def _apply_initial_route_sync() -> None:
 _apply_initial_route_sync()
 
 
+# ==========================================================
+# Utilitários de rerun / sync
+# ==========================================================
+
+
 def _rerun_soft() -> None:
     try:
         st.rerun()
@@ -170,6 +202,11 @@ def _sync_hard() -> None:
     _rerun_soft()
 
 
+# ==========================================================
+# Top navigation
+# ==========================================================
+
+
 def _top_nav(current_menu: str) -> str:
     force_mobile = bool(st.session_state.get("force_mobile", False))
     show_top_nav = (
@@ -179,9 +216,9 @@ def _top_nav(current_menu: str) -> str:
     if not show_top_nav:
         return current_menu
 
-    c1, c2 = st.columns([3, 1], vertical_alignment="center")
+    left, right = st.columns([4, 1.3], gap="medium", vertical_alignment="center")
 
-    with c1:
+    with left:
         st.selectbox(
             "Navegação",
             MENU_KEYS,
@@ -191,10 +228,10 @@ def _top_nav(current_menu: str) -> str:
             label_visibility="collapsed",
         )
 
-    with c2:
+    with right:
         if st.button(
             "↻",
-            help="Recarregar",
+            help="Recarregar página atual",
             use_container_width=True,
             key="top_nav_reload",
         ):
@@ -202,6 +239,11 @@ def _top_nav(current_menu: str) -> str:
 
     st.divider()
     return get_current_menu()
+
+
+# ==========================================================
+# Sidebar
+# ==========================================================
 
 
 def render_sidebar(current_menu: str) -> str:
@@ -223,9 +265,9 @@ def render_sidebar(current_menu: str) -> str:
         st.sidebar.divider()
 
     st.sidebar.markdown("**Ações**")
-    c1, c2 = st.sidebar.columns(2)
+    col_sync, col_reload = st.sidebar.columns(2)
 
-    with c1:
+    with col_sync:
         if st.button(
             "🔄 Sync",
             use_container_width=True,
@@ -234,7 +276,7 @@ def render_sidebar(current_menu: str) -> str:
         ):
             _sync_hard()
 
-    with c2:
+    with col_reload:
         if st.button(
             "↻ Atual",
             use_container_width=True,
@@ -261,23 +303,31 @@ def render_sidebar(current_menu: str) -> str:
                 st.toast("Cache limpo.", icon="🧹")
 
     st.sidebar.markdown(
-        f"<div style='font-size:0.72rem;opacity:0.55;margin-top:10px'>BUILD {BUILD_ID}</div>",
+        (
+            "<div style='font-size:0.72rem;opacity:0.55;margin-top:10px'>"
+            f"BUILD {BUILD_ID}"
+            "</div>"
+        ),
         unsafe_allow_html=True,
     )
 
-    return get_current_menu()
+    return get_current_menu(default=current_menu)
 
 
-def render_shell(menu: str) -> None:
+# ==========================================================
+# Shell principal
+# ==========================================================
+
+
+def render_shell(menu: str, owner_user_id: int) -> None:
     render_fn = ROUTES.get(menu)
-    if not render_fn:
+
+    if render_fn is None:
         st.error("Rota inválida.")
         return
 
     try:
         render_fn(owner_user_id)
-    except TypeError:
-        render_fn()
     except Exception as e:
         st.error(f"Erro ao abrir a página '{menu}'.")
         if DEBUG:
@@ -286,7 +336,11 @@ def render_shell(menu: str) -> None:
             st.caption(f"{type(e).__name__}: {e}")
 
 
+# ==========================================================
+# Execução principal
+# ==========================================================
+
 current_menu = get_current_menu()
 current_menu = render_sidebar(current_menu)
 current_menu = _top_nav(current_menu)
-render_shell(current_menu)
+render_shell(current_menu, owner_user_id)

@@ -12,7 +12,7 @@ __all__ = [
     "app_error",
 ]
 
-_CSS_VERSION = "v30"
+_CSS_VERSION = "v31"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -25,16 +25,16 @@ TOKENS
 ====================================================== */
 
 :root{
-  --bg:#f5f7f6;
-  --bg-soft:#fafcfb;
-  --bg-elevated:#eef3f1;
+  --bg:#f4f7f5;
+  --bg-soft:#f8fbf9;
+  --bg-elevated:#eef4f1;
 
   --surface:#ffffff;
   --surface-soft:#fcfdfd;
-  --surface-muted:#f7f9f8;
+  --surface-muted:#f6f8f7;
 
   --border:#dde5e1;
-  --border-strong:#cfd9d4;
+  --border-strong:#ccd7d1;
   --border-soft:rgba(15,23,42,0.06);
 
   --text:#0f172a;
@@ -43,10 +43,10 @@ TOKENS
   --muted-strong:#475467;
 
   --primary:#355e57;
-  --primary-hover:#2b4e48;
-  --primary-soft:rgba(53,94,87,0.09);
-  --primary-softer:rgba(53,94,87,0.045);
-  --primary-ring:rgba(53,94,87,0.15);
+  --primary-hover:#2c4f49;
+  --primary-soft:rgba(53,94,87,0.08);
+  --primary-softer:rgba(53,94,87,0.04);
+  --primary-ring:rgba(53,94,87,0.14);
 
   --danger:#dc2626;
   --warning:#d97706;
@@ -55,7 +55,7 @@ TOKENS
   --neutral:#64748b;
 
   --danger-bg:rgba(220,38,38,0.07);
-  --warning-bg:rgba(217,119,6,0.10);
+  --warning-bg:rgba(217,119,6,0.09);
   --success-bg:rgba(21,128,61,0.08);
   --info-bg:rgba(37,99,235,0.08);
   --neutral-bg:rgba(15,23,42,0.04);
@@ -66,9 +66,9 @@ TOKENS
   --radius-md:12px;
   --radius-sm:10px;
 
-  --shadow-xs:0 1px 2px rgba(15,23,42,0.035);
-  --shadow-sm:0 6px 18px rgba(15,23,42,0.045);
-  --shadow-md:0 12px 28px rgba(15,23,42,0.06);
+  --shadow-xs:0 1px 2px rgba(15,23,42,0.03);
+  --shadow-sm:0 8px 22px rgba(15,23,42,0.045);
+  --shadow-md:0 18px 40px rgba(15,23,42,0.07);
 
   --transition-fast:all .14s ease;
   --transition:all .18s ease;
@@ -79,7 +79,8 @@ TOKENS
 BASE
 ====================================================== */
 
-html, body{
+html,
+body{
   color:var(--text);
 }
 
@@ -92,14 +93,18 @@ body{
   -moz-osx-font-smoothing:grayscale;
 }
 
-p, li, label, span, div{
+p,
+li,
+label,
+span,
+div{
   color:inherit;
 }
 
 .stApp{
   background:
-    radial-gradient(circle at top right, rgba(53,94,87,0.035), transparent 22%),
-    linear-gradient(180deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0.14) 100%),
+    radial-gradient(circle at top right, rgba(53,94,87,0.03), transparent 22%),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 100%),
     var(--bg);
 }
 
@@ -132,14 +137,18 @@ LAYOUT
 .block-container{
   max-width:1360px;
   padding-top:0.90rem;
-  padding-right:1.1rem;
-  padding-bottom:1.2rem;
-  padding-left:1.1rem;
+  padding-right:1.10rem;
+  padding-bottom:1.25rem;
+  padding-left:1.10rem;
   overflow:visible !important;
 }
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.22rem;
+  margin-bottom:0.18rem;
+}
+
+div[data-testid="stHorizontalBlock"]{
+  align-items:stretch;
 }
 
 
@@ -147,26 +156,29 @@ div[data-testid="stVerticalBlock"] > div{
 TYPOGRAPHY
 ====================================================== */
 
-h1, h2, h3, h4{
+h1,
+h2,
+h3,
+h4{
+  margin-bottom:0.10rem;
   letter-spacing:-0.02em;
   color:var(--text);
-  margin-bottom:0.10rem;
 }
 
 h1{
-  font-size:1.78rem;
+  font-size:1.80rem;
   line-height:1.04;
   font-weight:800;
 }
 
 h2{
-  font-size:1.26rem;
+  font-size:1.28rem;
   line-height:1.12;
   font-weight:760;
 }
 
 h3{
-  font-size:1.02rem;
+  font-size:1.03rem;
   line-height:1.22;
   font-weight:720;
 }
@@ -182,13 +194,18 @@ small,
   color:var(--muted) !important;
 }
 
+label[data-testid="stWidgetLabel"] p{
+  font-weight:620 !important;
+  color:var(--text-soft) !important;
+}
+
 
 /* ======================================================
 PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.02rem 0 0.12rem 0;
+  padding:0.02rem 0 0.14rem 0;
 }
 
 .sp-page-title-wrap{
@@ -198,18 +215,18 @@ PAGE HEADER
 }
 
 .sp-page-title{
-  font-size:1.56rem;
-  font-weight:820;
+  font-size:1.58rem;
   line-height:1.04;
+  font-weight:820;
   letter-spacing:-0.03em;
   color:var(--text);
 }
 
 .sp-page-subtitle{
-  margin-top:0.28rem;
+  margin-top:0.30rem;
   max-width:74ch;
-  font-size:0.92rem;
-  line-height:1.5;
+  font-size:0.93rem;
+  line-height:1.52;
   color:var(--muted);
 }
 
@@ -228,7 +245,7 @@ PAGE HEADER
   display:flex;
   justify-content:flex-end;
   align-items:center;
-  gap:0.45rem;
+  gap:0.50rem;
   flex-wrap:wrap;
 }
 
@@ -238,7 +255,7 @@ PAGE HEADER
   display:flex;
   justify-content:flex-start;
   align-items:center;
-  gap:0.45rem;
+  gap:0.50rem;
   flex-wrap:wrap;
 }
 
@@ -259,16 +276,16 @@ SECTION HEADER
 }
 
 .sp-section-title{
-  font-size:0.98rem;
+  font-size:0.99rem;
   font-weight:760;
   letter-spacing:-0.012em;
   color:var(--text);
 }
 
 .sp-section-subtitle{
-  margin-top:0.10rem;
+  margin-top:0.12rem;
   font-size:0.88rem;
-  line-height:1.45;
+  line-height:1.48;
   color:var(--muted);
 }
 
@@ -278,7 +295,7 @@ SURFACES
 ====================================================== */
 
 .sp-surface{
-  background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(252,253,253,1) 100%);
+  background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(251,253,252,1) 100%);
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   padding:14px 16px;
@@ -294,6 +311,268 @@ SURFACES
 
 .sp-surface-no-pad{
   padding:0 !important;
+}
+
+
+/* ======================================================
+TOPBAR / TOOLBAR
+====================================================== */
+
+.sp-topbar-shell{
+  position:sticky;
+  top:0;
+  z-index:20;
+  backdrop-filter:blur(8px);
+}
+
+.sp-topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 12px;
+  border:1px solid rgba(15,23,42,0.06);
+  border-radius:16px;
+  background:rgba(255,255,255,0.80);
+  box-shadow:var(--shadow-xs);
+}
+
+.sp-topbar-group{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+
+/* ======================================================
+SIDEBAR
+====================================================== */
+
+section[data-testid="stSidebar"]{
+  background:linear-gradient(180deg, #f7faf9 0%, #edf4f1 100%);
+  border-right:1px solid #e1e8e5;
+}
+
+section[data-testid="stSidebar"] .block-container{
+  padding:0.90rem !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
+  margin-bottom:0.16rem !important;
+}
+
+
+/* ======================================================
+BUTTONS
+====================================================== */
+
+.stButton > button{
+  min-height:42px;
+  padding:0.60rem 0.95rem;
+  border-radius:12px;
+  border:1px solid rgba(15,23,42,0.10);
+  background:#ffffff;
+  color:var(--text);
+  font-weight:660;
+  transition:
+    background-color .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease,
+    transform .16s ease;
+  box-shadow:none;
+}
+
+.stButton > button:hover{
+  background:rgba(15,23,42,0.024);
+  border-color:rgba(15,23,42,0.16);
+  transform:translateY(-1px);
+}
+
+.stButton > button:focus,
+.stButton > button:focus-visible{
+  outline:none !important;
+  box-shadow:0 0 0 0.18rem var(--primary-ring) !important;
+}
+
+.stButton > button[kind="primary"],
+.stButton > button[class*="primary"]{
+  background:var(--primary) !important;
+  border:1px solid var(--primary) !important;
+  color:#ffffff !important;
+  box-shadow:0 8px 18px rgba(53,94,87,0.12) !important;
+}
+
+.stButton > button[kind="primary"]:hover,
+.stButton > button[class*="primary"]:hover{
+  background:var(--primary-hover) !important;
+  border-color:var(--primary-hover) !important;
+}
+
+
+/* ======================================================
+INPUTS / SELECTS / TEXTAREA
+====================================================== */
+
+div[data-baseweb="input"] > div,
+div[data-baseweb="textarea"] > div,
+div[data-baseweb="select"] > div{
+  min-height:42px;
+  border-radius:12px !important;
+  border-color:rgba(15,23,42,0.10) !important;
+  background:#ffffff !important;
+  transition:
+    border-color .16s ease,
+    box-shadow .16s ease,
+    background-color .16s ease !important;
+}
+
+div[data-baseweb="input"] > div:hover,
+div[data-baseweb="textarea"] > div:hover,
+div[data-baseweb="select"] > div:hover{
+  border-color:rgba(15,23,42,0.16) !important;
+}
+
+div[data-baseweb="input"] > div:focus-within,
+div[data-baseweb="textarea"] > div:focus-within,
+div[data-baseweb="select"] > div:focus-within{
+  border-color:rgba(53,94,87,0.34) !important;
+  box-shadow:0 0 0 0.18rem var(--primary-ring) !important;
+}
+
+
+/* ======================================================
+TABS
+====================================================== */
+
+div[data-testid="stTabs"]{
+  gap:0.20rem;
+}
+
+button[data-baseweb="tab"]{
+  border-radius:12px 12px 0 0 !important;
+  font-weight:660 !important;
+  color:var(--muted-strong) !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"]{
+  color:var(--primary) !important;
+  border-bottom-color:var(--primary) !important;
+}
+
+
+/* ======================================================
+DATA DISPLAY
+====================================================== */
+
+div[data-testid="stDataFrame"]{
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#ffffff;
+  box-shadow:var(--shadow-xs);
+}
+
+div[data-testid="stDataFrame"] [role="grid"]{
+  border:none !important;
+}
+
+details{
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#ffffff;
+  box-shadow:var(--shadow-xs);
+}
+
+summary{
+  border-radius:12px;
+}
+
+
+/* ======================================================
+CARDS
+====================================================== */
+
+.sp-card{
+  position:relative;
+  overflow:hidden;
+  min-height:108px;
+  padding:14px 14px 13px 14px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(250,252,251,1) 100%);
+  box-shadow:var(--shadow-xs);
+  transition:var(--transition);
+}
+
+.sp-card:hover{
+  border-color:var(--border-strong);
+  box-shadow:var(--shadow-sm);
+  transform:translateY(-1px);
+}
+
+.sp-card-title{
+  margin-bottom:6px;
+  font-size:0.75rem;
+  line-height:1.15;
+  font-weight:760;
+  letter-spacing:0.045em;
+  text-transform:uppercase;
+  color:rgba(15,23,42,0.56);
+}
+
+.sp-card-value{
+  font-size:1.30rem;
+  line-height:1.04;
+  font-weight:820;
+  color:var(--text);
+}
+
+.sp-card-value.emph{
+  font-size:1.56rem;
+  font-weight:850;
+}
+
+.sp-card-sub{
+  margin-top:7px;
+  font-size:0.82rem;
+  line-height:1.40;
+  color:rgba(15,23,42,0.58);
+}
+
+.sp-card-operational{
+  min-height:auto;
+  padding:14px;
+}
+
+
+/* ======================================================
+TONES
+====================================================== */
+
+.sp-tone-danger{
+  border-left:3px solid var(--danger);
+  padding-left:12px;
+}
+
+.sp-tone-warning{
+  border-left:3px solid var(--warning);
+  padding-left:12px;
+}
+
+.sp-tone-success{
+  border-left:3px solid var(--success);
+  padding-left:12px;
+}
+
+.sp-tone-info{
+  border-left:3px solid var(--info);
+  padding-left:12px;
+}
+
+.sp-tone-neutral{
+  border-left:3px solid #cbd5e1;
+  padding-left:12px;
 }
 
 
@@ -362,264 +641,6 @@ CHIPS / PILLS
   background:var(--neutral-bg);
   border-color:rgba(15,23,42,0.08);
   color:var(--text-soft);
-}
-
-
-/* ======================================================
-TOP NAV / TOOLBAR SUPPORT
-====================================================== */
-
-.sp-topbar-shell{
-  position:sticky;
-  top:0;
-  z-index:20;
-  backdrop-filter:blur(8px);
-}
-
-.sp-topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:9px 12px;
-  border:1px solid rgba(15,23,42,0.06);
-  border-radius:16px;
-  background:rgba(255,255,255,0.78);
-  box-shadow:var(--shadow-xs);
-}
-
-.sp-topbar-group{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  flex-wrap:wrap;
-}
-
-
-/* ======================================================
-SIDEBAR
-====================================================== */
-
-section[data-testid="stSidebar"]{
-  background:linear-gradient(180deg, #f7faf9 0%, #eff5f2 100%);
-  border-right:1px solid #e1e8e5;
-}
-
-section[data-testid="stSidebar"] .block-container{
-  padding:0.90rem !important;
-}
-
-section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.18rem !important;
-}
-
-
-/* ======================================================
-BUTTONS
-====================================================== */
-
-.stButton > button{
-  min-height:42px;
-  padding:0.58rem 0.95rem;
-  border-radius:12px;
-  border:1px solid rgba(15,23,42,0.10);
-  background:#ffffff;
-  color:var(--text);
-  font-weight:660;
-  transition:background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
-  box-shadow:none;
-}
-
-.stButton > button:hover{
-  background:rgba(15,23,42,0.024);
-  border-color:rgba(15,23,42,0.16);
-  transform:translateY(-1px);
-}
-
-.stButton > button:focus{
-  outline:none !important;
-  box-shadow:0 0 0 0.18rem rgba(53,94,87,0.11) !important;
-}
-
-.stButton > button[kind="primary"],
-.stButton > button[class*="primary"]{
-  background:var(--primary) !important;
-  border:1px solid var(--primary) !important;
-  color:#ffffff !important;
-  box-shadow:0 6px 16px rgba(53,94,87,0.12) !important;
-}
-
-.stButton > button[kind="primary"]:hover,
-.stButton > button[class*="primary"]:hover{
-  background:var(--primary-hover) !important;
-  border-color:var(--primary-hover) !important;
-}
-
-
-/* ======================================================
-INPUTS / SELECTS / TEXTAREA
-====================================================== */
-
-div[data-baseweb="input"] > div,
-div[data-baseweb="textarea"] > div,
-div[data-baseweb="select"] > div{
-  min-height:42px;
-  border-radius:12px !important;
-  border-color:rgba(15,23,42,0.10) !important;
-  background:#ffffff !important;
-  transition:border-color .16s ease, box-shadow .16s ease, background-color .16s ease !important;
-}
-
-div[data-baseweb="input"] > div:hover,
-div[data-baseweb="textarea"] > div:hover,
-div[data-baseweb="select"] > div:hover{
-  border-color:rgba(15,23,42,0.16) !important;
-}
-
-div[data-baseweb="input"] > div:focus-within,
-div[data-baseweb="textarea"] > div:focus-within,
-div[data-baseweb="select"] > div:focus-within{
-  border-color:rgba(53,94,87,0.34) !important;
-  box-shadow:0 0 0 0.18rem var(--primary-ring) !important;
-}
-
-label[data-testid="stWidgetLabel"] p{
-  font-weight:620 !important;
-  color:var(--text-soft) !important;
-}
-
-
-/* ======================================================
-TABS
-====================================================== */
-
-div[data-testid="stTabs"]{
-  gap:0.20rem;
-}
-
-button[data-baseweb="tab"]{
-  border-radius:12px 12px 0 0 !important;
-  font-weight:660 !important;
-  color:var(--muted-strong) !important;
-}
-
-button[data-baseweb="tab"][aria-selected="true"]{
-  color:var(--primary) !important;
-  border-bottom-color:var(--primary) !important;
-}
-
-
-/* ======================================================
-DATA DISPLAY
-====================================================== */
-
-div[data-testid="stDataFrame"]{
-  overflow:hidden;
-  border:1px solid var(--border);
-  border-radius:14px;
-  background:#ffffff;
-  box-shadow:var(--shadow-xs);
-}
-
-div[data-testid="stDataFrame"] [role="grid"]{
-  border:none !important;
-}
-
-details{
-  border:1px solid var(--border);
-  border-radius:14px;
-  background:#ffffff;
-  box-shadow:var(--shadow-xs);
-}
-
-summary{
-  border-radius:12px;
-}
-
-
-/* ======================================================
-CARDS
-====================================================== */
-
-.sp-card{
-  position:relative;
-  overflow:hidden;
-  min-height:108px;
-  padding:14px 14px 13px 14px;
-  border:1px solid var(--border);
-  border-radius:16px;
-  background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(251,252,252,1) 100%);
-  box-shadow:var(--shadow-xs);
-  transition:var(--transition);
-}
-
-.sp-card:hover{
-  border-color:var(--border-strong);
-  box-shadow:var(--shadow-sm);
-  transform:translateY(-1px);
-}
-
-.sp-card-title{
-  margin-bottom:6px;
-  font-size:0.75rem;
-  font-weight:760;
-  letter-spacing:0.045em;
-  text-transform:uppercase;
-  color:rgba(15,23,42,0.58);
-}
-
-.sp-card-value{
-  font-size:1.28rem;
-  line-height:1.04;
-  font-weight:820;
-  color:var(--text);
-}
-
-.sp-card-value.emph{
-  font-size:1.54rem;
-  font-weight:850;
-}
-
-.sp-card-sub{
-  margin-top:7px;
-  font-size:0.82rem;
-  line-height:1.38;
-  color:rgba(15,23,42,0.56);
-}
-
-.sp-card-operational{
-  min-height:auto;
-  padding:14px;
-}
-
-
-/* ======================================================
-TONES
-====================================================== */
-
-.sp-tone-danger{
-  border-left:3px solid var(--danger);
-  padding-left:12px;
-}
-
-.sp-tone-warning{
-  border-left:3px solid var(--warning);
-  padding-left:12px;
-}
-
-.sp-tone-success{
-  border-left:3px solid var(--success);
-  padding-left:12px;
-}
-
-.sp-tone-info{
-  border-left:3px solid var(--info);
-  padding-left:12px;
-}
-
-.sp-tone-neutral{
-  border-left:3px solid #cbd5e1;
-  padding-left:12px;
 }
 
 
@@ -737,7 +758,7 @@ TIMELINE
 .sp-timeline-detail{
   margin-top:4px;
   font-size:0.86rem;
-  line-height:1.40;
+  line-height:1.42;
   color:rgba(15,23,42,0.70);
 }
 
@@ -852,7 +873,7 @@ MOBILE
   }
 
   .sp-page-title{
-    font-size:1.34rem;
+    font-size:1.36rem;
   }
 
   .sp-page-subtitle{
@@ -870,11 +891,11 @@ MOBILE
   }
 
   .sp-card-value{
-    font-size:1.10rem;
+    font-size:1.12rem;
   }
 
   .sp-card-value.emph{
-    font-size:1.26rem;
+    font-size:1.28rem;
   }
 
   .sp-surface{

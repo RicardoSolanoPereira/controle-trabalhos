@@ -391,7 +391,6 @@ def bump_data_version(owner_user_id: int | None = None) -> int:
     - bump_data_version(owner_user_id) -> versão por usuário
     """
     key = _resolve_data_version_key(owner_user_id)
-
     current = int(_get_state(key, 0)) + 1
     _set_state(key, current)
 
