@@ -22,12 +22,11 @@ __all__ = [
     "content_columns",
     "split_hero",
     "content_shell",
+    "topbar_shell",
     "surface",
     "plain_block",
     "section",
     "section_surface",
-    "toolbar",
-    "toolbar_actions",
     "toolbar_row",
     "actions_row",
     "empty_state",
@@ -113,6 +112,20 @@ def _wrap_columns(count: int, *, per_row: int, gap: str) -> list:
     return slots
 
 
+def _two_column_row(
+    *,
+    left_ratio: float,
+    right_ratio: float,
+    gap: str,
+    vertical_alignment: str = "center",
+):
+    return st.columns(
+        [max(0.1, float(left_ratio)), max(0.1, float(right_ratio))],
+        gap=gap,
+        vertical_alignment=vertical_alignment,
+    )
+
+
 def _section_header(title: str, subtitle: str | None = None) -> None:
     title_html = _escape(title)
     subtitle_html = _escape(subtitle) if subtitle else ""
@@ -152,20 +165,6 @@ def _page_title_block(meta: "PageMeta") -> None:
             </div>
         </div>
         """
-    )
-
-
-def _two_column_row(
-    *,
-    left_ratio: float,
-    right_ratio: float,
-    gap: str,
-    vertical_alignment: str = "center",
-):
-    return st.columns(
-        [max(0.1, float(left_ratio)), max(0.1, float(right_ratio))],
-        gap=gap,
-        vertical_alignment=vertical_alignment,
     )
 
 
@@ -261,6 +260,21 @@ def content_shell(
     )
     try:
         yield
+    finally:
+        _render_html("</div>")
+
+
+@contextmanager
+def topbar_shell(class_name: str | None = None) -> Iterator[None]:
+    classes = ["sp-topbar-shell"]
+    extra_class = _clean_class_name(class_name)
+    if extra_class:
+        classes.append(extra_class)
+
+    _render_html(f'<div class="{_escape(" ".join(classes), quote=True)}">')
+    try:
+        with plain_block(class_name="sp-topbar"):
+            yield
     finally:
         _render_html("</div>")
 
@@ -484,54 +498,8 @@ def section_surface(
 
 
 # ==========================================================
-# Toolbar
+# Toolbar / actions
 # ==========================================================
-
-
-@contextmanager
-def toolbar(
-    gap: str = DEFAULT_GRID_GAP,
-    *,
-    left_ratio: float = 3.0,
-    right_ratio: float = 2.0,
-) -> Iterator[None]:
-    if is_mobile():
-        with st.container():
-            yield
-        return
-
-    left, _ = _two_column_row(
-        left_ratio=left_ratio,
-        right_ratio=right_ratio,
-        gap=gap,
-        vertical_alignment="center",
-    )
-    with left:
-        yield
-
-
-def toolbar_actions(
-    actions: Callable[[], None],
-    *,
-    gap: str = DEFAULT_GRID_GAP,
-    left_ratio: float = 3.0,
-    right_ratio: float = 2.0,
-) -> None:
-    if is_mobile():
-        compact_gap()
-        with plain_block(class_name="sp-toolbar-actions-mobile"):
-            actions()
-        return
-
-    _, right = _two_column_row(
-        left_ratio=left_ratio,
-        right_ratio=right_ratio,
-        gap=gap,
-        vertical_alignment="center",
-    )
-    with right:
-        with plain_block(class_name="sp-toolbar-actions"):
-            actions()
 
 
 def toolbar_row(
@@ -546,10 +514,12 @@ def toolbar_row(
     if is_mobile():
         if left_content:
             left_content()
+
         if right_actions:
             compact_gap()
             with plain_block(class_name="sp-toolbar-actions-mobile"):
                 right_actions()
+
         if bottom_space > 0:
             spacer(bottom_space)
         return
@@ -579,9 +549,8 @@ def actions_row(
     *,
     bottom_space: float = SPACE_SM,
 ) -> None:
-    with st.container():
-        with plain_block(class_name="sp-actions-row"):
-            render_actions()
+    with plain_block(class_name="sp-actions-row"):
+        render_actions()
 
     if bottom_space > 0:
         spacer(bottom_space)

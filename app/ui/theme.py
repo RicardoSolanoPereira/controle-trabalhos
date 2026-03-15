@@ -12,7 +12,7 @@ __all__ = [
     "app_error",
 ]
 
-_CSS_VERSION = "v20"
+_CSS_VERSION = "v21"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -21,12 +21,11 @@ _GLOBAL_CSS = """
 <style>
 
 /* ======================================================
-ROOT VARIABLES
+TOKENS
 ====================================================== */
 
 :root{
-
-  --bg:#f3f6f5;
+  --bg:#f4f7f6;
   --bg-soft:#f8fbfa;
   --bg-elevated:#eef4f1;
 
@@ -44,10 +43,10 @@ ROOT VARIABLES
   --muted-strong:#475467;
 
   --primary:#355e57;
-  --primary-hover:#2b4c46;
-  --primary-soft:rgba(53,94,87,0.09);
+  --primary-hover:#294a44;
+  --primary-soft:rgba(53,94,87,0.10);
   --primary-softer:rgba(53,94,87,0.05);
-  --primary-ring:rgba(53,94,87,0.15);
+  --primary-ring:rgba(53,94,87,0.16);
 
   --danger:#dc2626;
   --warning:#d97706;
@@ -55,10 +54,10 @@ ROOT VARIABLES
   --info:#2563eb;
   --neutral:#64748b;
 
-  --danger-bg:rgba(220,38,38,0.075);
-  --warning-bg:rgba(217,119,6,0.10);
-  --success-bg:rgba(21,128,61,0.09);
-  --info-bg:rgba(37,99,235,0.09);
+  --danger-bg:rgba(220,38,38,0.08);
+  --warning-bg:rgba(217,119,6,0.11);
+  --success-bg:rgba(21,128,61,0.10);
+  --info-bg:rgba(37,99,235,0.10);
   --neutral-bg:rgba(15,23,42,0.045);
 
   --radius-2xl:22px;
@@ -99,9 +98,9 @@ p, li, label, span, div{
 
 .stApp{
   background:
-    radial-gradient(circle at top right, rgba(53,94,87,0.045), transparent 22%),
+    radial-gradient(circle at top right, rgba(53,94,87,0.04), transparent 22%),
     radial-gradient(circle at top left, rgba(15,23,42,0.018), transparent 18%),
-    linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.14) 100%),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.14) 100%),
     var(--bg);
 }
 
@@ -132,16 +131,16 @@ LAYOUT
 ====================================================== */
 
 .block-container{
-  padding-top:1rem;
-  padding-bottom:1.35rem;
-  padding-left:1.2rem;
-  padding-right:1.2rem;
   max-width:1320px;
+  padding-top:1rem;
+  padding-right:1.2rem;
+  padding-bottom:1.4rem;
+  padding-left:1.2rem;
   overflow:visible !important;
 }
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.30rem;
+  margin-bottom:0.34rem;
 }
 
 
@@ -149,14 +148,14 @@ div[data-testid="stVerticalBlock"] > div{
 TYPOGRAPHY
 ====================================================== */
 
-h1,h2,h3,h4{
+h1, h2, h3, h4{
   letter-spacing:-0.02em;
   color:var(--text);
   margin-bottom:0.15rem;
 }
 
 h1{
-  font-size:1.82rem;
+  font-size:1.84rem;
   line-height:1.05;
   font-weight:800;
 }
@@ -168,7 +167,7 @@ h2{
 }
 
 h3{
-  font-size:1.04rem;
+  font-size:1.05rem;
   line-height:1.24;
   font-weight:720;
 }
@@ -190,7 +189,7 @@ PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.04rem 0 0.14rem 0;
+  padding:0.05rem 0 0.18rem 0;
 }
 
 .sp-page-title-wrap{
@@ -209,10 +208,10 @@ PAGE HEADER
 
 .sp-page-subtitle{
   margin-top:0.34rem;
+  max-width:78ch;
   font-size:0.95rem;
   line-height:1.55;
   color:var(--muted);
-  max-width:78ch;
 }
 
 .sp-page-header-actions,
@@ -250,7 +249,7 @@ SECTION HEADER
 ====================================================== */
 
 .sp-section-header{
-  margin-bottom:0.08rem;
+  margin-bottom:0.10rem;
 }
 
 .sp-section-title-row{
@@ -268,7 +267,7 @@ SECTION HEADER
 }
 
 .sp-section-subtitle{
-  margin-top:0.12rem;
+  margin-top:0.14rem;
   font-size:0.90rem;
   line-height:1.5;
   color:var(--muted);
@@ -276,16 +275,7 @@ SECTION HEADER
 
 
 /* ======================================================
-SHELL
-====================================================== */
-
-.sp-content-shell{
-  width:100%;
-}
-
-
-/* ======================================================
-SURFACE
+SURFACES
 ====================================================== */
 
 .sp-surface{
@@ -312,88 +302,98 @@ SURFACE
 CHIPS / PILLS
 ====================================================== */
 
-.sp-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:6px 10px;
-  border-radius:999px;
-  background:var(--neutral-bg);
-  border:1px solid rgba(15,23,42,0.08);
-  font-size:0.80rem;
-  font-weight:650;
-  line-height:1;
-  color:var(--text-soft);
-  white-space:nowrap;
-}
-
-.sp-chip-danger{
-  background:var(--danger-bg);
-  border-color:rgba(220,38,38,0.18);
-  color:#991b1b;
-}
-
-.sp-chip-warning{
-  background:var(--warning-bg);
-  border-color:rgba(217,119,6,0.18);
-  color:#92400e;
-}
-
-.sp-chip-success{
-  background:var(--success-bg);
-  border-color:rgba(21,128,61,0.16);
-  color:#166534;
-}
-
-.sp-chip-info{
-  background:var(--info-bg);
-  border-color:rgba(37,99,235,0.16);
-  color:#1d4ed8;
-}
-
+.sp-chip,
 .sp-pill{
   display:inline-flex;
   align-items:center;
   gap:6px;
+  border-radius:999px;
+  line-height:1;
+  white-space:nowrap;
+}
+
+.sp-chip{
+  padding:6px 10px;
+  background:var(--neutral-bg);
+  border:1px solid rgba(15,23,42,0.08);
+  font-size:0.80rem;
+  font-weight:650;
+  color:var(--text-soft);
+}
+
+.sp-pill{
   min-height:28px;
   padding:5px 10px;
-  border-radius:999px;
   font-size:0.78rem;
   font-weight:740;
-  line-height:1;
   border:1px solid rgba(15,23,42,0.08);
   background:#fff;
   color:var(--text-soft);
 }
 
+.sp-chip-danger,
 .sp-pill-danger{
   background:var(--danger-bg);
+  border-color:rgba(220,38,38,0.18);
   color:#991b1b;
-  border-color:rgba(220,38,38,0.16);
 }
 
+.sp-chip-warning,
 .sp-pill-warning{
   background:var(--warning-bg);
+  border-color:rgba(217,119,6,0.18);
   color:#92400e;
-  border-color:rgba(217,119,6,0.16);
 }
 
+.sp-chip-success,
 .sp-pill-success{
   background:var(--success-bg);
+  border-color:rgba(21,128,61,0.16);
   color:#166534;
-  border-color:rgba(21,128,61,0.15);
 }
 
+.sp-chip-info,
 .sp-pill-info{
   background:var(--info-bg);
+  border-color:rgba(37,99,235,0.16);
   color:#1d4ed8;
-  border-color:rgba(37,99,235,0.15);
 }
 
 .sp-pill-neutral{
   background:var(--neutral-bg);
-  color:var(--text-soft);
   border-color:rgba(15,23,42,0.08);
+  color:var(--text-soft);
+}
+
+
+/* ======================================================
+TOP NAV / TOOLBAR SUPPORT
+====================================================== */
+
+.sp-topbar-shell{
+  position:sticky;
+  top:0;
+  z-index:20;
+  backdrop-filter:blur(10px);
+}
+
+.sp-topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 14px;
+  border:1px solid rgba(15,23,42,0.06);
+  border-radius:18px;
+  background:rgba(255,255,255,0.78);
+  box-shadow:var(--shadow-xs);
+}
+
+.sp-topbar-group{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
 }
 
 
@@ -402,65 +402,16 @@ SIDEBAR
 ====================================================== */
 
 section[data-testid="stSidebar"]{
-  background:
-    linear-gradient(180deg, #f5f9f7 0%, #edf4f1 100%);
-  border-right:1px solid #dbe5e1;
+  background:linear-gradient(180deg, #f7faf9 0%, #eff5f2 100%);
+  border-right:1px solid #e1e8e5;
 }
 
 section[data-testid="stSidebar"] .block-container{
-  padding:0.95rem !important;
+  padding:0.90rem !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.24rem !important;
-}
-
-
-/* ======================================================
-SIDEBAR MENU
-====================================================== */
-
-section[data-testid="stSidebar"]
-div[role="radiogroup"]
-label[data-baseweb="radio"] > div:first-child{
-  display:none !important;
-}
-
-section[data-testid="stSidebar"]
-div[role="radiogroup"]
-label[data-baseweb="radio"]{
-  display:block;
-  width:100%;
-  padding:11px 12px;
-  border-radius:14px;
-  margin-bottom:6px;
-  cursor:pointer;
-  border:1px solid rgba(15,23,42,0.08);
-  background:rgba(255,255,255,0.92);
-  font-size:0.93rem;
-  transition:background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
-  box-shadow:0 1px 2px rgba(15,23,42,0.02);
-}
-
-section[data-testid="stSidebar"]
-div[role="radiogroup"]
-label[data-baseweb="radio"]:hover{
-  background:#ffffff;
-  border-color:rgba(15,23,42,0.14);
-  box-shadow:0 4px 12px rgba(15,23,42,0.04);
-  transform:translateY(-1px);
-}
-
-section[data-testid="stSidebar"]
-div[role="radiogroup"]
-label[data-baseweb="radio"][aria-checked="true"]{
-  background:linear-gradient(180deg, rgba(53,94,87,0.10) 0%, rgba(53,94,87,0.06) 100%);
-  border-left:4px solid var(--primary);
-  border-top-color:rgba(53,94,87,0.13);
-  border-right-color:rgba(53,94,87,0.13);
-  border-bottom-color:rgba(53,94,87,0.13);
-  font-weight:740;
-  color:var(--text);
+  margin-bottom:0.22rem !important;
 }
 
 
@@ -469,13 +420,13 @@ BUTTONS
 ====================================================== */
 
 .stButton > button{
-  border-radius:12px;
-  padding:0.62rem 1rem;
   min-height:42px;
-  font-weight:660;
+  padding:0.62rem 1rem;
+  border-radius:12px;
   border:1px solid rgba(15,23,42,0.10);
   background:#ffffff;
   color:var(--text);
+  font-weight:660;
   transition:background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
   box-shadow:none;
 }
@@ -513,10 +464,10 @@ INPUTS / SELECTS / TEXTAREA
 div[data-baseweb="input"] > div,
 div[data-baseweb="textarea"] > div,
 div[data-baseweb="select"] > div{
+  min-height:42px;
   border-radius:var(--radius-md) !important;
   border-color:rgba(15,23,42,0.10) !important;
   background:#ffffff !important;
-  min-height:42px;
   transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease !important;
 }
 
@@ -535,17 +486,6 @@ div[data-baseweb="select"] > div:focus-within{
 
 label[data-testid="stWidgetLabel"] p{
   font-weight:620 !important;
-  color:var(--text-soft) !important;
-}
-
-
-/* ======================================================
-TOGGLES / CHECKBOX / RADIO
-====================================================== */
-
-div[data-testid="stCheckbox"] label,
-div[data-testid="stRadio"] label,
-div[data-testid="stToggle"] label{
   color:var(--text-soft) !important;
 }
 
@@ -571,13 +511,13 @@ button[data-baseweb="tab"][aria-selected="true"]{
 
 
 /* ======================================================
-DATAFRAME
+DATA DISPLAY
 ====================================================== */
 
 div[data-testid="stDataFrame"]{
-  border-radius:14px;
   overflow:hidden;
   border:1px solid var(--border);
+  border-radius:14px;
   background:#ffffff;
   box-shadow:var(--shadow-xs);
 }
@@ -586,14 +526,9 @@ div[data-testid="stDataFrame"] [role="grid"]{
   border:none !important;
 }
 
-
-/* ======================================================
-EXPANDER
-====================================================== */
-
 details{
-  border-radius:14px;
   border:1px solid var(--border);
+  border-radius:14px;
   background:#ffffff;
   box-shadow:var(--shadow-xs);
 }
@@ -604,20 +539,19 @@ summary{
 
 
 /* ======================================================
-CARD KPI
+CARDS
 ====================================================== */
 
 .sp-card{
-  background:
-    linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(251,252,252,1) 100%);
-  border:1px solid var(--border);
-  border-radius:var(--radius-lg);
-  padding:16px 16px;
-  box-shadow:var(--shadow-xs);
-  transition:var(--transition);
-  min-height:112px;
   position:relative;
   overflow:hidden;
+  min-height:116px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(251,252,252,1) 100%);
+  box-shadow:var(--shadow-xs);
+  transition:var(--transition);
 }
 
 .sp-card::after{
@@ -635,31 +569,31 @@ CARD KPI
 }
 
 .sp-card-title{
-  font-size:0.77rem;
-  color:rgba(15,23,42,0.62);
   margin-bottom:7px;
+  font-size:0.77rem;
   font-weight:760;
-  text-transform:uppercase;
   letter-spacing:0.048em;
+  text-transform:uppercase;
+  color:rgba(15,23,42,0.62);
 }
 
 .sp-card-value{
-  font-size:1.44rem;
+  font-size:1.42rem;
+  line-height:1.06;
   font-weight:820;
   color:var(--text);
-  line-height:1.06;
 }
 
 .sp-card-value.emph{
-  font-size:1.70rem;
+  font-size:1.72rem;
   font-weight:860;
 }
 
 .sp-card-sub{
-  color:rgba(15,23,42,0.58);
-  font-size:0.84rem;
   margin-top:8px;
-  line-height:1.38;
+  font-size:0.84rem;
+  line-height:1.40;
+  color:rgba(15,23,42,0.58);
 }
 
 .sp-card-operational{
@@ -699,7 +633,7 @@ TONES
 
 
 /* ======================================================
-STRIPS / KEY VALUE
+KEY VALUE / STRIPS
 ====================================================== */
 
 .sp-kpi-strip,
@@ -719,22 +653,22 @@ STRIPS / KEY VALUE
 }
 
 .sp-kv:last-child{
-  border-bottom:none;
   padding-bottom:0;
+  border-bottom:none;
 }
 
 .sp-kv-label{
-  color:var(--muted);
   font-size:0.84rem;
   line-height:1.35;
+  color:var(--muted);
 }
 
 .sp-kv-value{
-  color:var(--text);
-  font-weight:760;
   text-align:right;
   font-size:0.88rem;
   line-height:1.35;
+  font-weight:760;
+  color:var(--text);
 }
 
 
@@ -756,17 +690,17 @@ TIMELINE
 
 .sp-timeline-rail{
   width:20px;
+  flex:0 0 20px;
   display:flex;
   justify-content:center;
-  flex:0 0 20px;
 }
 
 .sp-timeline-rail-line{
   position:relative;
   width:2px;
   min-height:64px;
-  background:rgba(15,23,42,0.08);
   border-radius:999px;
+  background:rgba(15,23,42,0.08);
 }
 
 .sp-timeline-rail-line.last{
@@ -777,10 +711,10 @@ TIMELINE
   position:absolute;
   top:0;
   left:50%;
-  transform:translateX(-50%);
   width:12px;
   height:12px;
   border-radius:999px;
+  transform:translateX(-50%);
   box-shadow:0 0 0 4px rgba(255,255,255,0.96);
 }
 
@@ -796,24 +730,24 @@ TIMELINE
 }
 
 .sp-timeline-kind{
-  color:rgba(15,23,42,0.58);
-  font-weight:760;
   font-size:0.78rem;
-  text-transform:uppercase;
+  font-weight:760;
   letter-spacing:0.04em;
+  text-transform:uppercase;
+  color:rgba(15,23,42,0.58);
 }
 
 .sp-timeline-title{
-  font-weight:800;
   line-height:1.35;
+  font-weight:800;
   color:var(--text);
 }
 
 .sp-timeline-detail{
   margin-top:5px;
-  color:rgba(15,23,42,0.72);
   font-size:0.88rem;
   line-height:1.42;
+  color:rgba(15,23,42,0.72);
 }
 
 .sp-timeline-meta{
@@ -822,18 +756,18 @@ TIMELINE
 
 
 /* ======================================================
-EMPTY STATE
+EMPTY / ERROR / DIVIDER
 ====================================================== */
 
 .sp-empty-state{
-  text-align:center;
   padding:34px 22px;
+  text-align:center;
 }
 
 .sp-empty-state-icon{
+  margin-bottom:10px;
   font-size:1.95rem;
   line-height:1;
-  margin-bottom:10px;
 }
 
 .sp-empty-state-title{
@@ -844,47 +778,37 @@ EMPTY STATE
 
 .sp-empty-state-subtitle{
   margin-top:6px;
-  color:var(--muted);
   font-size:0.91rem;
   line-height:1.5;
+  color:var(--muted);
 }
 
-
-/* ======================================================
-APP ERROR
-====================================================== */
-
 .sp-app-error{
-  background:linear-gradient(180deg, rgba(220,38,38,0.045) 0%, rgba(220,38,38,0.025) 100%);
+  margin-bottom:0.42rem;
+  padding:14px 16px;
   border:1px solid rgba(220,38,38,0.15);
   border-left:4px solid var(--danger);
   border-radius:14px;
-  padding:14px 16px;
-  margin-bottom:0.42rem;
+  background:linear-gradient(180deg, rgba(220,38,38,0.045) 0%, rgba(220,38,38,0.025) 100%);
 }
 
 .sp-app-error-title{
-  color:#991b1b;
   font-size:0.98rem;
   font-weight:800;
+  color:#991b1b;
 }
 
 .sp-app-error-subtitle{
-  color:#7f1d1d;
   margin-top:5px;
   font-size:0.90rem;
   line-height:1.45;
+  color:#7f1d1d;
 }
-
-
-/* ======================================================
-DIVIDER
-====================================================== */
 
 .sp-divider{
   border:0;
   border-top:1px solid #e5e7eb;
-  margin:0.78rem 0;
+  margin:0.82rem 0;
 }
 
 
@@ -929,11 +853,11 @@ SCROLLBAR
 MOBILE
 ====================================================== */
 
-@media (max-width:768px){
+@media (max-width: 768px){
 
   .block-container{
-    padding:0.94rem !important;
     max-width:100% !important;
+    padding:0.94rem !important;
   }
 
   .sp-page-title{
@@ -944,9 +868,14 @@ MOBILE
     font-size:0.91rem;
   }
 
+  .sp-topbar{
+    padding:10px 12px;
+    border-radius:16px;
+  }
+
   .sp-card{
     min-height:auto;
-    padding:14px 14px;
+    padding:14px;
   }
 
   .sp-card-value{
@@ -958,7 +887,7 @@ MOBILE
   }
 
   .sp-surface{
-    padding:14px 14px;
+    padding:14px;
     border-radius:15px;
   }
 
@@ -968,8 +897,8 @@ MOBILE
   }
 
   .sp-chip{
-    font-size:0.78rem;
     padding:6px 9px;
+    font-size:0.78rem;
   }
 
   .sp-section-title{
@@ -994,11 +923,6 @@ MOBILE
 """
 
 
-# ==========================================================
-# Helpers privados
-# ==========================================================
-
-
 def _render_html(content: str) -> None:
     st.markdown(content, unsafe_allow_html=True)
 
@@ -1012,22 +936,12 @@ def _normalize_tone(tone: str | None) -> str:
     return tone_norm if tone_norm in _ALLOWED_TONES else "neutral"
 
 
-# ==========================================================
-# CSS global
-# ==========================================================
-
-
 def inject_global_css() -> None:
     if st.session_state.get(_CSS_FLAG_KEY, False):
         return
 
     st.session_state[_CSS_FLAG_KEY] = True
     _render_html(_GLOBAL_CSS)
-
-
-# ==========================================================
-# Componentes públicos
-# ==========================================================
 
 
 def card(
@@ -1039,12 +953,11 @@ def card(
     emphasize: bool = False,
 ) -> None:
     tone_norm = _normalize_tone(tone)
-
     title_html = _escape(title)
     value_html = _escape(value)
     subtitle_html = _escape(subtitle)
 
-    emph_class = "emph" if emphasize else ""
+    emph_class = " emph" if emphasize else ""
     subtitle_block = (
         f"<div class='sp-card-sub'>{subtitle_html}</div>" if subtitle_html else ""
     )
@@ -1052,9 +965,9 @@ def card(
     _render_html(
         f"""
         <div class="sp-card sp-tone-{tone_norm}">
-          <div class="sp-card-title">{title_html}</div>
-          <div class="sp-card-value {emph_class}">{value_html}</div>
-          {subtitle_block}
+            <div class="sp-card-title">{title_html}</div>
+            <div class="sp-card-value{emph_class}">{value_html}</div>
+            {subtitle_block}
         </div>
         """
     )
@@ -1062,11 +975,10 @@ def card(
 
 def section_title(text: str) -> None:
     text_html = _escape(text)
-
     _render_html(
         f"""
         <div class="sp-section-header">
-          <div class="sp-section-title">{text_html}</div>
+            <div class="sp-section-title">{text_html}</div>
         </div>
         """
     )
@@ -1090,8 +1002,8 @@ def app_error(
     _render_html(
         f"""
         <div class="sp-app-error">
-          <div class="sp-app-error-title">{title_html}</div>
-          <div class="sp-app-error-subtitle">{message_html}</div>
+            <div class="sp-app-error-title">{title_html}</div>
+            <div class="sp-app-error-subtitle">{message_html}</div>
         </div>
         """
     )

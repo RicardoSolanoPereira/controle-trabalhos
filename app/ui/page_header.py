@@ -12,15 +12,9 @@ from ui.layout import grid_weights, is_mobile, spacer
 __all__ = [
     "HeaderAction",
     "page_header",
-    "surface_start",
-    "surface_end",
 ]
 
-# ==========================================================
-# Constantes
-# ==========================================================
-
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v10"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v11"
 _MAX_INLINE_ACTIONS = 3
 
 
@@ -56,7 +50,7 @@ def _action_key(action: "HeaderAction", *, base_key: str) -> str:
 def _normalize_actions(
     *,
     title: str,
-    actions: list["HeaderAction"] | None,
+    actions: Sequence["HeaderAction"] | None,
     right_button_label: str | None,
     right_button_key: str | None,
     right_button_help: str | None,
@@ -64,6 +58,7 @@ def _normalize_actions(
 ) -> list["HeaderAction"]:
     if actions:
         normalized: list[HeaderAction] = []
+
         for action in actions:
             label = (action.label or "").strip()
             if not label:
@@ -80,6 +75,7 @@ def _normalize_actions(
                     on_click=action.on_click,
                 )
             )
+
         return normalized
 
     if right_button_label and right_button_label.strip():
@@ -155,18 +151,18 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-title-text{
+            display:block;
+            margin:0;
+            min-width:0;
             color:var(--text);
             letter-spacing:-0.03em;
-            margin:0;
-            display:block;
-            min-width:0;
         }
 
         .sp-page-header-subtitle-text{
             margin-top:0.34rem;
+            max-width:78ch;
             color:var(--muted);
             line-height:1.55;
-            max-width:78ch;
         }
 
         .sp-page-header-actions{
@@ -197,10 +193,6 @@ def _inject_page_header_css() -> None:
             width:100%;
         }
 
-        .sp-page-header-actions-inline > div{
-            align-items:center;
-        }
-
         .sp-page-header-actions-stack > div{
             margin-bottom:0.42rem;
         }
@@ -224,8 +216,8 @@ def _inject_page_header_css() -> None:
 
         @media (max-width:768px){
             .sp-page-header-subtitle-text{
-                font-size:0.91rem;
                 max-width:100%;
+                font-size:0.91rem;
             }
 
             .sp-page-header-actions .stButton > button{
@@ -378,7 +370,7 @@ def page_header(
     right_button_key: str | None = None,
     right_button_help: str | None = None,
     right_button_on_click: Callable[[], None] | None = None,
-    actions: list[HeaderAction] | None = None,
+    actions: Sequence[HeaderAction] | None = None,
     divider: bool = False,
     compact: bool = False,
     actions_width_ratio: tuple[float, float] = (4.3, 1.9),
@@ -444,24 +436,3 @@ def page_header(
         spacer(bottom_spacing_rem)
 
     return clicked
-
-
-# ==========================================================
-# Surfaces
-# ==========================================================
-
-
-def surface_start(class_name: str | None = None, style: str | None = None) -> None:
-    classes = ["sp-surface"]
-
-    if class_name and class_name.strip():
-        classes.append(class_name.strip())
-
-    class_attr = _escape(" ".join(classes), quote=True)
-    style_attr = f' style="{_escape(style, quote=True)}"' if style else ""
-
-    _render_html(f'<div class="{class_attr}"{style_attr}>')
-
-
-def surface_end() -> None:
-    _render_html("</div>")

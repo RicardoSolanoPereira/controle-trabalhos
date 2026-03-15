@@ -23,6 +23,8 @@ ATUACAO_UI = {
     "Particular / Outros serviços": "Trabalho Particular",
 }
 
+_COMMAND_PLACEHOLDER = "Selecione uma ação rápida..."
+
 
 # ==========================================================
 # Base UI helpers
@@ -62,11 +64,35 @@ def _inject_dashboard_css() -> None:
             line-height:1.45;
         }
 
+        .sp-command-bar{
+            padding:14px;
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:18px;
+            background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.92) 100%);
+            box-shadow:0 4px 14px rgba(15,23,42,.04);
+        }
+
+        .sp-command-bar-kicker{
+            margin-bottom:8px;
+            font-size:.72rem;
+            font-weight:800;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:rgba(15,23,42,.45);
+        }
+
+        .sp-command-bar-sub{
+            margin-top:8px;
+            color:rgba(15,23,42,.66);
+            font-size:.88rem;
+            line-height:1.45;
+        }
+
         .sp-alert-row{
             display:grid;
             grid-template-columns:repeat(3, minmax(0, 1fr));
             gap:10px;
-            margin:.10rem 0 .75rem 0;
+            margin:.08rem 0 .72rem 0;
         }
 
         .sp-alert-banner{
@@ -271,6 +297,96 @@ def _inject_dashboard_css() -> None:
             font-size:.86rem;
             line-height:1.42;
             margin-top:4px;
+        }
+
+        .sp-notification-card{
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            padding:12px 13px;
+            background:#fff;
+            box-shadow:0 4px 12px rgba(15,23,42,.03);
+            margin-bottom:10px;
+        }
+
+        .sp-notification-card-danger{ border-left:4px solid #dc2626; }
+        .sp-notification-card-warning{ border-left:4px solid #f59e0b; }
+        .sp-notification-card-info{ border-left:4px solid #2563eb; }
+        .sp-notification-card-success{ border-left:4px solid #16a34a; }
+
+        .sp-notification-kicker{
+            font-size:.72rem;
+            font-weight:800;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:rgba(15,23,42,.45);
+            margin-bottom:4px;
+        }
+
+        .sp-notification-title{
+            font-size:.96rem;
+            font-weight:820;
+            color:#0f172a;
+            line-height:1.34;
+        }
+
+        .sp-notification-copy{
+            margin-top:6px;
+            color:rgba(15,23,42,.70);
+            font-size:.89rem;
+            line-height:1.44;
+        }
+
+        .sp-today-panel{
+            padding:15px;
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            background:#fff;
+            box-shadow:0 4px 12px rgba(15,23,42,.03);
+        }
+
+        .sp-today-kicker{
+            margin-bottom:6px;
+            font-size:.74rem;
+            font-weight:800;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:rgba(15,23,42,.42);
+        }
+
+        .sp-today-title{
+            font-size:1.06rem;
+            font-weight:820;
+            line-height:1.28;
+            color:#0f172a;
+        }
+
+        .sp-today-copy{
+            margin-top:8px;
+            color:rgba(15,23,42,.74);
+            line-height:1.50;
+            font-size:.92rem;
+        }
+
+        .sp-today-checklist{
+            margin-top:12px;
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+        }
+
+        .sp-today-check{
+            padding:9px 10px;
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:12px;
+            background:rgba(248,250,252,.72);
+            color:#0f172a;
+            font-size:.88rem;
+            line-height:1.35;
+        }
+
+        .sp-dashboard-action-grid .stButton > button{
+            min-height:48px !important;
+            font-weight:720 !important;
         }
 
         div[data-baseweb="tab-list"]{
@@ -622,7 +738,7 @@ def _go_trabalhos_cadastro() -> None:
 
 
 # ==========================================================
-# Assistente operacional
+# Assistente operacional / hoje inteligente
 # ==========================================================
 
 
@@ -699,6 +815,226 @@ def _build_assistant_state(kpis: dict[str, Any]) -> dict[str, Any]:
         "primary_cta": primary_cta,
         "suggestions": suggestions[:3],
     }
+
+
+def _build_today_state(kpis: dict[str, Any]) -> dict[str, Any]:
+    if kpis["prazos_atrasados"] > 0:
+        title = "Comece pelos prazos atrasados"
+        copy = (
+            "Sua manhã rende mais se você eliminar pendências vencidas antes de abrir "
+            "novas tarefas ou revisões administrativas."
+        )
+        checklist = [
+            "Abrir a lista de prazos atrasados",
+            "Priorizar os itens com maior urgência",
+            "Registrar atualização após cada ação",
+        ]
+        primary = ("Abrir prazos", _go_prazos_lista)
+        secondary = ("Novo prazo", _go_prazos_cadastro)
+    elif kpis["ag_24h"] > 0:
+        title = "Prepare a agenda imediata"
+        copy = (
+            "Há compromisso próximo. Vale confirmar horário, local, deslocamento e "
+            "documentos antes do início."
+        )
+        checklist = [
+            "Conferir horários e local dos compromissos",
+            "Separar documentos e observações",
+            "Validar próximos passos após a visita ou reunião",
+        ]
+        primary = ("Abrir agenda", _go_agenda)
+        secondary = ("Abrir processos", _go_trabalhos_lista)
+    elif kpis["prazos_7dias"] > 0:
+        title = "Organize a semana antes da urgência"
+        copy = (
+            "Seu painel está estável, mas há vencimentos próximos. Antecipar agora "
+            "evita pressão operacional depois."
+        )
+        checklist = [
+            "Revisar prazos com vencimento em 7 dias",
+            "Separar peças e documentos por trabalho",
+            "Distribuir a carga entre hoje e os próximos dias",
+        ]
+        primary = ("Ver próximos prazos", _go_prazos_lista)
+        secondary = ("Novo processo", _go_trabalhos_cadastro)
+    else:
+        title = "Bom momento para colocar a casa em ordem"
+        copy = (
+            "Sem urgências críticas no recorte atual. Aproveite para cadastrar, revisar "
+            "e atualizar trabalhos com calma."
+        )
+        checklist = [
+            "Atualizar processos ativos",
+            "Cadastrar novos itens pendentes",
+            "Revisar financeiro e agenda da semana",
+        ]
+        primary = ("Novo processo", _go_trabalhos_cadastro)
+        secondary = ("Abrir financeiro", _go_financeiro_lancamentos)
+
+    return {
+        "title": title,
+        "copy": copy,
+        "checklist": checklist,
+        "primary": primary,
+        "secondary": secondary,
+    }
+
+
+# ==========================================================
+# Command bar / notificações
+# ==========================================================
+
+
+def _command_options() -> dict[str, Callable[[], None]]:
+    return {
+        _COMMAND_PLACEHOLDER: lambda: None,
+        "📁 Novo processo": _go_trabalhos_cadastro,
+        "🗂️ Abrir processos": _go_trabalhos_lista,
+        "⏳ Novo prazo": _go_prazos_cadastro,
+        "⚠️ Ver prazos": _go_prazos_lista,
+        "📅 Abrir agenda": _go_agenda,
+        "💰 Abrir financeiro": _go_financeiro_lancamentos,
+    }
+
+
+def _render_command_bar() -> None:
+    with section(
+        "Command bar",
+        subtitle="Acesso rápido às ações mais usadas do sistema",
+        divider=False,
+        compact=True,
+    ):
+        _render_html(
+            """
+            <div class="sp-command-bar">
+              <div class="sp-command-bar-kicker">atalho operacional</div>
+            """
+        )
+        try:
+            options = list(_command_options().keys())
+            selected = st.selectbox(
+                "Ação rápida",
+                options,
+                index=0,
+                key="dash_command_bar",
+                label_visibility="collapsed",
+            )
+
+            _render_html(
+                """
+                <div class="sp-command-bar-sub">
+                  Use esta barra para abrir rapidamente processos, prazos, agenda e financeiro.
+                </div>
+                """
+            )
+
+            if selected and selected != _COMMAND_PLACEHOLDER:
+                callback = _command_options().get(selected)
+                st.button(
+                    "Executar ação",
+                    key="dash_command_execute",
+                    type="primary",
+                    use_container_width=True,
+                    on_click=callback,
+                )
+        finally:
+            _render_html("</div>")
+
+
+def _build_notifications(kpis: dict[str, Any]) -> list[dict[str, Any]]:
+    notifications: list[dict[str, Any]] = []
+
+    if kpis["prazos_atrasados"] > 0:
+        notifications.append(
+            {
+                "tone": "danger",
+                "kicker": "atenção imediata",
+                "title": f"{kpis['prazos_atrasados']} prazo(s) vencido(s) precisam de ação",
+                "copy": "Abra a lista de prazos e trate primeiro os itens já vencidos.",
+                "primary": ("Abrir prazos", _go_prazos_lista),
+            }
+        )
+
+    if kpis["ag_24h"] > 0:
+        notifications.append(
+            {
+                "tone": "warning",
+                "kicker": "agenda imediata",
+                "title": f"{kpis['ag_24h']} compromisso(s) nas próximas 24 horas",
+                "copy": "Revise local, horários e documentos antes do início.",
+                "primary": ("Abrir agenda", _go_agenda),
+            }
+        )
+
+    if kpis["prazos_7dias"] > 0:
+        notifications.append(
+            {
+                "tone": "info",
+                "kicker": "janela da semana",
+                "title": f"{kpis['prazos_7dias']} prazo(s) vencem em até 7 dias",
+                "copy": "Antecipar organização agora reduz urgência nos próximos dias.",
+                "primary": ("Ver próximos prazos", _go_prazos_lista),
+            }
+        )
+
+    if kpis["saldo"] < 0:
+        notifications.append(
+            {
+                "tone": "warning",
+                "kicker": "posição financeira",
+                "title": "O saldo atual está negativo",
+                "copy": "Vale revisar lançamentos, pendências e recebimentos previstos.",
+                "primary": ("Abrir financeiro", _go_financeiro_lancamentos),
+            }
+        )
+
+    if not notifications:
+        notifications.append(
+            {
+                "tone": "success",
+                "kicker": "painel estável",
+                "title": "Nenhuma pendência crítica no recorte atual",
+                "copy": "Bom momento para atualizar processos, agenda e cadastros.",
+                "primary": ("Novo processo", _go_trabalhos_cadastro),
+            }
+        )
+
+    return notifications[:4]
+
+
+def _render_notifications_center(kpis: dict[str, Any]) -> None:
+    with section(
+        "Notificações",
+        subtitle="Resumo das situações operacionais que merecem atenção",
+        divider=False,
+    ):
+        notifications = _build_notifications(kpis)
+
+        for idx, item in enumerate(notifications):
+            tone_cls = {
+                "danger": "sp-notification-card-danger",
+                "warning": "sp-notification-card-warning",
+                "info": "sp-notification-card-info",
+                "success": "sp-notification-card-success",
+            }.get(item["tone"], "")
+
+            _render_html(
+                f"""
+                <div class="sp-notification-card {tone_cls}">
+                    <div class="sp-notification-kicker">{escape(item['kicker'])}</div>
+                    <div class="sp-notification-title">{escape(item['title'])}</div>
+                    <div class="sp-notification-copy">{escape(item['copy'])}</div>
+                </div>
+                """
+            )
+
+            label, callback = item["primary"]
+            st.button(
+                label,
+                key=f"dash_notification_action_{idx}",
+                use_container_width=True,
+                on_click=callback,
+            )
 
 
 # ==========================================================
@@ -1140,7 +1476,6 @@ def _render_assistant_panel(kpis: dict[str, Any]) -> None:
         )
 
         spacer(0.10)
-
         c1, c2 = grid(2, columns_mobile=1)
 
         primary_label, primary_callback = assistant["primary_cta"]
@@ -1162,6 +1497,48 @@ def _render_assistant_panel(kpis: dict[str, Any]) -> None:
                 first_secondary[0],
                 key="dash_assistant_secondary",
                 on_click=first_secondary[1],
+            )
+
+
+def _render_today_panel(kpis: dict[str, Any]) -> None:
+    today = _build_today_state(kpis)
+
+    with section(
+        "Hoje",
+        subtitle="Plano rápido para você começar pelo que mais importa",
+        divider=False,
+    ):
+        _render_html(
+            f"""
+            <div class="sp-today-panel">
+              <div class="sp-today-kicker">roteiro do dia</div>
+              <div class="sp-today-title">{escape(today['title'])}</div>
+              <div class="sp-today-copy">{escape(today['copy'])}</div>
+              <div class="sp-today-checklist">
+                {''.join(f"<div class='sp-today-check'>• {escape(item)}</div>" for item in today["checklist"])}
+              </div>
+            </div>
+            """
+        )
+
+        spacer(0.10)
+        c1, c2 = grid(2, columns_mobile=1)
+        primary_label, primary_callback = today["primary"]
+        secondary_label, secondary_callback = today["secondary"]
+
+        with c1:
+            _render_action_button(
+                primary_label,
+                key="dash_today_primary",
+                button_type="primary",
+                on_click=primary_callback,
+            )
+
+        with c2:
+            _render_action_button(
+                secondary_label,
+                key="dash_today_secondary",
+                on_click=secondary_callback,
             )
 
 
@@ -1606,36 +1983,40 @@ def _render_quick_actions() -> None:
         subtitle="Atalhos operacionais do dia",
         divider=False,
     ):
-        c1, c2, c3, c4 = grid(4, columns_mobile=2)
+        _render_html('<div class="sp-dashboard-action-grid">')
+        try:
+            c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
-        with c1:
-            _render_action_button(
-                "📁 Novo processo",
-                key="dash_quick_new_trabalho",
-                button_type="primary",
-                on_click=_go_trabalhos_cadastro,
-            )
+            with c1:
+                _render_action_button(
+                    "📁 Novo processo",
+                    key="dash_quick_new_trabalho",
+                    button_type="primary",
+                    on_click=_go_trabalhos_cadastro,
+                )
 
-        with c2:
-            _render_action_button(
-                "⏳ Novo prazo",
-                key="dash_quick_new_prazo",
-                on_click=_go_prazos_cadastro,
-            )
+            with c2:
+                _render_action_button(
+                    "⏳ Novo prazo",
+                    key="dash_quick_new_prazo",
+                    on_click=_go_prazos_cadastro,
+                )
 
-        with c3:
-            _render_action_button(
-                "📅 Nova vistoria",
-                key="dash_quick_agenda",
-                on_click=_go_agenda,
-            )
+            with c3:
+                _render_action_button(
+                    "📅 Nova vistoria",
+                    key="dash_quick_agenda",
+                    on_click=_go_agenda,
+                )
 
-        with c4:
-            _render_action_button(
-                "💰 Registrar financeiro",
-                key="dash_quick_financeiro",
-                on_click=_go_financeiro_lancamentos,
-            )
+            with c4:
+                _render_action_button(
+                    "💰 Registrar financeiro",
+                    key="dash_quick_financeiro",
+                    on_click=_go_financeiro_lancamentos,
+                )
+        finally:
+            _render_html("</div>")
 
 
 def _render_finance_summary(kpis: dict[str, Any]) -> None:
@@ -1865,8 +2246,6 @@ def _render_tab_trabalhos(
 
 
 def render(owner_user_id: int) -> None:
-    st.set_page_config(layout="wide")
-
     with content_shell():
         _inject_dashboard_css()
 
@@ -1884,6 +2263,7 @@ def render(owner_user_id: int) -> None:
         )
 
         _render_header(kpis)
+        _render_command_bar()
 
         rows_prazos_atrasados, rows_prazos_7d = _fetch_prazos_tables_cached(
             owner_user_id,
@@ -1921,9 +2301,13 @@ def render(owner_user_id: int) -> None:
         with left:
             _render_radar_panel(kpis=kpis)
             spacer(0.16)
+            _render_today_panel(kpis)
+            spacer(0.16)
             _render_assistant_panel(kpis)
 
         with right:
+            _render_notifications_center(kpis)
+            spacer(0.16)
             timeline_items = _build_timeline_items(
                 rows_prazos_atrasados,
                 rows_prazos_7d,

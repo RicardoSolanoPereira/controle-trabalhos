@@ -5,6 +5,29 @@ from typing import Any, Iterable
 
 import streamlit as st
 
+__all__ = [
+    "MENU_DEFAULT",
+    "STATE_DEFAULTS",
+    "init_state",
+    "is_valid_menu",
+    "get_current_menu",
+    "set_current_menu",
+    "navigate",
+    "consume_nav_target",
+    "on_top_nav_change",
+    "on_sidebar_menu_change",
+    "apply_menu_from_qp",
+    "clear_qp_keys",
+    "get_qp_str",
+    "get_qp_json",
+    "get_qp_bool",
+    "get_ui_flag",
+    "set_ui_flag",
+    "bump_data_version",
+    "get_data_version",
+    "reset_data_version",
+]
+
 MENU_DEFAULT = "Painel"
 
 STATE_DEFAULTS: dict[str, Any] = {
@@ -13,9 +36,8 @@ STATE_DEFAULTS: dict[str, Any] = {
     "top_nav_menu": MENU_DEFAULT,
     "_last_menu": MENU_DEFAULT,
     "nav_target": None,
-    # sincronização / refresh
+    # refresh / invalidação visual
     "data_version": 0,
-    "_qp_applied": None,
     # preferências visuais
     "ui_show_top_nav": True,
     "ui_mobile_cards": True,
@@ -34,7 +56,7 @@ _FALSE_VALUES = {"0", "false", "no", "off", "nao", "não"}
 
 
 def init_state() -> None:
-    """Inicializa os valores padrão da UI apenas uma vez por sessão."""
+    """Inicializa os valores padrão da UI uma vez por sessão."""
     for key, value in STATE_DEFAULTS.items():
         if key not in st.session_state:
             st.session_state[key] = value
@@ -90,7 +112,7 @@ def _get_qp():
 
 def _normalize_qp_value(value: Any) -> Any:
     """
-    Normaliza valores para uso nos query params do Streamlit.
+    Normaliza valores para query params do Streamlit.
 
     Regras:
     - None remove a chave
@@ -140,6 +162,7 @@ def clear_qp_keys(*keys: str) -> None:
         return
 
     qp = _get_qp()
+
     for key in keys:
         try:
             del qp[key]
@@ -182,7 +205,7 @@ def get_qp_bool(key: str, default: bool = False) -> bool:
 
 
 # ==========================================================
-# Menu / navegação
+# Navegação
 # ==========================================================
 
 
@@ -205,12 +228,19 @@ def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> boo
 
 
 def get_current_menu(default: str = MENU_DEFAULT) -> str:
-    """Retorna o menu atual persistido na sessão."""
+    """
+    Retorna o menu corrente.
+    A fonte oficial de verdade é `_last_menu`.
+    """
     value = _as_clean_str(_get_state("_last_menu"), default=default)
     return value or default
 
 
 def _sync_menu_controls(menu: str) -> None:
+    """
+    Sincroniza todos os controles visuais de navegação
+    com o menu atualmente selecionado.
+    """
     _set_state("_last_menu", menu)
     _set_state("sidebar_menu", menu)
     _set_state("top_nav_menu", menu)
@@ -218,8 +248,7 @@ def _sync_menu_controls(menu: str) -> None:
 
 def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
     """
-    Define o menu atual e sincroniza os controles visuais de navegação.
-    Esta é a fonte oficial de verdade do menu corrente.
+    Define o menu atual e sincroniza os controles de navegação.
     """
     menu_value = _as_clean_str(menu)
     if not menu_value:
@@ -263,7 +292,10 @@ def navigate(
 
 
 def consume_nav_target(default: str | None = None) -> str | None:
-    """Consome uma única vez o alvo de navegação pendente."""
+    """
+    Consome uma única vez o alvo de navegação pendente.
+    Útil para navegações disparadas programaticamente.
+    """
     target = _as_clean_str(_get_state("nav_target"), default=default)
     _set_state("nav_target", None)
     return target
@@ -283,11 +315,6 @@ def on_sidebar_menu_change() -> None:
         set_current_menu(menu)
 
 
-# ==========================================================
-# Sync com query params
-# ==========================================================
-
-
 def apply_menu_from_qp(
     *,
     allowed: Iterable[str] | None = None,
@@ -295,7 +322,7 @@ def apply_menu_from_qp(
 ) -> str:
     """
     Aplica o menu vindo da URL, se válido, e retorna o menu efetivo.
-    Mantém a navegação previsível após refresh ou links internos.
+    Mantém a navegação previsível após refresh e links internos.
     """
     qp_menu = get_qp_str("menu")
 
@@ -319,10 +346,12 @@ def apply_menu_from_qp(
 
 
 def get_ui_flag(key: str, default: bool = False) -> bool:
+    """Lê uma flag booleana de UI a partir da sessão."""
     return _as_bool(_get_state(key, default), default=default)
 
 
 def set_ui_flag(key: str, value: bool) -> None:
+    """Define uma flag booleana de UI."""
     _set_state(key, bool(value))
 
 
