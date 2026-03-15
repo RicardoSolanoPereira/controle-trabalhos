@@ -24,12 +24,216 @@ ATUACAO_UI = {
 
 
 # ==========================================================
-# Helpers gerais
+# Base UI helpers
 # ==========================================================
 
 
 def _render_html(content: str) -> None:
     st.markdown(content, unsafe_allow_html=True)
+
+
+def _inject_dashboard_css() -> None:
+    _render_html(
+        """
+        <style>
+        .block-container {
+            padding-top: 1.1rem;
+            padding-bottom: 2rem;
+        }
+
+        .sp-page-hero {
+            padding: 1rem 1.1rem 1.1rem 1.1rem;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,250,252,0.96));
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+            margin-bottom: 1rem;
+        }
+
+        .sp-page-hero-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .sp-page-kicker {
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.45);
+            margin-bottom: 4px;
+        }
+
+        .sp-page-title {
+            font-size: 1.65rem;
+            font-weight: 900;
+            line-height: 1.12;
+            color: #0f172a;
+        }
+
+        .sp-page-subtitle {
+            margin-top: 6px;
+            color: rgba(15,23,42,.66);
+            line-height: 1.48;
+            font-size: .95rem;
+        }
+
+        .sp-inline-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .sp-mini-stat {
+            min-width: 132px;
+            border-radius: 14px;
+            border: 1px solid rgba(15,23,42,.08);
+            background: #ffffff;
+            padding: 12px 14px;
+        }
+
+        .sp-mini-stat-label {
+            font-size: .74rem;
+            font-weight: 800;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.45);
+        }
+
+        .sp-mini-stat-value {
+            font-size: 1.15rem;
+            font-weight: 900;
+            color: #0f172a;
+            margin-top: 2px;
+        }
+
+        .sp-mini-stat-sub {
+            margin-top: 4px;
+            color: rgba(15,23,42,.60);
+            font-size: .82rem;
+        }
+
+        .sp-banner-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: .8rem 0 1rem 0;
+        }
+
+        .sp-banner {
+            flex: 1 1 240px;
+            border-radius: 16px;
+            padding: 13px 14px;
+            border: 1px solid rgba(15,23,42,.08);
+            background: #fff;
+            box-shadow: 0 6px 18px rgba(15,23,42,.04);
+        }
+
+        .sp-banner-danger { border-left: 5px solid #dc2626; }
+        .sp-banner-warning { border-left: 5px solid #f59e0b; }
+        .sp-banner-info { border-left: 5px solid #2563eb; }
+        .sp-banner-success { border-left: 5px solid #16a34a; }
+
+        .sp-banner-title {
+            font-size: .78rem;
+            font-weight: 900;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.45);
+            margin-bottom: 4px;
+        }
+
+        .sp-banner-text {
+            font-size: .94rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.34;
+        }
+
+        .sp-section-shell {
+            border-radius: 18px;
+            border: 1px solid rgba(15,23,42,.08);
+            background: rgba(255,255,255,.95);
+            padding: 14px 14px 12px 14px;
+            box-shadow: 0 8px 24px rgba(15,23,42,.04);
+        }
+
+        .sp-card-grid-title {
+            margin-bottom: 8px;
+            font-size: .86rem;
+            font-weight: 900;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.42);
+        }
+
+        .sp-chip-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .sp-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: rgba(15,23,42,.06);
+            color: rgba(15,23,42,.78);
+            font-size: .80rem;
+            font-weight: 700;
+        }
+
+        .sp-chip-danger { background: rgba(220,38,38,.10); color: #991b1b; }
+        .sp-chip-warning { background: rgba(245,158,11,.12); color: #92400e; }
+        .sp-chip-info { background: rgba(37,99,235,.10); color: #1d4ed8; }
+        .sp-chip-success { background: rgba(22,163,74,.10); color: #166534; }
+
+        .sp-list-card {
+            border: 1px solid rgba(15,23,42,.08);
+            border-radius: 16px;
+            padding: 12px 13px;
+            background: #fff;
+            box-shadow: 0 4px 14px rgba(15,23,42,.03);
+            margin-bottom: 10px;
+        }
+
+        .sp-list-card-head {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .sp-list-card-title {
+            font-weight: 850;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+
+        .sp-list-card-sub {
+            color: rgba(15,23,42,.62);
+            font-size: .88rem;
+        }
+
+        @media (max-width: 980px) {
+            .sp-page-hero-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sp-inline-metrics {
+                justify-content: flex-start;
+            }
+        }
+        </style>
+        """
+    )
 
 
 def _naive(dt: datetime) -> datetime:
@@ -372,6 +576,13 @@ def _render_surface_list_item(
     body_lines = body_lines or []
     chips = chips or []
 
+    tone_cls = {
+        "danger": "sp-banner-danger",
+        "warning": "sp-banner-warning",
+        "info": "sp-banner-info",
+        "success": "sp-banner-success",
+    }.get(tone, "")
+
     body_html = "".join(
         f"<div style='margin-top:6px; color:rgba(15,23,42,0.78);'>{line}</div>"
         for line in body_lines
@@ -381,14 +592,14 @@ def _render_surface_list_item(
 
     _render_html(
         f"""
-        <div class="sp-surface sp-tone-{tone}" style="margin-bottom:10px;">
-          <div style="font-weight:850; font-size:0.99rem;">
-            {title}
+        <div class="sp-list-card {tone_cls}">
+          <div class="sp-list-card-head">
+            <div>
+              <div class="sp-list-card-title">{title}</div>
+              {body_html}
+            </div>
           </div>
-          {body_html}
-          <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-            {chips_html}
-          </div>
+          <div class="sp-chip-row">{chips_html}</div>
         </div>
         """
     )
@@ -414,13 +625,19 @@ def _render_prazo_cards(rows: list, empty_title: str, empty_subtitle: str) -> No
             f"{_safe_text(tipo_acao, 'Sem tipo')}"
         )
 
+        chip_tone = (
+            "sp-chip-danger"
+            if dias < 0
+            else "sp-chip-warning" if dias <= 5 else "sp-chip-info"
+        )
+
         _render_surface_list_item(
             tone=tone,
             title=title,
             body_lines=[f"<b>Evento:</b> {_safe_text(evento, 'Sem evento')}"],
             chips=[
                 f"<span class='sp-chip'>📅 {format_date_br(data_limite)}</span>",
-                f"<span class='sp-chip'>⏳ {dias} dia(s)</span>",
+                f"<span class='sp-chip {chip_tone}'>⏳ {dias} dia(s)</span>",
                 f"<span class='sp-chip'>{status}</span>",
                 f"<span class='sp-chip'>{prior}</span>",
             ],
@@ -471,7 +688,7 @@ def _render_agenda_cards(rows: list, empty_title: str, empty_subtitle: str) -> N
 
 
 # ==========================================================
-# Timeline / radar
+# Timeline / radar / banners
 # ==========================================================
 
 
@@ -563,10 +780,62 @@ def _build_timeline_items(
     return items[:8]
 
 
+def _render_priority_banners(
+    kpis: dict[str, Any],
+    rows_prazos_atrasados: list,
+    rows_ag_24h: list,
+    rows_prazos_7d: list,
+) -> None:
+    banners: list[str] = []
+
+    if kpis["prazos_atrasados"] > 0:
+        primeiro = rows_prazos_atrasados[0] if rows_prazos_atrasados else None
+        ref = (
+            _safe_text(primeiro[4], "Sem referência") if primeiro else "Sem referência"
+        )
+        text = f"{kpis['prazos_atrasados']} prazo(s) atrasado(s). Priorize {ref}."
+        banners.append(
+            f"<div class='sp-banner sp-banner-danger'><div class='sp-banner-title'>Urgência crítica</div><div class='sp-banner-text'>{text}</div></div>"
+        )
+
+    if kpis["ag_24h"] > 0:
+        primeiro = rows_ag_24h[0] if rows_ag_24h else None
+        horario = (
+            ensure_br(primeiro[2]).strftime("%d/%m %H:%M")
+            if primeiro
+            else "sem horário"
+        )
+        ref = (
+            _safe_text(primeiro[4], "Sem referência") if primeiro else "Sem referência"
+        )
+        text = f"{kpis['ag_24h']} compromisso(s) em 24h. Próximo: {ref} às {horario}."
+        banners.append(
+            f"<div class='sp-banner sp-banner-warning'><div class='sp-banner-title'>Agenda imediata</div><div class='sp-banner-text'>{text}</div></div>"
+        )
+
+    if kpis["prazos_7dias"] > 0 and kpis["prazos_atrasados"] == 0:
+        primeiro = rows_prazos_7d[0] if rows_prazos_7d else None
+        venc = format_date_br(primeiro[2]) if primeiro else "sem data"
+        ref = (
+            _safe_text(primeiro[4], "Sem referência") if primeiro else "Sem referência"
+        )
+        text = f"{kpis['prazos_7dias']} prazo(s) na semana. Próximo: {ref} em {venc}."
+        banners.append(
+            f"<div class='sp-banner sp-banner-info'><div class='sp-banner-title'>Planejamento da semana</div><div class='sp-banner-text'>{text}</div></div>"
+        )
+
+    if not banners:
+        banners.append(
+            "<div class='sp-banner sp-banner-success'><div class='sp-banner-title'>Situação estável</div><div class='sp-banner-text'>Sem pendências críticas no momento. Bom momento para atualizar trabalhos e registrar novos itens.</div></div>"
+        )
+
+    _render_html(f"<div class='sp-banner-row'>{''.join(banners)}</div>")
+
+
 def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
     with section(
-        "Próximos passos",
-        subtitle="Prévia cronológica do que exige atenção",
+        "Linha do tempo operacional",
+        subtitle="Próximos passos em ordem cronológica",
         divider=False,
     ):
         if not items:
@@ -577,38 +846,30 @@ def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
             )
             return
 
-        _render_html("<div class='sp-timeline'>")
-        try:
-            for idx, item in enumerate(items):
-                tone = item["tone"]
-                last_class = "last" if idx == len(items) - 1 else ""
-                pill_class = _pill_class_from_tone(tone)
-
-                _render_html(
-                    f"""
-                    <div class="sp-timeline-item">
-                      <div class="sp-timeline-rail">
-                        <div class="sp-timeline-rail-line {last_class}">
-                          <div class="sp-timeline-dot sp-timeline-dot-{tone}"></div>
+        for item in items:
+            tone = item["tone"]
+            pill_class = {
+                "danger": "sp-chip-danger",
+                "warning": "sp-chip-warning",
+                "info": "sp-chip-info",
+                "success": "sp-chip-success",
+            }.get(tone, "")
+            _render_html(
+                f"""
+                <div class="sp-list-card">
+                    <div class="sp-list-card-head">
+                        <div>
+                            <div class="sp-list-card-title">{item['headline']}</div>
+                            <div class="sp-list-card-sub">{item['detail']}</div>
                         </div>
-                      </div>
-                      <div class="sp-timeline-content">
-                        <div class="sp-surface sp-tone-{tone}" style="margin:0; width:100%;">
-                          <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                            <div class="sp-timeline-title">{item["headline"]}</div>
-                            <div class="sp-timeline-kind">{item["kind"]}</div>
-                          </div>
-                          <div class="sp-timeline-detail">{item["detail"]}</div>
-                          <div class="sp-timeline-meta">
-                            <span class="{pill_class}">{item["meta"]}</span>
-                          </div>
-                        </div>
-                      </div>
+                        <span class="sp-chip {pill_class}">{item['kind']}</span>
                     </div>
-                    """
-                )
-        finally:
-            _render_html("</div>")
+                    <div class="sp-chip-row">
+                        <span class="sp-chip {pill_class}">{item['meta']}</span>
+                    </div>
+                </div>
+                """
+            )
 
 
 def _render_radar_panel(
@@ -672,13 +933,26 @@ def _render_radar_panel(
             cta_page = "Trabalhos"
             cta_state = {"trabalhos_section": "Cadastro"}
 
+        badge_class = {
+            "danger": "sp-chip-danger",
+            "warning": "sp-chip-warning",
+            "info": "sp-chip-info",
+            "success": "sp-chip-success",
+        }.get(tone, "")
+
         _render_html(
             f"""
-            <div class="sp-card sp-card-operational sp-tone-{tone}">
-              <div class="sp-card-title">FOCO DO MOMENTO</div>
-              <div style="font-size:1.10rem; font-weight:840; line-height:1.24;">{title}</div>
+            <div class="sp-section-shell">
+              <div class="sp-card-grid-title">foco do momento</div>
+              <div style="font-size:1.10rem; font-weight:860; line-height:1.24; color:#0f172a;">{title}</div>
               <div style="margin-top:10px; color:rgba(15,23,42,0.74); line-height:1.5;">
-                {"<br>".join(lines)}
+                {'<br>'.join(lines)}
+              </div>
+              <div class="sp-chip-row" style="margin-top:12px;">
+                <span class="sp-chip {badge_class}">Prazos atrasados: {kpis['prazos_atrasados']}</span>
+                <span class="sp-chip">Prazos em 7 dias: {kpis['prazos_7dias']}</span>
+                <span class="sp-chip">Agenda em 24h: {kpis['ag_24h']}</span>
+                <span class="sp-chip">Agenda em 7 dias: {kpis['ag_7d']}</span>
               </div>
             </div>
             """
@@ -691,65 +965,6 @@ def _render_radar_panel(
             state=cta_state,
             key="dash_radar_cta",
             type="primary",
-        )
-
-        spacer(0.16)
-
-        highlights: list[str] = []
-        if rows_prazos_atrasados:
-            _, evento, data_limite, prioridade, numero_processo, tipo_acao = (
-                rows_prazos_atrasados[0]
-            )
-            highlights.append(
-                f"<span class='sp-chip sp-chip-danger'>Prazo crítico: {_safe_text(numero_processo, 'Sem referência')} • {format_date_br(data_limite)}</span>"
-            )
-
-        if rows_ag_24h:
-            _, tipo, inicio, local, numero_processo, tipo_acao = rows_ag_24h[0]
-            highlights.append(
-                f"<span class='sp-chip sp-chip-warning'>Próximo compromisso: {_safe_text(numero_processo, 'Sem referência')} • {ensure_br(inicio).strftime('%d/%m %H:%M')}</span>"
-            )
-
-        if rows_prazos_7d and not rows_prazos_atrasados:
-            _, evento, data_limite, prioridade, numero_processo, tipo_acao = (
-                rows_prazos_7d[0]
-            )
-            highlights.append(
-                f"<span class='sp-chip sp-chip-info'>Próximo vencimento: {_safe_text(numero_processo, 'Sem referência')} • {format_date_br(data_limite)}</span>"
-            )
-
-        if highlights:
-            _render_html(
-                f"""
-                <div class="sp-highlight-strip">
-                  {''.join(highlights)}
-                </div>
-                """
-            )
-
-        spacer(0.14)
-
-        _render_html(
-            f"""
-            <div class="sp-surface">
-              <div class="sp-kv">
-                <div class="sp-kv-label">Prazos atrasados</div>
-                <div class="sp-kv-value">{kpis['prazos_atrasados']}</div>
-              </div>
-              <div class="sp-kv">
-                <div class="sp-kv-label">Prazos em até 7 dias</div>
-                <div class="sp-kv-value">{kpis['prazos_7dias']}</div>
-              </div>
-              <div class="sp-kv">
-                <div class="sp-kv-label">Agenda em 24 horas</div>
-                <div class="sp-kv-value">{kpis['ag_24h']}</div>
-              </div>
-              <div class="sp-kv">
-                <div class="sp-kv-label">Agenda em 7 dias</div>
-                <div class="sp-kv-value">{kpis['ag_7d']}</div>
-              </div>
-            </div>
-            """
         )
 
 
@@ -1036,10 +1251,55 @@ def _fetch_ultimos_processos_cached(
 # ==========================================================
 
 
-def _render_header() -> None:
+def _render_header(kpis: dict[str, Any] | None = None) -> None:
+    atrasados = (kpis or {}).get("prazos_atrasados", 0)
+    agenda_24h = (kpis or {}).get("ag_24h", 0)
+    ativos = (kpis or {}).get("ativos", 0)
+    saldo = (kpis or {}).get("saldo", 0.0)
+
+    _render_html(
+        f"""
+        <div class="sp-page-hero">
+          <div class="sp-page-hero-grid">
+            <div>
+              <div class="sp-page-kicker">gestão técnica</div>
+              <div class="sp-page-title">Painel de Controle</div>
+              <div class="sp-page-subtitle">Visão consolidada de processos, prazos, agenda e posição financeira, com foco no que exige ação primeiro.</div>
+              <div class="sp-chip-row" style="margin-top:12px;">
+                <span class="sp-chip">{_greeting()}</span>
+                <span class="sp-chip">{_today_label()}</span>
+              </div>
+            </div>
+            <div class="sp-inline-metrics">
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">processos ativos</div>
+                <div class="sp-mini-stat-value">{ativos}</div>
+                <div class="sp-mini-stat-sub">em andamento</div>
+              </div>
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">prazos atrasados</div>
+                <div class="sp-mini-stat-value">{atrasados}</div>
+                <div class="sp-mini-stat-sub">prioridade máxima</div>
+              </div>
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">agenda 24h</div>
+                <div class="sp-mini-stat-value">{agenda_24h}</div>
+                <div class="sp-mini-stat-sub">compromissos próximos</div>
+              </div>
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">saldo atual</div>
+                <div class="sp-mini-stat-value">R$ {_fmt_money_br(saldo)}</div>
+                <div class="sp-mini-stat-sub">posição consolidada</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+    )
+
     page_header(
-        "Painel de Controle",
-        "Visão consolidada de trabalhos, prazos, agenda e financeiro",
+        "",
+        "",
         actions=[
             HeaderAction(
                 "Prazos",
@@ -1060,8 +1320,8 @@ def _render_header() -> None:
                 on_click=_go_financeiro_lancamentos,
             ),
         ],
-        compact=False,
-        divider=True,
+        compact=True,
+        divider=False,
     )
 
 
@@ -1072,7 +1332,7 @@ def _render_top_bar() -> str | None:
         divider=False,
         compact=True,
     ):
-        left, right = grid_weights((1.2, 2.2), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.0, 1.0), weights_mobile=(1, 1), gap="medium")
 
         with left:
             atuacao_label = st.selectbox(
@@ -1084,11 +1344,13 @@ def _render_top_bar() -> str | None:
 
         with right:
             _render_html(
-                f"""
-                <div class="sp-surface" style="min-height:42px; display:flex; align-items:center;">
-                  <div style="color:rgba(15,23,42,0.72);">
-                    <b>{_greeting()}</b> • {_today_label()}
+                """
+                <div class="sp-section-shell" style="min-height:58px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                  <div>
+                    <div class="sp-card-grid-title" style="margin-bottom:3px;">modo do painel</div>
+                    <div style="color:rgba(15,23,42,0.74); font-weight:700;">Filtro aplicado somente à atuação selecionada</div>
                   </div>
+                  <div class="sp-chip">Atualizado em tempo real</div>
                 </div>
                 """
             )
@@ -1098,18 +1360,19 @@ def _render_top_bar() -> str | None:
 
 def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
     with section(
-        "Resumo executivo",
+        "Indicadores principais",
         subtitle=f"Leitura rápida do painel • atuação: {atuacao_label}",
         divider=False,
     ):
-        c1, c2, c3, c4 = grid(4, columns_mobile=1)
+        c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
         with c1:
             card(
-                "Trabalhos ativos",
+                "Processos ativos",
                 f"{kpis['ativos']}",
                 f"{kpis['total_proc']} cadastrados no total",
                 tone="neutral",
+                emphasize=True,
             )
 
         with c2:
@@ -1124,7 +1387,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
                 else "nenhum prazo em aberto"
             )
             card(
-                "Prazos em aberto",
+                "Prazos críticos",
                 f"{kpis['prazos_abertos']}",
                 subtitle,
                 tone=tone_prazos,
@@ -1136,7 +1399,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
                 kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]
             )
             card(
-                "Agenda próxima",
+                "Agenda da semana",
                 f"{kpis['ag_7d']}",
                 _kpi_agenda_subtitle(kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]),
                 tone=agenda_tone,
@@ -1157,34 +1420,36 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
 
 
 def _render_quick_actions() -> None:
-    with section("Ações rápidas", subtitle="Atalhos operacionais", divider=False):
+    with section(
+        "Ações rápidas", subtitle="Atalhos operacionais do dia", divider=False
+    ):
         c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
         with c1:
             _render_action_button(
-                "⏳ Novo prazo",
-                key="dash_quick_new_prazo",
+                "📁 Novo processo",
+                key="dash_quick_new_trabalho",
                 button_type="primary",
-                on_click=_go_prazos_cadastro,
+                on_click=_go_trabalhos_cadastro,
             )
 
         with c2:
             _render_action_button(
-                "📁 Novo trabalho",
-                key="dash_quick_new_trabalho",
-                on_click=_go_trabalhos_cadastro,
+                "⏳ Novo prazo",
+                key="dash_quick_new_prazo",
+                on_click=_go_prazos_cadastro,
             )
 
         with c3:
             _render_action_button(
-                "📅 Agenda",
+                "📅 Nova vistoria",
                 key="dash_quick_agenda",
                 on_click=_go_agenda,
             )
 
         with c4:
             _render_action_button(
-                "💰 Financeiro",
+                "💰 Registrar financeiro",
                 key="dash_quick_financeiro",
                 on_click=_go_financeiro_lancamentos,
             )
@@ -1253,7 +1518,9 @@ def _render_tab_prazos(
         version,
     )
 
-    with section("Atrasados", subtitle="Top 10 com maior urgência", divider=False):
+    with section(
+        "Prazos atrasados", subtitle="Top 10 com maior urgência", divider=False
+    ):
         _render_prazo_cards(
             rows_atrasados,
             "Nenhum prazo atrasado no momento",
@@ -1271,7 +1538,7 @@ def _render_tab_prazos(
     spacer(0.20)
 
     with section(
-        "Vencem em até 7 dias",
+        "Prazos em até 7 dias",
         subtitle="Itens que exigem organização no curto prazo",
         divider=False,
     ):
@@ -1373,14 +1640,14 @@ def _render_tab_trabalhos(
     rows = _fetch_ultimos_processos_cached(owner_user_id, tipo_val, version)
 
     with section(
-        "Últimos trabalhos",
+        "Últimos processos",
         subtitle="Registros mais recentes conforme o filtro de atuação",
         divider=False,
     ):
         if not rows:
             empty_state(
-                title="Nenhum trabalho cadastrado ainda",
-                subtitle="Quando você cadastrar trabalhos para esta atuação, eles aparecerão aqui.",
+                title="Nenhum processo cadastrado ainda",
+                subtitle="Quando você cadastrar processos para esta atuação, eles aparecerão aqui.",
                 icon="📁",
             )
             return
@@ -1388,14 +1655,14 @@ def _render_tab_trabalhos(
         _render_dataframe_or_caption(
             _build_trabalhos_df(rows),
             height=420,
-            empty_title="Sem trabalhos para exibir",
+            empty_title="Sem processos para exibir",
             empty_subtitle="Não há registros neste recorte.",
             empty_icon="📁",
         )
 
         spacer(0.10)
         _render_nav_button(
-            "Abrir trabalhos",
+            "Abrir processos",
             page="Trabalhos",
             state={"trabalhos_section": "Lista"},
             key="dash_open_trabalhos",
@@ -1409,8 +1676,10 @@ def _render_tab_trabalhos(
 
 
 def render(owner_user_id: int) -> None:
-    with content_shell(max_width="1320px"):
-        _render_header()
+    st.set_page_config(layout="wide")
+
+    with content_shell(max_width="1500px"):
+        _inject_dashboard_css()
 
         tipo_val = _render_top_bar()
         atuacao_label = st.session_state.get("dash_atuacao_ui", "(Todas)")
@@ -1424,6 +1693,8 @@ def render(owner_user_id: int) -> None:
             hoje_iso=hoje_sp.isoformat(),
             version=version,
         )
+
+        _render_header(kpis)
 
         rows_prazos_atrasados, rows_prazos_7d = _fetch_prazos_tables_cached(
             owner_user_id,
@@ -1440,14 +1711,18 @@ def render(owner_user_id: int) -> None:
             version,
         )
 
-        spacer(0.12)
+        _render_priority_banners(
+            kpis, rows_prazos_atrasados, rows_ag_24h, rows_prazos_7d
+        )
+
+        spacer(0.10)
         _render_dashboard_summary(kpis, atuacao_label)
 
-        spacer(0.18)
+        spacer(0.16)
         _render_quick_actions()
 
-        spacer(0.20)
-        left, right = grid_weights((1.08, 1.00), weights_mobile=(1, 1), gap="medium")
+        spacer(0.18)
+        left, right = grid_weights((1.1, 0.9), weights_mobile=(1, 1), gap="medium")
 
         with left:
             _render_radar_panel(
@@ -1466,15 +1741,15 @@ def render(owner_user_id: int) -> None:
             )
             _render_timeline_preview(timeline_items)
 
-        spacer(0.20)
+        spacer(0.18)
         _render_finance_summary(kpis)
 
-        spacer(0.24)
+        spacer(0.22)
         tab1, tab2, tab3 = st.tabs(
             [
                 f"⏳ Prazos ({kpis['prazos_atrasados']})",
                 f"📅 Agenda ({kpis['ag_7d']})",
-                f"🗂️ Trabalhos ({kpis['ativos']})",
+                f"🗂️ Processos ({kpis['ativos']})",
             ]
         )
 

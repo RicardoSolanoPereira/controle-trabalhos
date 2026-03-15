@@ -27,7 +27,6 @@ from ui_state import (
     navigate,
 )
 
-
 # ==================================================
 # CONSTANTS / UI MAPS
 # ==================================================
@@ -62,7 +61,6 @@ MENU_FIN_KEY = "Financeiro"
 
 SECTIONS = ("Lista", "Cadastrar", "Editar")
 
-
 # ==================================================
 # STATE KEYS
 # ==================================================
@@ -92,7 +90,6 @@ K_CREATE_OBS = "proc_create_obs"
 
 K_EDIT_SEARCH = "proc_edit_search"
 
-
 # ==================================================
 # LOW-LEVEL HELPERS
 # ==================================================
@@ -100,6 +97,230 @@ K_EDIT_SEARCH = "proc_edit_search"
 
 def _render_html(content: str) -> None:
     st.markdown(content, unsafe_allow_html=True)
+
+
+def _inject_processos_css() -> None:
+    _render_html(
+        """
+        <style>
+        .sp-page-hero {
+            padding: 1rem 1.1rem 1.1rem 1.1rem;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+            box-shadow: 0 10px 30px rgba(15,23,42,.04);
+            margin-bottom: 1rem;
+        }
+
+        .sp-page-hero-grid {
+            display: grid;
+            grid-template-columns: 1.55fr 1fr;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .sp-page-kicker {
+            font-size: .76rem;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.45);
+            margin-bottom: 4px;
+        }
+
+        .sp-page-title {
+            font-size: 1.62rem;
+            font-weight: 900;
+            line-height: 1.12;
+            color: #0f172a;
+        }
+
+        .sp-page-subtitle {
+            margin-top: 6px;
+            color: rgba(15,23,42,.68);
+            line-height: 1.5;
+            font-size: .95rem;
+        }
+
+        .sp-inline-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .sp-mini-stat {
+            min-width: 124px;
+            border-radius: 14px;
+            border: 1px solid rgba(15,23,42,.08);
+            background: #fff;
+            padding: 12px 14px;
+        }
+
+        .sp-mini-stat-label {
+            font-size: .72rem;
+            font-weight: 900;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.45);
+        }
+
+        .sp-mini-stat-value {
+            margin-top: 3px;
+            font-size: 1.12rem;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .sp-mini-stat-sub {
+            margin-top: 4px;
+            color: rgba(15,23,42,.60);
+            font-size: .82rem;
+        }
+
+        .sp-toolbar-card,
+        .sp-side-panel,
+        .sp-list-card,
+        .sp-banner {
+            border-radius: 16px;
+            border: 1px solid rgba(15,23,42,.08);
+            background: #fff;
+            padding: 13px 14px;
+            box-shadow: 0 6px 18px rgba(15,23,42,.03);
+        }
+
+        .sp-banner-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: .85rem 0 1rem 0;
+        }
+
+        .sp-banner {
+            flex: 1 1 250px;
+        }
+
+        .sp-banner-danger { border-left: 5px solid #dc2626; }
+        .sp-banner-warning { border-left: 5px solid #f59e0b; }
+        .sp-banner-info { border-left: 5px solid #2563eb; }
+        .sp-banner-success { border-left: 5px solid #16a34a; }
+
+        .sp-banner-title {
+            font-size: .75rem;
+            font-weight: 900;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.45);
+            margin-bottom: 4px;
+        }
+
+        .sp-banner-text {
+            font-size: .94rem;
+            line-height: 1.4;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .sp-kicker {
+            font-size: .76rem;
+            font-weight: 900;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: rgba(15,23,42,.44);
+            margin-bottom: 4px;
+        }
+
+        .sp-chip-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .sp-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: rgba(15,23,42,.06);
+            color: rgba(15,23,42,.78);
+            font-size: .80rem;
+            font-weight: 700;
+        }
+
+        .sp-chip-success { background: rgba(22,163,74,.10); color: #166534; }
+        .sp-chip-warning { background: rgba(245,158,11,.14); color: #92400e; }
+        .sp-chip-danger  { background: rgba(220,38,38,.10); color: #991b1b; }
+        .sp-chip-info    { background: rgba(37,99,235,.10); color: #1d4ed8; }
+        .sp-chip-neutral { background: rgba(71,85,105,.10); color: #334155; }
+
+        .sp-list-card {
+            margin-bottom: 10px;
+        }
+
+        .sp-list-card-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .sp-list-title {
+            font-size: 1rem;
+            font-weight: 900;
+            color: #0f172a;
+            line-height: 1.22;
+        }
+
+        .sp-list-meta {
+            margin-top: 4px;
+            color: rgba(15,23,42,.65);
+            font-size: .90rem;
+        }
+
+        .sp-list-body {
+            margin-top: 10px;
+            color: rgba(15,23,42,.82);
+            line-height: 1.5;
+            font-size: .93rem;
+        }
+
+        .sp-metric-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 7px 0;
+            border-bottom: 1px dashed rgba(15,23,42,.08);
+        }
+
+        .sp-metric-line:last-child {
+            border-bottom: none;
+        }
+
+        .sp-metric-label {
+            color: rgba(15,23,42,.58);
+            font-size: .88rem;
+        }
+
+        .sp-metric-value {
+            color: #0f172a;
+            font-weight: 800;
+            text-align: right;
+        }
+
+        @media (max-width: 980px) {
+            .sp-page-hero-grid {
+                grid-template-columns: 1fr;
+            }
+            .sp-inline-metrics {
+                justify-content: flex-start;
+            }
+        }
+        </style>
+        """
+    )
 
 
 def _button(
@@ -216,6 +437,17 @@ def _status_tone(status: str | None) -> str:
     return "info"
 
 
+def _status_chip_class(status: str | None) -> str:
+    s = (status or "").strip().lower()
+    if s == "ativo":
+        return "sp-chip-success"
+    if s in ("concluído", "concluido"):
+        return "sp-chip-neutral"
+    if s == "suspenso":
+        return "sp-chip-warning"
+    return "sp-chip-info"
+
+
 def _atuacao_badge(db_val: str | None) -> str:
     v = _norm_tipo_trabalho(db_val)
     if v == "Perito Judicial":
@@ -225,6 +457,17 @@ def _atuacao_badge(db_val: str | None) -> str:
     if v == "Trabalho Particular":
         return "🏷️ Particular"
     return v
+
+
+def _atuacao_chip_class(db_val: str | None) -> str:
+    v = _norm_tipo_trabalho(db_val)
+    if v == "Perito Judicial":
+        return "sp-chip-info"
+    if v == "Assistente Técnico":
+        return "sp-chip-success"
+    if v == "Trabalho Particular":
+        return "sp-chip-warning"
+    return "sp-chip-neutral"
 
 
 # ==================================================
@@ -297,8 +540,8 @@ def _open_folder(path_str: str | None) -> tuple[bool, str]:
 def _render_soft_note(title: str, body: str) -> None:
     _render_html(
         f"""
-        <div class="sp-surface" style="padding:14px 16px;">
-          <div style="font-weight:800; margin-bottom:4px;">{html.escape(title)}</div>
+        <div class="sp-toolbar-card">
+          <div style="font-weight:850; margin-bottom:4px;">{html.escape(title)}</div>
           <div style="font-size:0.94rem; color:rgba(15,23,42,.72);">{html.escape(body)}</div>
         </div>
         """
@@ -369,16 +612,14 @@ def _row_label(r: dict) -> str:
 
 def _sync_from_dashboard_and_qp() -> None:
     st.session_state.setdefault(K_SECTION, "Lista")
+    st.session_state.setdefault(K_SECTION_SELECTOR, st.session_state[K_SECTION])
+
     st.session_state.setdefault(K_FILTER_ORDEM, "Mais recentes")
     st.session_state.setdefault(K_FILTER_STATUS, "(Todos)")
     st.session_state.setdefault(K_FILTER_ATUACAO, "(Todas)")
     st.session_state.setdefault(K_FILTER_CATEGORIA, "(Todas)")
     st.session_state.setdefault(K_FILTER_Q, "")
     st.session_state.setdefault(K_FILTER_SOMENTE_COM_PASTA, False)
-
-    sec = st.session_state.pop("processos_section", None)
-    if sec in SECTIONS:
-        st.session_state[K_SECTION] = sec
 
     qp_status = get_qp_str("status", "")
     qp_atuacao = get_qp_str("atuacao", "")
@@ -406,6 +647,7 @@ def _sync_from_dashboard_and_qp() -> None:
     if qp_q:
         st.session_state[K_FILTER_Q] = qp_q
         st.session_state[K_SECTION] = "Lista"
+        st.session_state[K_SECTION_SELECTOR] = "Lista"
 
 
 # ==================================================
@@ -472,7 +714,7 @@ def _duplicate_processo(owner_user_id: int, processo_id: int) -> None:
             getattr(created, "numero_processo", "") or ""
         )
         st.session_state[K_SELECTED_ID] = int(getattr(created, "id", 0) or 0)
-        _toast("📄 Trabalho duplicado")
+        _toast("📄 Processo duplicado")
         _set_section("Editar")
     except Exception as e:
         st.error(f"Erro ao duplicar: {e}")
@@ -543,6 +785,52 @@ def _cached_stats(owner_user_id: int, version: int) -> dict[str, int]:
 # ==================================================
 
 
+def _render_header(stats: dict[str, int]) -> None:
+    _render_html(
+        f"""
+        <div class="sp-page-hero">
+          <div class="sp-page-hero-grid">
+            <div>
+              <div class="sp-page-kicker">gestão de processos</div>
+              <div class="sp-page-title">Processos e Trabalhos</div>
+              <div class="sp-page-subtitle">
+                Central para cadastro, busca, organização e operação dos seus registros técnicos,
+                judiciais e particulares.
+              </div>
+              <div class="sp-chip-row" style="margin-top:12px;">
+                <span class="sp-chip">Busca rápida</span>
+                <span class="sp-chip">Ações por registro</span>
+                <span class="sp-chip">Fluxo operacional</span>
+              </div>
+            </div>
+            <div class="sp-inline-metrics">
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">total</div>
+                <div class="sp-mini-stat-value">{stats.get('total', 0)}</div>
+                <div class="sp-mini-stat-sub">registros</div>
+              </div>
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">ativos</div>
+                <div class="sp-mini-stat-value">{stats.get('ativos', 0)}</div>
+                <div class="sp-mini-stat-sub">em andamento</div>
+              </div>
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">concluídos</div>
+                <div class="sp-mini-stat-value">{stats.get('concluidos', 0)}</div>
+                <div class="sp-mini-stat-sub">finalizados</div>
+              </div>
+              <div class="sp-mini-stat">
+                <div class="sp-mini-stat-label">com pasta</div>
+                <div class="sp-mini-stat-value">{stats.get('com_pasta', 0)}</div>
+                <div class="sp-mini-stat-sub">vínculo local</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+    )
+
+
 def _render_filter_summary() -> None:
     chips = _summarize_filters()
     if not chips:
@@ -551,16 +839,80 @@ def _render_filter_summary() -> None:
     st.caption(f"Filtros aplicados: {'  •  '.join(chips)}")
 
 
+def _render_priority_banners(stats: dict[str, int], rows: list[dict]) -> None:
+    metrics = _results_metrics(rows)
+
+    banners: list[tuple[str, str, str]] = []
+
+    if stats.get("ativos", 0) > 0:
+        banners.append(
+            (
+                "success",
+                "Carteira ativa",
+                f"{stats.get('ativos', 0)} processo(s) ativo(s) na base.",
+            )
+        )
+
+    if metrics.get("resultado", 0) > 0:
+        banners.append(
+            (
+                "info",
+                "Resultado atual",
+                f"{metrics.get('resultado', 0)} registro(s) retornado(s) com os filtros aplicados.",
+            )
+        )
+
+    if stats.get("suspensos", 0) > 0:
+        banners.append(
+            (
+                "warning",
+                "Atenção de carteira",
+                f"{stats.get('suspensos', 0)} processo(s) suspenso(s) aguardando retomada.",
+            )
+        )
+
+    if stats.get("com_pasta", 0) < stats.get("total", 0):
+        faltantes = max(0, stats.get("total", 0) - stats.get("com_pasta", 0))
+        banners.append(
+            (
+                "warning",
+                "Organização de arquivos",
+                f"{faltantes} registro(s) ainda sem pasta local vinculada.",
+            )
+        )
+
+    if not banners:
+        banners.append(
+            (
+                "success",
+                "Base organizada",
+                "Sem alertas relevantes no momento.",
+            )
+        )
+
+    _render_html("<div class='sp-banner-row'>")
+    for tone, title, text in banners[:4]:
+        _render_html(
+            f"""
+            <div class="sp-banner sp-banner-{tone}">
+              <div class="sp-banner-title">{html.escape(title)}</div>
+              <div class="sp-banner-text">{html.escape(text)}</div>
+            </div>
+            """
+        )
+    _render_html("</div>")
+
+
 def _render_empty_list() -> None:
     empty_state(
-        title="Nenhum trabalho encontrado",
-        subtitle="Ajuste os filtros ou cadastre um novo trabalho.",
+        title="Nenhum processo encontrado",
+        subtitle="Ajuste os filtros ou cadastre um novo registro.",
         icon="📁",
     )
     a, b = grid(2, columns_mobile=1)
     with a:
         _button(
-            "➕ Cadastrar novo trabalho",
+            "➕ Cadastrar novo processo",
             key="proc_empty_new",
             type="primary",
             on_click=_set_section,
@@ -577,12 +929,15 @@ def _render_empty_list() -> None:
 def _render_overview_cards(stats: dict[str, int]) -> None:
     k1, k2, k3, k4, k5 = grid(5, columns_mobile=2)
     with k1:
-        card("Total", f"{stats.get('total', 0)}", "todos os trabalhos", tone="info")
+        card("Total", f"{stats.get('total', 0)}", "todos os processos", tone="info")
     with k2:
         card("Ativos", f"{stats.get('ativos', 0)}", "em andamento", tone="success")
     with k3:
         card(
-            "Concluídos", f"{stats.get('concluidos', 0)}", "finalizados", tone="neutral"
+            "Concluídos",
+            f"{stats.get('concluidos', 0)}",
+            "finalizados",
+            tone="neutral",
         )
     with k4:
         card("Suspensos", f"{stats.get('suspensos', 0)}", "pausados", tone="warning")
@@ -629,7 +984,7 @@ def _render_list_insights(rows: list[dict]) -> None:
 def _render_selected_context(selected_row: dict | None) -> None:
     if not selected_row:
         empty_state(
-            title="Nenhum trabalho selecionado",
+            title="Nenhum processo selecionado",
             subtitle="Selecione um registro para ver os detalhes.",
             icon="🧭",
         )
@@ -645,25 +1000,24 @@ def _render_selected_context(selected_row: dict | None) -> None:
         _compact_text(selected_row.get("observacoes"), 240) or "Sem observações."
     )
 
-    categoria_chip = ""
     categoria = _escape_text(selected_row.get("categoria_servico"))
-    if categoria:
-        categoria_chip = f"<span class='sp-chip'>🏷️ {categoria}</span>"
+    categoria_chip = f"<span class='sp-chip'>🏷️ {categoria}</span>" if categoria else ""
 
     _render_html(
         f"""
-        <div class="sp-surface">
-          <div style="font-weight:900; font-size:1rem; margin-bottom:8px;">{ref}</div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-            <span class="sp-chip">{_status_badge(selected_row.get("status", ""))}</span>
-            <span class="sp-chip">{_atuacao_badge(selected_row.get("papel"))}</span>
+        <div class="sp-side-panel">
+          <div class="sp-kicker">contexto do registro</div>
+          <div style="font-weight:900; font-size:1rem; margin-bottom:8px; color:#0f172a;">{ref}</div>
+          <div class="sp-chip-row" style="margin-bottom:10px;">
+            <span class="sp-chip {_status_chip_class(selected_row.get('status', ''))}">{_status_badge(selected_row.get('status', ''))}</span>
+            <span class="sp-chip {_atuacao_chip_class(selected_row.get('papel'))}">{_atuacao_badge(selected_row.get('papel'))}</span>
             {categoria_chip}
           </div>
-          <div style="font-size:0.94rem; color:rgba(15,23,42,.78);"><b>Cliente:</b> {cli}</div>
-          <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Descrição:</b> {desc}</div>
-          <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Comarca / Vara:</b> {comarca} • {vara}</div>
-          <div style="font-size:0.94rem; color:rgba(15,23,42,.78); margin-top:4px;"><b>Pasta:</b> {pasta}</div>
-          <div style="font-size:0.92rem; color:rgba(15,23,42,.70); margin-top:8px;"><b>Obs.:</b> {obs}</div>
+          <div class="sp-metric-line"><div class="sp-metric-label">Cliente</div><div class="sp-metric-value">{cli}</div></div>
+          <div class="sp-metric-line"><div class="sp-metric-label">Descrição</div><div class="sp-metric-value">{desc}</div></div>
+          <div class="sp-metric-line"><div class="sp-metric-label">Comarca / Vara</div><div class="sp-metric-value">{comarca} • {vara}</div></div>
+          <div class="sp-metric-line"><div class="sp-metric-label">Pasta</div><div class="sp-metric-value">{pasta}</div></div>
+          <div style="margin-top:10px; color:rgba(15,23,42,.72); font-size:.92rem; line-height:1.5;"><b>Obs.:</b> {obs}</div>
         </div>
         """
     )
@@ -697,10 +1051,7 @@ def _render_operational_actions(
         )
     with d:
         if pasta.strip():
-            if _button(
-                "📂 Abrir pasta",
-                key=f"proc_ops_folder_{pid}",
-            ):
+            if _button("📂 Abrir pasta", key=f"proc_ops_folder_{pid}"):
                 ok, msg = _open_folder(pasta)
                 if ok:
                     _toast("📂 Pasta aberta")
@@ -723,7 +1074,7 @@ def _render_next_steps_panel(row: dict) -> None:
     items: list[str] = []
 
     if status.lower() == "ativo":
-        items.append("Priorize o cadastro dos prazos principais deste trabalho.")
+        items.append("Priorize o cadastro dos prazos principais deste processo.")
         items.append("Revise agenda, documentos e deslocamentos vinculados.")
     elif status.lower() == "suspenso":
         items.append(
@@ -736,7 +1087,7 @@ def _render_next_steps_panel(row: dict) -> None:
 
     if not pasta:
         items.append(
-            "Vincule a pasta local para acesso rápido aos arquivos do trabalho."
+            "Vincule a pasta local para acesso rápido aos arquivos do processo."
         )
 
     if not contratante:
@@ -750,16 +1101,14 @@ def _render_next_steps_panel(row: dict) -> None:
     items = items[:4]
 
     if not items:
-        items = ["Registro consistente. O trabalho está bem estruturado nesta etapa."]
+        items = ["Registro consistente. O processo está bem estruturado nesta etapa."]
 
     for idx, item in enumerate(items, start=1):
         _render_html(
             f"""
-            <div class="sp-surface" style="padding:12px 14px; margin-bottom:10px;">
-              <div style="font-size:0.82rem; font-weight:800; letter-spacing:.02em; text-transform:uppercase; color:rgba(15,23,42,.62);">
-                Próximo passo {idx}
-              </div>
-              <div style="margin-top:6px; color:rgba(15,23,42,.86); line-height:1.5; text-align:left;">
+            <div class="sp-toolbar-card" style="margin-bottom:10px;">
+              <div class="sp-kicker">próximo passo {idx}</div>
+              <div style="color:rgba(15,23,42,.86); line-height:1.5; text-align:left;">
                 {html.escape(item)}
               </div>
             </div>
@@ -782,44 +1131,50 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
     obs = html.escape(_compact_text(r.get("observacoes"), 180))
 
     meta_line = html.escape(" • ".join([x for x in [cli, comarca, vara] if x]))
-
     categoria_chip = f"<span class='sp-chip'>🏷️ {cat}</span>" if cat else ""
+
     descricao_line = (
-        f"<div style='margin-top:10px; color: rgba(15,23,42,0.82);'><b>Descrição:</b> {desc}</div>"
-        if desc
-        else ""
+        f"<div class='sp-list-body'><b>Descrição:</b> {desc}</div>" if desc else ""
     )
     obs_line = (
-        f"<div style='margin-top:6px; color: rgba(15,23,42,0.72);'><b>Obs.:</b> {obs}</div>"
+        f"<div class='sp-list-body' style='margin-top:6px; color:rgba(15,23,42,.70);'><b>Obs.:</b> {obs}</div>"
         if obs
         else ""
     )
 
+    pasta_chip = (
+        "<span class='sp-chip sp-chip-success'>📂 Pasta vinculada</span>"
+        if pasta
+        else "<span class='sp-chip sp-chip-neutral'>📂 Sem pasta</span>"
+    )
+
     _render_html(
         f"""
-        <div class="sp-surface" style="margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+        <div class="sp-list-card">
+          <div class="sp-list-card-head">
             <div style="min-width:0;">
-              <div style="font-weight:900; font-size:1.04rem; line-height:1.2;">{ref or "Sem referência"}</div>
-              <div style="margin-top:4px; color:rgba(15,23,42,0.68); font-size:0.92rem;">{meta_line or "Sem metadados principais"}</div>
+              <div class="sp-list-title">{ref or "Sem referência"}</div>
+              <div class="sp-list-meta">{meta_line or "Sem metadados principais"}</div>
             </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-              <span class="sp-chip">{status}</span>
-              <span class="sp-chip">{atu}</span>
+            <div class="sp-chip-row" style="margin-top:0; justify-content:flex-end;">
+              <span class="sp-chip {_status_chip_class(r.get('status', ''))}">{status}</span>
+              <span class="sp-chip {_atuacao_chip_class(r.get('papel'))}">{atu}</span>
               {categoria_chip}
             </div>
           </div>
-
           {descricao_line}
           {obs_line}
+          <div class="sp-chip-row">
+            {pasta_chip}
+          </div>
         </div>
         """
     )
 
-    a, b = grid(2, columns_mobile=1)
+    a, b, c = grid(3, columns_mobile=1)
     with a:
         _button(
-            "Abrir trabalho",
+            "Abrir processo",
             key=f"m_open_{pid}",
             type="primary",
             on_click=_open_edit,
@@ -832,25 +1187,23 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
             on_click=_go_prazos,
             args=(pid, _strip_html(r.get("numero_processo")), comarca, vara),
         )
+    with c:
+        _button(
+            "Financeiro",
+            key=f"m_fin_{pid}",
+            on_click=_go_fin,
+            args=(pid, _strip_html(r.get("numero_processo")), comarca, vara),
+        )
 
     with st.expander("Mais ações"):
-        c, d = grid(2, columns_mobile=1)
-        with c:
+        d, e, f = grid(3, columns_mobile=1)
+        with d:
             _button(
                 "Agenda",
                 key=f"m_ag_{pid}",
                 on_click=_go_agenda,
                 args=(pid, _strip_html(r.get("numero_processo")), comarca, vara),
             )
-        with d:
-            _button(
-                "Financeiro",
-                key=f"m_fin_{pid}",
-                on_click=_go_fin,
-                args=(pid, _strip_html(r.get("numero_processo")), comarca, vara),
-            )
-
-        e, f = grid(2, columns_mobile=1)
         with e:
             _button(
                 "Duplicar",
@@ -869,7 +1222,27 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
             else:
                 _button("Sem pasta", key=f"m_no_folder_{pid}", disabled=True)
 
-    spacer(0.2)
+    spacer(0.18)
+
+
+def _build_table_df(rows: list[dict]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "ID": int(r["id"]),
+                "Referência": _strip_html(r.get("numero_processo")),
+                "Atuação": _atuacao_badge(r.get("papel")),
+                "Categoria": _strip_html(r.get("categoria_servico")),
+                "Status": _status_badge(r.get("status", "")),
+                "Cliente": _strip_html(r.get("contratante")),
+                "Descrição": _strip_html(r.get("tipo_acao")),
+                "Comarca": _strip_html(r.get("comarca")),
+                "Vara": _strip_html(r.get("vara")),
+                "Pasta": "Sim" if _strip_html(r.get("pasta_local")) else "Não",
+            }
+            for r in rows
+        ]
+    )
 
 
 # ==================================================
@@ -879,16 +1252,21 @@ def _render_processo_card_row(owner_user_id: int, r: dict) -> None:
 
 def render(owner_user_id: int):
     _sync_from_dashboard_and_qp()
+    _inject_processos_css()
+
+    version = get_data_version(owner_user_id)
+    stats = _cached_stats(owner_user_id, version)
+
+    _render_header(stats)
 
     page_header(
-        "Trabalhos",
-        "Cadastro e gestão de atividades técnicas, judiciais e particulares.",
+        "",
+        "",
         actions=[
             HeaderAction(
                 "➕ Novo",
                 key="tb_new",
                 type="primary",
-                on_click=_set_section,
                 disabled=False,
             ),
             HeaderAction(
@@ -903,36 +1281,42 @@ def render(owner_user_id: int):
                 type="secondary",
             ),
         ],
-        divider=True,
+        divider=False,
+        compact=True,
     )
 
-    if st.session_state.get("tb_new"):
-        _set_section("Cadastrar")
+    if st.session_state.pop("tb_new", False):
+        st.session_state[K_SECTION] = "Cadastrar"
+        st.session_state[K_SECTION_SELECTOR] = "Cadastrar"
 
-    if st.session_state.get("tb_reload"):
+    if st.session_state.pop("tb_reload", False):
         _clear_data_cache()
         _toast("↻ Dados recarregados")
 
     options = list(SECTIONS)
     label_vis = "collapsed" if _use_cards() else "visible"
 
-    if hasattr(st, "segmented_control"):
-        sec = st.segmented_control(
-            "Seção",
-            options=options,
-            default=st.session_state.get(K_SECTION, "Lista"),
-            key=K_SECTION_SELECTOR,
-            label_visibility=label_vis,
-        )
-    else:
-        sec = st.radio(
-            "Seção",
-            options=options,
-            index=options.index(st.session_state.get(K_SECTION, "Lista")),
-            horizontal=True,
-            key=K_SECTION_SELECTOR,
-            label_visibility=label_vis,
-        )
+    with section(
+        "Modo da tela",
+        subtitle="Escolha entre lista, cadastro e painel de edição",
+        divider=False,
+        compact=True,
+    ):
+        if hasattr(st, "segmented_control"):
+            sec = st.segmented_control(
+                "Seção",
+                options=options,
+                key=K_SECTION_SELECTOR,
+                label_visibility=label_vis,
+            )
+        else:
+            sec = st.radio(
+                "Seção",
+                options=options,
+                horizontal=True,
+                key=K_SECTION_SELECTOR,
+                label_visibility=label_vis,
+            )
 
     st.session_state[K_SECTION] = sec
 
@@ -941,7 +1325,7 @@ def render(owner_user_id: int):
     elif sec == "Editar":
         _render_editar(owner_user_id)
     else:
-        _render_lista(owner_user_id)
+        _render_lista(owner_user_id, stats, version)
 
 
 # ==================================================
@@ -955,14 +1339,14 @@ def _render_cadastrar(owner_user_id: int) -> None:
         last_ref = st.session_state.get("proc_last_created_ref", "")
 
         with section(
-            "✅ Trabalho cadastrado",
+            "✅ Processo cadastrado",
             subtitle="Escolha o próximo passo para continuar o fluxo.",
             divider=False,
         ):
             a, b, c, d = grid(4, columns_mobile=1)
             with a:
                 _button(
-                    "Abrir trabalho",
+                    "Abrir processo",
                     key="proc_post_edit",
                     type="primary",
                     on_click=_open_edit,
@@ -989,13 +1373,13 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     st.rerun()
 
     with section(
-        "Novo trabalho",
+        "Novo processo",
         subtitle="Cadastre o essencial primeiro. Depois complemente com prazos, agenda, financeiro e notas.",
         divider=False,
     ):
         _render_soft_note(
             "Fluxo recomendado",
-            "Primeiro registre número/código, atuação, categoria e cliente. Depois refine pasta, observações e demais vínculos do trabalho.",
+            "Primeiro registre número/código, atuação, categoria e cliente. Depois refine pasta, observações e demais vínculos do processo.",
         )
 
         spacer(0.10)
@@ -1014,7 +1398,7 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     )
         with b:
             st.caption(
-                "Dica: se estiver no Windows local, você pode vincular a pasta do trabalho desde já."
+                "Dica: se estiver no Windows local, você pode vincular a pasta do processo desde já."
             )
 
         with st.form("form_trabalho_create", clear_on_submit=False):
@@ -1086,7 +1470,7 @@ def _render_cadastrar(owner_user_id: int) -> None:
             submit_col1, submit_col2 = grid(2, columns_mobile=1)
             with submit_col1:
                 submitted = st.form_submit_button(
-                    "Salvar",
+                    "Salvar processo",
                     type="primary",
                     use_container_width=True,
                 )
@@ -1129,7 +1513,7 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     getattr(created, "id", 0) or 0
                 )
                 st.session_state["proc_last_created_ref"] = numero.strip()
-                _toast("✅ Trabalho cadastrado")
+                _toast("✅ Processo cadastrado")
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao cadastrar: {e}")
@@ -1140,19 +1524,16 @@ def _render_cadastrar(owner_user_id: int) -> None:
 # ==================================================
 
 
-def _render_lista(owner_user_id: int) -> None:
-    version = get_data_version(owner_user_id)
-    stats = _cached_stats(owner_user_id, version)
-
+def _render_lista(owner_user_id: int, stats: dict[str, int], version: int) -> None:
     with section(
-        "Lista de trabalhos",
+        "Central de processos",
         subtitle="Filtre, localize e opere rapidamente sobre os registros cadastrados.",
         divider=False,
     ):
         cta1, cta2, cta3 = grid(3, columns_mobile=1)
         with cta1:
             _button(
-                "➕ Novo trabalho",
+                "➕ Novo processo",
                 key="proc_list_new",
                 type="primary",
                 on_click=_set_section,
@@ -1165,16 +1546,14 @@ def _render_lista(owner_user_id: int) -> None:
                 on_click=_clear_filters,
             )
         with cta3:
-            if _button(
-                "↻ Recarregar",
-                key="proc_list_reload",
-            ):
+            if _button("↻ Recarregar", key="proc_list_reload"):
                 _clear_data_cache()
                 _toast("↻ Dados recarregados")
 
         spacer(0.10)
         _render_overview_cards(stats)
-        spacer(0.10)
+
+        spacer(0.12)
 
         status_options = ["(Todos)"] + list(STATUS_VALIDOS)
         atuacao_options = list(ATUACAO_UI_ALL.keys())
@@ -1229,6 +1608,8 @@ def _render_lista(owner_user_id: int) -> None:
     if somente_com_pasta:
         rows = [r for r in rows if (r.get("pasta_local") or "").strip()]
 
+    _render_priority_banners(stats, rows)
+
     if not rows:
         _render_empty_list()
         return
@@ -1246,26 +1627,10 @@ def _render_lista(owner_user_id: int) -> None:
             )
         return
 
-    df = pd.DataFrame(
-        [
-            {
-                "ID": int(r["id"]),
-                "Referência": _strip_html(r.get("numero_processo")),
-                "Atuação": _atuacao_badge(r.get("papel")),
-                "Categoria": _strip_html(r.get("categoria_servico")),
-                "Status": _status_badge(r.get("status", "")),
-                "Cliente": _strip_html(r.get("contratante")),
-                "Descrição": _strip_html(r.get("tipo_acao")),
-                "Comarca": _strip_html(r.get("comarca")),
-                "Vara": _strip_html(r.get("vara")),
-                "Pasta": _strip_html(r.get("pasta_local")),
-            }
-            for r in rows
-        ]
-    )
+    df = _build_table_df(rows)
 
     with section(
-        "Tabela",
+        "Tabela principal",
         subtitle=f"Total exibido: {len(df)}",
         divider=False,
     ):
@@ -1285,12 +1650,12 @@ def _render_lista(owner_user_id: int) -> None:
             ],
             use_container_width=True,
             hide_index=True,
-            height=520,
+            height=540,
         )
 
     with section(
-        "Ações rápidas",
-        subtitle="Selecione um trabalho para abrir o painel do registro ou navegar para áreas relacionadas.",
+        "Ações rápidas por processo",
+        subtitle="Selecione um registro para abrir o painel ou navegar para áreas relacionadas.",
         divider=False,
     ):
         id_to_row = {int(r["id"]): r for r in rows}
@@ -1320,7 +1685,7 @@ def _render_lista(owner_user_id: int) -> None:
             a1, a2, a3 = grid(3, columns_mobile=1)
             with a1:
                 _button(
-                    "Abrir trabalho",
+                    "Abrir processo",
                     key="proc_act_edit",
                     type="primary",
                     on_click=_open_edit,
@@ -1362,13 +1727,13 @@ def _render_lista(owner_user_id: int) -> None:
 
 
 # ==================================================
-# EDITAR / PAINEL DO TRABALHO
+# EDITAR / PAINEL DO PROCESSO
 # ==================================================
 
 
 def _render_editar(owner_user_id: int) -> None:
     with section(
-        "Abrir trabalho",
+        "Abrir processo",
         subtitle="Localize o registro para visualizar contexto, ações e edição.",
         divider=False,
     ):
@@ -1392,7 +1757,7 @@ def _render_editar(owner_user_id: int) -> None:
 
         if not processos_all:
             empty_state(
-                title="Nenhum trabalho encontrado",
+                title="Nenhum processo encontrado",
                 subtitle="Não há registros compatíveis com a busca informada.",
                 icon="🔎",
             )
@@ -1427,7 +1792,7 @@ def _render_editar(owner_user_id: int) -> None:
     version = get_data_version(owner_user_id)
     p = _cached_get_row(owner_user_id, int(selected_id), version)
     if not p:
-        st.error("Trabalho não encontrado.")
+        st.error("Processo não encontrado.")
         return
 
     papel_atual = _norm_tipo_trabalho(p.get("papel"))
@@ -1445,21 +1810,21 @@ def _render_editar(owner_user_id: int) -> None:
     obs = html.escape(_compact_text(p.get("observacoes"), 280) or "Sem observações.")
 
     with section(
-        "Painel do trabalho",
+        "Painel do processo",
         subtitle="Visão consolidada do registro selecionado",
         divider=False,
     ):
         _render_html(
             f"""
-            <div class="sp-surface">
+            <div class="sp-side-panel">
               <div style="display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap;">
                 <div style="min-width:0;">
-                  <div style="font-size:1.20rem; font-weight:900; line-height:1.2;">{ref}</div>
+                  <div style="font-size:1.20rem; font-weight:900; line-height:1.2; color:#0f172a;">{ref}</div>
                   <div style="margin-top:6px; color:rgba(15,23,42,.72);">{descricao}</div>
                 </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-                  <span class="sp-chip">{_status_badge(status_atual)}</span>
-                  <span class="sp-chip">{_atuacao_badge(p.get("papel"))}</span>
+                <div class="sp-chip-row" style="margin-top:0; justify-content:flex-end;">
+                  <span class="sp-chip {_status_chip_class(status_atual)}">{_status_badge(status_atual)}</span>
+                  <span class="sp-chip {_atuacao_chip_class(p.get('papel'))}">{_atuacao_badge(p.get('papel'))}</span>
                   <span class="sp-chip">🏷️ {categoria}</span>
                 </div>
               </div>
@@ -1469,7 +1834,7 @@ def _render_editar(owner_user_id: int) -> None:
 
     with section(
         "Ações operacionais",
-        subtitle="Atalhos mais usados para seguir o fluxo do trabalho",
+        subtitle="Atalhos mais usados para seguir o fluxo do processo",
         divider=False,
     ):
         _render_operational_actions(
@@ -1519,29 +1884,17 @@ def _render_editar(owner_user_id: int) -> None:
 
     with left:
         with section(
-            "Contexto",
-            subtitle="Informações úteis para entendimento rápido do trabalho",
+            "Contexto do processo",
+            subtitle="Informações úteis para entendimento rápido do registro",
             divider=False,
         ):
             _render_html(
                 f"""
-                <div class="sp-surface">
-                  <div class="sp-kv">
-                    <div class="sp-kv-label">Descrição</div>
-                    <div class="sp-kv-value">{descricao}</div>
-                  </div>
-                  <div class="sp-kv">
-                    <div class="sp-kv-label">Comarca / Vara</div>
-                    <div class="sp-kv-value">{comarca} • {vara}</div>
-                  </div>
-                  <div class="sp-kv">
-                    <div class="sp-kv-label">Cliente</div>
-                    <div class="sp-kv-value">{contratante}</div>
-                  </div>
-                  <div class="sp-kv">
-                    <div class="sp-kv-label">Pasta local</div>
-                    <div class="sp-kv-value">{pasta_html}</div>
-                  </div>
+                <div class="sp-side-panel">
+                  <div class="sp-metric-line"><div class="sp-metric-label">Descrição</div><div class="sp-metric-value">{descricao}</div></div>
+                  <div class="sp-metric-line"><div class="sp-metric-label">Comarca / Vara</div><div class="sp-metric-value">{comarca} • {vara}</div></div>
+                  <div class="sp-metric-line"><div class="sp-metric-label">Cliente</div><div class="sp-metric-value">{contratante}</div></div>
+                  <div class="sp-metric-line"><div class="sp-metric-label">Pasta local</div><div class="sp-metric-value">{pasta_html}</div></div>
                 </div>
                 """
             )
@@ -1555,7 +1908,7 @@ def _render_editar(owner_user_id: int) -> None:
         ):
             _render_html(
                 f"""
-                <div class="sp-surface">
+                <div class="sp-side-panel">
                   <div style="color:rgba(15,23,42,.76); line-height:1.55;">
                     {obs}
                   </div>
@@ -1602,7 +1955,7 @@ def _render_editar(owner_user_id: int) -> None:
                         st.warning(msg)
 
     with section(
-        "Editar dados do trabalho",
+        "Editar dados do processo",
         subtitle="Ajuste os campos principais do registro abaixo",
         divider=False,
     ):
@@ -1735,7 +2088,7 @@ def _render_editar(owner_user_id: int) -> None:
                         ),
                     )
                 bump_data_version(owner_user_id)
-                _toast("✅ Trabalho atualizado")
+                _toast("✅ Processo atualizado")
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao atualizar: {e}")
@@ -1754,7 +2107,7 @@ def _render_editar(owner_user_id: int) -> None:
             )
         with b:
             if _button(
-                "🗑️ Excluir trabalho",
+                "🗑️ Excluir processo",
                 key=f"proc_delete_{selected_id}",
                 disabled=not bool(confirm),
             ):
@@ -1763,7 +2116,7 @@ def _render_editar(owner_user_id: int) -> None:
                         ProcessosService.delete(s, owner_user_id, int(selected_id))
                     bump_data_version(owner_user_id)
                     st.session_state.pop(K_SELECTED_ID, None)
-                    _toast("🗑️ Trabalho excluído")
+                    _toast("🗑️ Processo excluído")
                     _set_section("Lista")
                     st.rerun()
                 except Exception as e:

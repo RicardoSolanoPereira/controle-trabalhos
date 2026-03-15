@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
-from db.models import Processo
+from db.models import Agendamento, LancamentoFinanceiro, Prazo, Processo
 
 
 # ==================================================
@@ -206,7 +207,9 @@ def _apply_ordering(stmt, *, order_desc: bool):
 
 
 def _count_by_status(
-    session: Session, owner_user_id: int, status_normalized: str
+    session: Session,
+    owner_user_id: int,
+    status_normalized: str,
 ) -> int:
     total = session.scalar(
         select(func.count())
@@ -217,6 +220,19 @@ def _count_by_status(
         )
     )
     return int(total or 0)
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return float(value or 0)
+    except Exception:
+        return 0.0
+
+
+def _to_datetime(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return value
+    return None
 
 
 # ==================================================
@@ -281,6 +297,106 @@ def _payload_to_update_data(payload: ProcessoUpdate) -> Dict[str, Any]:
 
 
 # ==================================================
+# HELPERS DE DASHBOARD / LISTA OPERACIONAL
+# ==================================================
+
+
+def _processo_metrics_map(
+    session: Session, owner_user_id: int
+) -> dict[int, dict[str, Any]]:
+    owner_clause = _owner_stmt(owner_user_id)
+
+    prazos_rows = session.execute(
+        select(
+            Prazo.processo_id,
+            func.count(Prazo.id).label("prazos_abertos"),
+            func.min(Prazo.data_limite).label("proximo_prazo"),
+        )
+        .select_from(Prazo)
+        .join(Processo, Processo.id == Prazo.processo_id)
+        .where(
+            owner_clause,
+            Prazo.concluido.is_(False),
+        )
+        .group_by(Prazo.processo_id)
+    ).all()
+
+    agenda_rows = session.execute(
+        select(
+            Agendamento.processo_id,
+            func.count(Agendamento.id).label("agendamentos_futuros"),
+            func.min(Agendamento.inicio).label("proximo_agendamento"),
+        )
+        .select_from(Agendamento)
+        .join(Processo, Processo.id == Agendamento.processo_id)
+        .where(
+            owner_clause,
+            Agendamento.status == "Agendado",
+        )
+        .group_by(Agendamento.processo_id)
+    ).all()
+
+    fin_rows = session.execute(
+        select(
+            LancamentoFinanceiro.processo_id,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            LancamentoFinanceiro.tipo == "Receita",
+                            LancamentoFinanceiro.valor,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("receitas"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            LancamentoFinanceiro.tipo == "Despesa",
+                            LancamentoFinanceiro.valor,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("despesas"),
+        )
+        .select_from(LancamentoFinanceiro)
+        .join(Processo, Processo.id == LancamentoFinanceiro.processo_id)
+        .where(owner_clause)
+        .group_by(LancamentoFinanceiro.processo_id)
+    ).all()
+
+    metrics: dict[int, dict[str, Any]] = {}
+
+    for processo_id, prazos_abertos, proximo_prazo in prazos_rows:
+        pid = int(processo_id)
+        metrics.setdefault(pid, {})
+        metrics[pid]["prazos_abertos"] = int(prazos_abertos or 0)
+        metrics[pid]["proximo_prazo"] = _to_datetime(proximo_prazo)
+
+    for processo_id, agendamentos_futuros, proximo_agendamento in agenda_rows:
+        pid = int(processo_id)
+        metrics.setdefault(pid, {})
+        metrics[pid]["agendamentos_futuros"] = int(agendamentos_futuros or 0)
+        metrics[pid]["proximo_agendamento"] = _to_datetime(proximo_agendamento)
+
+    for processo_id, receitas, despesas in fin_rows:
+        pid = int(processo_id)
+        metrics.setdefault(pid, {})
+        rec = _safe_float(receitas)
+        desp = _safe_float(despesas)
+        metrics[pid]["receitas"] = rec
+        metrics[pid]["despesas"] = desp
+        metrics[pid]["saldo"] = rec - desp
+
+    return metrics
+
+
+# ==================================================
 # SERVICE
 # ==================================================
 
@@ -328,12 +444,106 @@ class ProcessosService:
         return list(session.execute(stmt).scalars().all())
 
     @staticmethod
+    def list_enriched(
+        session: Session,
+        owner_user_id: int,
+        status: Optional[str] = None,
+        papel: Optional[str] = None,
+        categoria_servico: Optional[str] = None,
+        q: Optional[str] = None,
+        order_desc: bool = True,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        processos = ProcessosService.list(
+            session,
+            owner_user_id=owner_user_id,
+            status=status,
+            papel=papel,
+            categoria_servico=categoria_servico,
+            q=q,
+            order_desc=order_desc,
+            limit=limit,
+        )
+
+        metrics_map = _processo_metrics_map(session, owner_user_id)
+        rows: List[Dict[str, Any]] = []
+
+        for p in processos:
+            pid = int(getattr(p, "id", 0) or 0)
+            metrics = metrics_map.get(pid, {})
+            pasta_local = getattr(p, "pasta_local", None) or ""
+
+            rows.append(
+                {
+                    "id": pid,
+                    "numero_processo": getattr(p, "numero_processo", "") or "",
+                    "vara": getattr(p, "vara", "") or "",
+                    "comarca": getattr(p, "comarca", "") or "",
+                    "tipo_acao": getattr(p, "tipo_acao", "") or "",
+                    "contratante": getattr(p, "contratante", "") or "",
+                    "categoria_servico": getattr(p, "categoria_servico", "") or "",
+                    "papel": getattr(p, "papel", "") or "",
+                    "status": getattr(p, "status", "") or "",
+                    "pasta_local": pasta_local,
+                    "observacoes": getattr(p, "observacoes", "") or "",
+                    "tem_pasta": bool(str(pasta_local).strip()),
+                    "prazos_abertos": int(metrics.get("prazos_abertos", 0) or 0),
+                    "proximo_prazo": metrics.get("proximo_prazo"),
+                    "agendamentos_futuros": int(
+                        metrics.get("agendamentos_futuros", 0) or 0
+                    ),
+                    "proximo_agendamento": metrics.get("proximo_agendamento"),
+                    "receitas": _safe_float(metrics.get("receitas", 0)),
+                    "despesas": _safe_float(metrics.get("despesas", 0)),
+                    "saldo": _safe_float(metrics.get("saldo", 0)),
+                }
+            )
+
+        return rows
+
+    @staticmethod
     def get(
         session: Session,
         owner_user_id: int,
         processo_id: int,
     ) -> Optional[Processo]:
         return _get_owned_processo(session, owner_user_id, processo_id)
+
+    @staticmethod
+    def get_enriched(
+        session: Session,
+        owner_user_id: int,
+        processo_id: int,
+    ) -> Optional[Dict[str, Any]]:
+        proc = _get_owned_processo(session, owner_user_id, processo_id)
+        if not proc:
+            return None
+
+        pid = int(getattr(proc, "id", 0) or 0)
+        metrics = _processo_metrics_map(session, owner_user_id).get(pid, {})
+        pasta_local = getattr(proc, "pasta_local", None) or ""
+
+        return {
+            "id": pid,
+            "numero_processo": getattr(proc, "numero_processo", "") or "",
+            "vara": getattr(proc, "vara", "") or "",
+            "comarca": getattr(proc, "comarca", "") or "",
+            "tipo_acao": getattr(proc, "tipo_acao", "") or "",
+            "contratante": getattr(proc, "contratante", "") or "",
+            "categoria_servico": getattr(proc, "categoria_servico", "") or "",
+            "papel": getattr(proc, "papel", "") or "",
+            "status": getattr(proc, "status", "") or "",
+            "pasta_local": pasta_local,
+            "observacoes": getattr(proc, "observacoes", "") or "",
+            "tem_pasta": bool(str(pasta_local).strip()),
+            "prazos_abertos": int(metrics.get("prazos_abertos", 0) or 0),
+            "proximo_prazo": metrics.get("proximo_prazo"),
+            "agendamentos_futuros": int(metrics.get("agendamentos_futuros", 0) or 0),
+            "proximo_agendamento": metrics.get("proximo_agendamento"),
+            "receitas": _safe_float(metrics.get("receitas", 0)),
+            "despesas": _safe_float(metrics.get("despesas", 0)),
+            "saldo": _safe_float(metrics.get("saldo", 0)),
+        }
 
     @staticmethod
     def update(
