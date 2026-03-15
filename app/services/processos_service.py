@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime
+from typing import Any, Optional
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
@@ -55,7 +55,7 @@ class ProcessoUpdate:
 def _clean_str(v: Optional[str]) -> Optional[str]:
     if v is None:
         return None
-    cleaned = " ".join(v.strip().split())
+    cleaned = " ".join(str(v).strip().split())
     return cleaned if cleaned else None
 
 
@@ -200,26 +200,9 @@ def _apply_list_filters(
 
 def _apply_ordering(stmt, *, order_desc: bool):
     status_rank = _status_rank_expr()
-
     if order_desc:
         return stmt.order_by(status_rank.desc(), Processo.id.desc())
     return stmt.order_by(status_rank.asc(), Processo.id.asc())
-
-
-def _count_by_status(
-    session: Session,
-    owner_user_id: int,
-    status_normalized: str,
-) -> int:
-    total = session.scalar(
-        select(func.count())
-        .select_from(Processo)
-        .where(
-            _owner_stmt(owner_user_id),
-            func.lower(Processo.status) == status_normalized.lower(),
-        )
-    )
-    return int(total or 0)
 
 
 def _safe_float(value: Any) -> float:
@@ -232,6 +215,8 @@ def _safe_float(value: Any) -> float:
 def _to_datetime(value: Any) -> Optional[datetime]:
     if isinstance(value, datetime):
         return value
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
     return None
 
 
@@ -250,6 +235,28 @@ def _get_owned_processo(
         _owner_stmt(owner_user_id),
     )
     return session.execute(stmt).scalars().first()
+
+
+def _numero_ja_existe(
+    session: Session,
+    owner_user_id: int,
+    numero_processo: str,
+    ignore_id: Optional[int] = None,
+) -> bool:
+    stmt = (
+        select(func.count())
+        .select_from(Processo)
+        .where(
+            _owner_stmt(owner_user_id),
+            Processo.numero_processo == numero_processo,
+        )
+    )
+
+    if ignore_id is not None:
+        stmt = stmt.where(Processo.id != int(ignore_id))
+
+    total = session.scalar(stmt) or 0
+    return int(total) > 0
 
 
 def _build_create_entity(owner_user_id: int, payload: ProcessoCreate) -> Processo:
@@ -272,8 +279,8 @@ def _build_create_entity(owner_user_id: int, payload: ProcessoCreate) -> Process
     )
 
 
-def _payload_to_update_data(payload: ProcessoUpdate) -> Dict[str, Any]:
-    data: Dict[str, Any] = {}
+def _payload_to_update_data(payload: ProcessoUpdate) -> dict[str, Any]:
+    data: dict[str, Any] = {}
 
     for field, value in payload.__dict__.items():
         if value is None:
@@ -302,8 +309,13 @@ def _payload_to_update_data(payload: ProcessoUpdate) -> Dict[str, Any]:
 
 
 def _processo_metrics_map(
-    session: Session, owner_user_id: int
+    session: Session,
+    owner_user_id: int,
+    processo_ids: list[int],
 ) -> dict[int, dict[str, Any]]:
+    if not processo_ids:
+        return {}
+
     owner_clause = _owner_stmt(owner_user_id)
 
     prazos_rows = session.execute(
@@ -317,6 +329,7 @@ def _processo_metrics_map(
         .where(
             owner_clause,
             Prazo.concluido.is_(False),
+            Prazo.processo_id.in_(processo_ids),
         )
         .group_by(Prazo.processo_id)
     ).all()
@@ -332,6 +345,7 @@ def _processo_metrics_map(
         .where(
             owner_clause,
             Agendamento.status == "Agendado",
+            Agendamento.processo_id.in_(processo_ids),
         )
         .group_by(Agendamento.processo_id)
     ).all()
@@ -366,7 +380,10 @@ def _processo_metrics_map(
         )
         .select_from(LancamentoFinanceiro)
         .join(Processo, Processo.id == LancamentoFinanceiro.processo_id)
-        .where(owner_clause)
+        .where(
+            owner_clause,
+            LancamentoFinanceiro.processo_id.in_(processo_ids),
+        )
         .group_by(LancamentoFinanceiro.processo_id)
     ).all()
 
@@ -409,6 +426,10 @@ class ProcessosService:
         payload: ProcessoCreate,
     ) -> Processo:
         proc = _build_create_entity(owner_user_id, payload)
+
+        if _numero_ja_existe(session, owner_user_id, proc.numero_processo):
+            raise ValueError("Já existe processo com essa referência")
+
         session.add(proc)
         session.commit()
         session.refresh(proc)
@@ -424,7 +445,7 @@ class ProcessosService:
         q: Optional[str] = None,
         order_desc: bool = True,
         limit: Optional[int] = None,
-    ) -> List[Processo]:
+    ) -> list[Processo]:
         stmt = select(Processo).where(_owner_stmt(owner_user_id))
 
         stmt = _apply_list_filters(
@@ -453,7 +474,7 @@ class ProcessosService:
         q: Optional[str] = None,
         order_desc: bool = True,
         limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         processos = ProcessosService.list(
             session,
             owner_user_id=owner_user_id,
@@ -465,8 +486,10 @@ class ProcessosService:
             limit=limit,
         )
 
-        metrics_map = _processo_metrics_map(session, owner_user_id)
-        rows: List[Dict[str, Any]] = []
+        processo_ids = [int(getattr(p, "id", 0) or 0) for p in processos]
+        metrics_map = _processo_metrics_map(session, owner_user_id, processo_ids)
+
+        rows: list[dict[str, Any]] = []
 
         for p in processos:
             pid = int(getattr(p, "id", 0) or 0)
@@ -514,13 +537,13 @@ class ProcessosService:
         session: Session,
         owner_user_id: int,
         processo_id: int,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         proc = _get_owned_processo(session, owner_user_id, processo_id)
         if not proc:
             return None
 
         pid = int(getattr(proc, "id", 0) or 0)
-        metrics = _processo_metrics_map(session, owner_user_id).get(pid, {})
+        metrics = _processo_metrics_map(session, owner_user_id, [pid]).get(pid, {})
         pasta_local = getattr(proc, "pasta_local", None) or ""
 
         return {
@@ -558,6 +581,14 @@ class ProcessosService:
 
         data = _payload_to_update_data(payload)
 
+        if "numero_processo" in data and _numero_ja_existe(
+            session,
+            owner_user_id,
+            data["numero_processo"],
+            ignore_id=int(processo_id),
+        ):
+            raise ValueError("Já existe processo com essa referência")
+
         if data:
             for field, value in data.items():
                 setattr(proc, field, value)
@@ -590,7 +621,12 @@ class ProcessosService:
             raise ValueError("Processo não encontrado")
 
         base_ref = _clean_str(proc.numero_processo) or "Sem referência"
-        duplicate_ref = f"{base_ref} (cópia)"
+        suffix = datetime.now().strftime("%H%M%S")
+        duplicate_ref = f"{base_ref} - cópia {suffix}"
+
+        while _numero_ja_existe(session, owner_user_id, duplicate_ref):
+            suffix = datetime.now().strftime("%H%M%S%f")
+            duplicate_ref = f"{base_ref} - cópia {suffix}"
 
         new_proc = Processo(
             owner_user_id=_normalize_owner_id(owner_user_id),
@@ -611,7 +647,7 @@ class ProcessosService:
         return new_proc
 
     @staticmethod
-    def stats(session: Session, owner_user_id: int) -> Dict[str, int]:
+    def stats(session: Session, owner_user_id: int) -> dict[str, int]:
         total = (
             session.scalar(
                 select(func.count())
@@ -621,19 +657,20 @@ class ProcessosService:
             or 0
         )
 
-        ativos = _count_by_status(session, owner_user_id, "Ativo")
-        concluidos = (
-            session.scalar(
-                select(func.count())
-                .select_from(Processo)
-                .where(
-                    _owner_stmt(owner_user_id),
-                    func.lower(Processo.status).in_(["concluido", "concluído"]),
-                )
+        grouped = session.execute(
+            select(
+                func.lower(Processo.status).label("status"),
+                func.count().label("total"),
             )
-            or 0
-        )
-        suspensos = _count_by_status(session, owner_user_id, "Suspenso")
+            .where(_owner_stmt(owner_user_id))
+            .group_by(func.lower(Processo.status))
+        ).all()
+
+        by_status = {str(status or ""): int(qty or 0) for status, qty in grouped}
+
+        ativos = by_status.get("ativo", 0)
+        suspensos = by_status.get("suspenso", 0)
+        concluidos = by_status.get("concluido", 0) + by_status.get("concluído", 0)
 
         com_pasta = (
             session.scalar(
@@ -657,7 +694,7 @@ class ProcessosService:
         }
 
     @staticmethod
-    def summary(session: Session, owner_user_id: int) -> Dict[str, Dict[str, int]]:
+    def summary(session: Session, owner_user_id: int) -> dict[str, dict[str, int]]:
         rows = list(
             session.execute(
                 select(Processo.papel, Processo.status, func.count())
@@ -666,8 +703,8 @@ class ProcessosService:
             ).all()
         )
 
-        by_papel: Dict[str, int] = {}
-        by_status: Dict[str, int] = {}
+        by_papel: dict[str, int] = {}
+        by_status: dict[str, int] = {}
 
         for papel, status, total in rows:
             papel_key = _normalize_papel(papel)
