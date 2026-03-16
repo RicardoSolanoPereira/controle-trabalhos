@@ -12,7 +12,7 @@ __all__ = [
     "app_error",
 ]
 
-_CSS_VERSION = "v31"
+_CSS_VERSION = "v20"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -25,16 +25,17 @@ TOKENS
 ====================================================== */
 
 :root{
-  --bg:#f4f7f5;
-  --bg-soft:#f8fbf9;
-  --bg-elevated:#eef4f1;
+  --bg:#f6f8f7;
+  --bg-accent:#eef4f1;
+  --bg-soft:#fbfcfc;
 
   --surface:#ffffff;
   --surface-soft:#fcfdfd;
-  --surface-muted:#f6f8f7;
+  --surface-muted:#f5f7f7;
+  --surface-strong:#f1f5f3;
 
-  --border:#dde5e1;
-  --border-strong:#ccd7d1;
+  --border:#dfe7e3;
+  --border-strong:#cbd8d2;
   --border-soft:rgba(15,23,42,0.06);
 
   --text:#0f172a;
@@ -43,10 +44,10 @@ TOKENS
   --muted-strong:#475467;
 
   --primary:#355e57;
-  --primary-hover:#2c4f49;
+  --primary-hover:#294942;
   --primary-soft:rgba(53,94,87,0.08);
-  --primary-softer:rgba(53,94,87,0.04);
-  --primary-ring:rgba(53,94,87,0.14);
+  --primary-soft-2:rgba(53,94,87,0.12);
+  --primary-ring:rgba(53,94,87,0.16);
 
   --danger:#dc2626;
   --warning:#d97706;
@@ -54,24 +55,30 @@ TOKENS
   --info:#2563eb;
   --neutral:#64748b;
 
-  --danger-bg:rgba(220,38,38,0.07);
-  --warning-bg:rgba(217,119,6,0.09);
-  --success-bg:rgba(21,128,61,0.08);
-  --info-bg:rgba(37,99,235,0.08);
-  --neutral-bg:rgba(15,23,42,0.04);
+  --danger-bg:rgba(220,38,38,0.075);
+  --warning-bg:rgba(217,119,6,0.10);
+  --success-bg:rgba(21,128,61,0.09);
+  --info-bg:rgba(37,99,235,0.09);
+  --neutral-bg:rgba(15,23,42,0.045);
 
-  --radius-2xl:22px;
-  --radius-xl:18px;
-  --radius-lg:16px;
-  --radius-md:12px;
-  --radius-sm:10px;
+  --radius-2xl:28px;
+  --radius-xl:22px;
+  --radius-lg:18px;
+  --radius-md:14px;
+  --radius-sm:12px;
+  --radius-xs:10px;
 
-  --shadow-xs:0 1px 2px rgba(15,23,42,0.03);
-  --shadow-sm:0 8px 22px rgba(15,23,42,0.045);
-  --shadow-md:0 18px 40px rgba(15,23,42,0.07);
+  --shadow-xs:0 1px 2px rgba(15,23,42,0.04);
+  --shadow-sm:0 6px 14px rgba(15,23,42,0.045);
+  --shadow-md:0 10px 24px rgba(15,23,42,0.06);
+  --shadow-lg:0 18px 38px rgba(15,23,42,0.07);
 
-  --transition-fast:all .14s ease;
+  --transition-fast:all .16s ease;
   --transition:all .18s ease;
+
+  --sidebar-width:320px;
+  --sidebar-item-height:40px;
+  --sidebar-item-radius:12px;
 }
 
 
@@ -79,8 +86,7 @@ TOKENS
 BASE
 ====================================================== */
 
-html,
-body{
+html, body{
   color:var(--text);
 }
 
@@ -93,18 +99,14 @@ body{
   -moz-osx-font-smoothing:grayscale;
 }
 
-p,
-li,
-label,
-span,
-div{
+p, li, label, span, div{
   color:inherit;
 }
 
 .stApp{
   background:
-    radial-gradient(circle at top right, rgba(53,94,87,0.03), transparent 22%),
-    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 100%),
+    radial-gradient(circle at top right, rgba(53,94,87,0.04), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.18) 100%),
     var(--bg);
 }
 
@@ -125,10 +127,6 @@ section.main{
   overflow:visible !important;
 }
 
-iframe{
-  border-radius:14px;
-}
-
 
 /* ======================================================
 LAYOUT
@@ -137,18 +135,14 @@ LAYOUT
 .block-container{
   max-width:1360px;
   padding-top:0.90rem;
-  padding-right:1.10rem;
-  padding-bottom:1.25rem;
-  padding-left:1.10rem;
+  padding-right:1.20rem;
+  padding-bottom:1.35rem;
+  padding-left:1.20rem;
   overflow:visible !important;
 }
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.18rem;
-}
-
-div[data-testid="stHorizontalBlock"]{
-  align-items:stretch;
+  margin-bottom:0.30rem;
 }
 
 
@@ -156,35 +150,32 @@ div[data-testid="stHorizontalBlock"]{
 TYPOGRAPHY
 ====================================================== */
 
-h1,
-h2,
-h3,
-h4{
-  margin-bottom:0.10rem;
+h1,h2,h3,h4{
+  margin-bottom:0.18rem;
   letter-spacing:-0.02em;
   color:var(--text);
 }
 
 h1{
   font-size:1.80rem;
-  line-height:1.04;
-  font-weight:800;
+  line-height:1.08;
+  font-weight:820;
 }
 
 h2{
-  font-size:1.28rem;
-  line-height:1.12;
-  font-weight:760;
+  font-size:1.34rem;
+  line-height:1.14;
+  font-weight:790;
 }
 
 h3{
-  font-size:1.03rem;
-  line-height:1.22;
-  font-weight:720;
+  font-size:1.05rem;
+  line-height:1.24;
+  font-weight:740;
 }
 
 h4{
-  font-size:0.94rem;
+  font-size:0.96rem;
   line-height:1.28;
   font-weight:700;
 }
@@ -194,69 +185,29 @@ small,
   color:var(--muted) !important;
 }
 
-label[data-testid="stWidgetLabel"] p{
-  font-weight:620 !important;
-  color:var(--text-soft) !important;
-}
-
 
 /* ======================================================
 PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.02rem 0 0.14rem 0;
-}
-
-.sp-page-title-wrap{
-  display:flex;
-  flex-direction:column;
-  gap:0;
+  padding:0.02rem 0 0.12rem 0;
 }
 
 .sp-page-title{
-  font-size:1.58rem;
-  line-height:1.04;
+  font-size:1.68rem;
   font-weight:820;
-  letter-spacing:-0.03em;
+  line-height:1.06;
+  letter-spacing:-0.028em;
   color:var(--text);
 }
 
 .sp-page-subtitle{
   margin-top:0.30rem;
-  max-width:74ch;
-  font-size:0.93rem;
-  line-height:1.52;
+  max-width:82ch;
+  font-size:0.95rem;
+  line-height:1.50;
   color:var(--muted);
-}
-
-.sp-page-header-actions,
-.sp-page-header-actions-mobile,
-.sp-toolbar-actions,
-.sp-toolbar-actions-mobile,
-.sp-section-actions,
-.sp-section-actions-mobile{
-  width:100%;
-}
-
-.sp-page-header-actions > div,
-.sp-toolbar-actions > div,
-.sp-section-actions > div{
-  display:flex;
-  justify-content:flex-end;
-  align-items:center;
-  gap:0.50rem;
-  flex-wrap:wrap;
-}
-
-.sp-page-header-actions-mobile > div,
-.sp-toolbar-actions-mobile > div,
-.sp-section-actions-mobile > div{
-  display:flex;
-  justify-content:flex-start;
-  align-items:center;
-  gap:0.50rem;
-  flex-wrap:wrap;
 }
 
 
@@ -265,28 +216,30 @@ SECTION HEADER
 ====================================================== */
 
 .sp-section-header{
-  margin-bottom:0.04rem;
-}
-
-.sp-section-title-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:0.75rem;
+  margin-bottom:0.14rem;
 }
 
 .sp-section-title{
-  font-size:0.99rem;
-  font-weight:760;
+  font-size:1.00rem;
+  font-weight:780;
   letter-spacing:-0.012em;
   color:var(--text);
 }
 
 .sp-section-subtitle{
-  margin-top:0.12rem;
-  font-size:0.88rem;
-  line-height:1.48;
+  margin-top:0.10rem;
+  font-size:0.90rem;
+  line-height:1.44;
   color:var(--muted);
+}
+
+
+/* ======================================================
+CONTENT SHELL
+====================================================== */
+
+.sp-content-shell{
+  width:100%;
 }
 
 
@@ -295,13 +248,13 @@ SURFACES
 ====================================================== */
 
 .sp-surface{
-  background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(251,253,252,1) 100%);
+  overflow:visible;
+  padding:16px 18px;
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
-  padding:14px 16px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
   box-shadow:var(--shadow-xs);
   transition:var(--transition);
-  overflow:visible;
 }
 
 .sp-surface:hover{
@@ -315,33 +268,91 @@ SURFACES
 
 
 /* ======================================================
-TOPBAR / TOOLBAR
+CHIPS / PILLS
 ====================================================== */
 
-.sp-topbar-shell{
-  position:sticky;
-  top:0;
-  z-index:20;
-  backdrop-filter:blur(8px);
+.sp-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border:1px solid rgba(15,23,42,0.08);
+  border-radius:999px;
+  background:var(--neutral-bg);
+  color:var(--text-soft);
+  font-size:0.80rem;
+  font-weight:660;
+  line-height:1;
+  white-space:nowrap;
 }
 
-.sp-topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:9px 12px;
-  border:1px solid rgba(15,23,42,0.06);
-  border-radius:16px;
-  background:rgba(255,255,255,0.80);
-  box-shadow:var(--shadow-xs);
+.sp-chip-danger{
+  background:var(--danger-bg);
+  border-color:rgba(220,38,38,0.18);
+  color:#991b1b;
 }
 
-.sp-topbar-group{
-  display:flex;
+.sp-chip-warning{
+  background:var(--warning-bg);
+  border-color:rgba(217,119,6,0.18);
+  color:#92400e;
+}
+
+.sp-chip-success{
+  background:var(--success-bg);
+  border-color:rgba(21,128,61,0.16);
+  color:#166534;
+}
+
+.sp-chip-info{
+  background:var(--info-bg);
+  border-color:rgba(37,99,235,0.16);
+  color:#1d4ed8;
+}
+
+.sp-pill{
+  display:inline-flex;
   align-items:center;
-  gap:8px;
-  flex-wrap:wrap;
+  gap:6px;
+  min-height:28px;
+  padding:5px 10px;
+  border:1px solid rgba(15,23,42,0.08);
+  border-radius:999px;
+  background:#fff;
+  color:var(--text-soft);
+  font-size:0.78rem;
+  font-weight:760;
+  line-height:1;
+}
+
+.sp-pill-danger{
+  background:var(--danger-bg);
+  color:#991b1b;
+  border-color:rgba(220,38,38,0.16);
+}
+
+.sp-pill-warning{
+  background:var(--warning-bg);
+  color:#92400e;
+  border-color:rgba(217,119,6,0.16);
+}
+
+.sp-pill-success{
+  background:var(--success-bg);
+  color:#166534;
+  border-color:rgba(21,128,61,0.15);
+}
+
+.sp-pill-info{
+  background:var(--info-bg);
+  color:#1d4ed8;
+  border-color:rgba(37,99,235,0.15);
+}
+
+.sp-pill-neutral{
+  background:var(--neutral-bg);
+  color:var(--text-soft);
+  border-color:rgba(15,23,42,0.08);
 }
 
 
@@ -350,12 +361,14 @@ SIDEBAR
 ====================================================== */
 
 section[data-testid="stSidebar"]{
-  background:linear-gradient(180deg, #f7faf9 0%, #edf4f1 100%);
-  border-right:1px solid #e1e8e5;
+  min-width:var(--sidebar-width) !important;
+  max-width:var(--sidebar-width) !important;
+  background:linear-gradient(180deg, #f3f7f5 0%, #eef4f1 100%);
+  border-right:1px solid #dbe5e1;
 }
 
 section[data-testid="stSidebar"] .block-container{
-  padding:0.90rem !important;
+  padding:0.90rem 0.85rem 0.80rem 0.85rem !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
@@ -364,49 +377,165 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
 
 
 /* ======================================================
+SIDEBAR TEXT HELPERS
+====================================================== */
+
+.sidebar-title{
+  margin-bottom:0.30rem;
+  font-size:1rem;
+  font-weight:780;
+  letter-spacing:-0.015em;
+  color:var(--text);
+}
+
+.sidebar-section{
+  margin-top:0.08rem;
+  margin-bottom:0.36rem;
+  font-size:0.78rem;
+  font-weight:760;
+  letter-spacing:0.04em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+.sidebar-build{
+  margin-top:0.35rem;
+  font-size:0.74rem;
+  color:var(--muted);
+}
+
+
+/* ======================================================
+SIDEBAR RADIO MENU
+====================================================== */
+
+section[data-testid="stSidebar"] div[role="radiogroup"]{
+  gap:0.22rem !important;
+}
+
+section[data-testid="stSidebar"]
+div[role="radiogroup"]
+label[data-baseweb="radio"] > div:first-child{
+  display:none !important;
+}
+
+section[data-testid="stSidebar"]
+div[role="radiogroup"]
+label[data-baseweb="radio"]{
+  display:flex !important;
+  align-items:center;
+  width:100%;
+  min-height:var(--sidebar-item-height);
+  margin:0 0 4px 0;
+  padding:0 12px;
+  border:1px solid transparent;
+  border-radius:var(--sidebar-item-radius);
+  background:transparent;
+  box-shadow:none;
+  cursor:pointer;
+  font-size:0.93rem;
+  transition:
+    background-color .16s ease,
+    border-color .16s ease,
+    color .16s ease,
+    box-shadow .16s ease;
+}
+
+section[data-testid="stSidebar"]
+div[role="radiogroup"]
+label[data-baseweb="radio"]:hover{
+  background:rgba(255,255,255,0.70);
+  border-color:rgba(15,23,42,0.06);
+}
+
+section[data-testid="stSidebar"]
+div[role="radiogroup"]
+label[data-baseweb="radio"][aria-checked="true"]{
+  background:linear-gradient(180deg, rgba(53,94,87,0.10) 0%, rgba(53,94,87,0.07) 100%);
+  border-color:rgba(53,94,87,0.10);
+  box-shadow:0 1px 2px rgba(15,23,42,0.03);
+  font-weight:760;
+  color:var(--text);
+}
+
+
+/* ======================================================
+SIDEBAR EXPANDER
+====================================================== */
+
+section[data-testid="stSidebar"] details{
+  border:1px solid rgba(15,23,42,0.08);
+  border-radius:14px;
+  background:rgba(255,255,255,0.78);
+  box-shadow:none;
+}
+
+section[data-testid="stSidebar"] summary{
+  min-height:42px;
+  border-radius:14px;
+}
+
+section[data-testid="stSidebar"] details > div{
+  padding-top:0.15rem;
+}
+
+
+/* ======================================================
 BUTTONS
 ====================================================== */
 
 .stButton > button{
-  min-height:42px;
-  padding:0.60rem 0.95rem;
-  border-radius:12px;
+  min-height:40px;
+  padding:0.56rem 0.95rem;
   border:1px solid rgba(15,23,42,0.10);
+  border-radius:12px;
   background:#ffffff;
   color:var(--text);
-  font-weight:660;
-  transition:
-    background-color .16s ease,
-    border-color .16s ease,
-    box-shadow .16s ease,
-    transform .16s ease;
+  font-weight:670;
   box-shadow:none;
+  transition:
+    background-color .18s ease,
+    border-color .18s ease,
+    box-shadow .18s ease,
+    transform .18s ease;
 }
 
 .stButton > button:hover{
-  background:rgba(15,23,42,0.024);
-  border-color:rgba(15,23,42,0.16);
+  background:rgba(15,23,42,0.022);
+  border-color:rgba(15,23,42,0.18);
   transform:translateY(-1px);
 }
 
 .stButton > button:focus,
 .stButton > button:focus-visible{
   outline:none !important;
-  box-shadow:0 0 0 0.18rem var(--primary-ring) !important;
+  box-shadow:0 0 0 0.18rem rgba(53,94,87,0.12) !important;
 }
 
 .stButton > button[kind="primary"],
 .stButton > button[class*="primary"]{
-  background:var(--primary) !important;
+  background:linear-gradient(180deg, var(--primary) 0%, #2f544d 100%) !important;
   border:1px solid var(--primary) !important;
   color:#ffffff !important;
-  box-shadow:0 8px 18px rgba(53,94,87,0.12) !important;
+  box-shadow:0 8px 18px rgba(53,94,87,0.16) !important;
 }
 
 .stButton > button[kind="primary"]:hover,
 .stButton > button[class*="primary"]:hover{
-  background:var(--primary-hover) !important;
+  background:linear-gradient(180deg, var(--primary-hover) 0%, #233f39 100%) !important;
   border-color:var(--primary-hover) !important;
+}
+
+
+/* ======================================================
+SIDEBAR BUTTON DENSITY
+====================================================== */
+
+section[data-testid="stSidebar"] .stButton > button{
+  min-height:38px;
+  padding:0.46rem 0.82rem;
+  border-radius:12px;
+  font-size:0.90rem;
 }
 
 
@@ -418,26 +547,60 @@ div[data-baseweb="input"] > div,
 div[data-baseweb="textarea"] > div,
 div[data-baseweb="select"] > div{
   min-height:42px;
-  border-radius:12px !important;
+  border-radius:var(--radius-md) !important;
   border-color:rgba(15,23,42,0.10) !important;
   background:#ffffff !important;
-  transition:
-    border-color .16s ease,
-    box-shadow .16s ease,
-    background-color .16s ease !important;
+  transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease !important;
 }
 
 div[data-baseweb="input"] > div:hover,
 div[data-baseweb="textarea"] > div:hover,
 div[data-baseweb="select"] > div:hover{
-  border-color:rgba(15,23,42,0.16) !important;
+  border-color:rgba(15,23,42,0.18) !important;
 }
 
 div[data-baseweb="input"] > div:focus-within,
 div[data-baseweb="textarea"] > div:focus-within,
 div[data-baseweb="select"] > div:focus-within{
-  border-color:rgba(53,94,87,0.34) !important;
+  border-color:rgba(53,94,87,0.35) !important;
   box-shadow:0 0 0 0.18rem var(--primary-ring) !important;
+}
+
+label[data-testid="stWidgetLabel"] p{
+  color:var(--text-soft) !important;
+  font-weight:630 !important;
+  font-size:0.88rem !important;
+}
+
+section[data-testid="stSidebar"] label[data-testid="stWidgetLabel"] p{
+  font-size:0.84rem !important;
+}
+
+
+/* ======================================================
+TOP NAV / FILTER BAR FEEL
+====================================================== */
+
+div[data-baseweb="select"]{
+  width:100%;
+}
+
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div{
+  box-shadow:none !important;
+}
+
+
+/* ======================================================
+CHECKBOX / RADIO FORM CONTROLS
+====================================================== */
+
+div[data-testid="stCheckbox"]{
+  margin-bottom:0.15rem;
+}
+
+div[data-testid="stRadio"] > div{
+  gap:0.22rem !important;
 }
 
 
@@ -451,8 +614,8 @@ div[data-testid="stTabs"]{
 
 button[data-baseweb="tab"]{
   border-radius:12px 12px 0 0 !important;
-  font-weight:660 !important;
   color:var(--muted-strong) !important;
+  font-weight:660 !important;
 }
 
 button[data-baseweb="tab"][aria-selected="true"]{
@@ -462,7 +625,7 @@ button[data-baseweb="tab"][aria-selected="true"]{
 
 
 /* ======================================================
-DATA DISPLAY
+DATAFRAME
 ====================================================== */
 
 div[data-testid="stDataFrame"]{
@@ -477,6 +640,11 @@ div[data-testid="stDataFrame"] [role="grid"]{
   border:none !important;
 }
 
+
+/* ======================================================
+EXPANDER
+====================================================== */
+
 details{
   border:1px solid var(--border);
   border-radius:14px;
@@ -490,59 +658,69 @@ summary{
 
 
 /* ======================================================
-CARDS
+CARD KPI
 ====================================================== */
 
 .sp-card{
   position:relative;
   overflow:hidden;
   min-height:108px;
-  padding:14px 14px 13px 14px;
+  padding:15px 16px 14px 16px;
   border:1px solid var(--border);
-  border-radius:16px;
-  background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(250,252,251,1) 100%);
-  box-shadow:var(--shadow-xs);
+  border-radius:var(--radius-lg);
+  background:linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
+  box-shadow:var(--shadow-sm);
   transition:var(--transition);
+}
+
+.sp-card::after{
+  content:"";
+  position:absolute;
+  top:0;
+  right:0;
+  width:56px;
+  height:56px;
+  background:radial-gradient(circle, rgba(53,94,87,0.05) 0%, transparent 70%);
+  pointer-events:none;
 }
 
 .sp-card:hover{
   border-color:var(--border-strong);
-  box-shadow:var(--shadow-sm);
+  box-shadow:var(--shadow-md);
   transform:translateY(-1px);
 }
 
 .sp-card-title{
-  margin-bottom:6px;
+  margin-bottom:7px;
+  color:rgba(15,23,42,0.64);
   font-size:0.75rem;
-  line-height:1.15;
-  font-weight:760;
-  letter-spacing:0.045em;
+  font-weight:780;
+  line-height:1.2;
   text-transform:uppercase;
-  color:rgba(15,23,42,0.56);
+  letter-spacing:0.045em;
 }
 
 .sp-card-value{
-  font-size:1.30rem;
-  line-height:1.04;
-  font-weight:820;
   color:var(--text);
+  font-size:1.42rem;
+  font-weight:840;
+  line-height:1.06;
 }
 
 .sp-card-value.emph{
-  font-size:1.56rem;
-  font-weight:850;
+  font-size:1.66rem;
+  font-weight:880;
 }
 
 .sp-card-sub{
-  margin-top:7px;
-  font-size:0.82rem;
-  line-height:1.40;
+  margin-top:8px;
   color:rgba(15,23,42,0.58);
+  font-size:0.83rem;
+  line-height:1.35;
 }
 
 .sp-card-operational{
   min-height:auto;
-  padding:14px;
 }
 
 
@@ -551,104 +729,41 @@ TONES
 ====================================================== */
 
 .sp-tone-danger{
-  border-left:3px solid var(--danger);
-  padding-left:12px;
+  border-left:4px solid var(--danger);
+  padding-left:13px;
 }
 
 .sp-tone-warning{
-  border-left:3px solid var(--warning);
-  padding-left:12px;
+  border-left:4px solid var(--warning);
+  padding-left:13px;
 }
 
 .sp-tone-success{
-  border-left:3px solid var(--success);
-  padding-left:12px;
+  border-left:4px solid var(--success);
+  padding-left:13px;
 }
 
 .sp-tone-info{
-  border-left:3px solid var(--info);
-  padding-left:12px;
+  border-left:4px solid var(--info);
+  padding-left:13px;
 }
 
 .sp-tone-neutral{
-  border-left:3px solid #cbd5e1;
-  padding-left:12px;
+  border-left:4px solid #cbd5e1;
+  padding-left:13px;
 }
 
 
 /* ======================================================
-CHIPS / PILLS
+KEY-VALUE / STRIPS
 ====================================================== */
 
-.sp-chip,
-.sp-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  border-radius:999px;
-  line-height:1;
-  white-space:nowrap;
+.sp-kpi-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
 }
 
-.sp-chip{
-  padding:5px 9px;
-  background:var(--neutral-bg);
-  border:1px solid rgba(15,23,42,0.08);
-  font-size:0.78rem;
-  font-weight:650;
-  color:var(--text-soft);
-}
-
-.sp-pill{
-  min-height:26px;
-  padding:5px 10px;
-  font-size:0.77rem;
-  font-weight:730;
-  border:1px solid rgba(15,23,42,0.08);
-  background:#fff;
-  color:var(--text-soft);
-}
-
-.sp-chip-danger,
-.sp-pill-danger{
-  background:var(--danger-bg);
-  border-color:rgba(220,38,38,0.16);
-  color:#991b1b;
-}
-
-.sp-chip-warning,
-.sp-pill-warning{
-  background:var(--warning-bg);
-  border-color:rgba(217,119,6,0.16);
-  color:#92400e;
-}
-
-.sp-chip-success,
-.sp-pill-success{
-  background:var(--success-bg);
-  border-color:rgba(21,128,61,0.14);
-  color:#166534;
-}
-
-.sp-chip-info,
-.sp-pill-info{
-  background:var(--info-bg);
-  border-color:rgba(37,99,235,0.14);
-  color:#1d4ed8;
-}
-
-.sp-pill-neutral{
-  background:var(--neutral-bg);
-  border-color:rgba(15,23,42,0.08);
-  color:var(--text-soft);
-}
-
-
-/* ======================================================
-KEY VALUE / STRIPS
-====================================================== */
-
-.sp-kpi-strip,
 .sp-highlight-strip{
   display:flex;
   flex-wrap:wrap;
@@ -660,7 +775,7 @@ KEY VALUE / STRIPS
   align-items:flex-start;
   justify-content:space-between;
   gap:12px;
-  padding:9px 0;
+  padding:10px 0;
   border-bottom:1px solid rgba(15,23,42,0.06);
 }
 
@@ -670,17 +785,17 @@ KEY VALUE / STRIPS
 }
 
 .sp-kv-label{
-  font-size:0.83rem;
-  line-height:1.35;
   color:var(--muted);
+  font-size:0.84rem;
+  line-height:1.35;
 }
 
 .sp-kv-value{
-  text-align:right;
-  font-size:0.87rem;
-  line-height:1.35;
-  font-weight:760;
   color:var(--text);
+  font-size:0.88rem;
+  font-weight:780;
+  line-height:1.35;
+  text-align:right;
 }
 
 
@@ -691,18 +806,18 @@ TIMELINE
 .sp-timeline{
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:12px;
 }
 
 .sp-timeline-item{
   display:flex;
   align-items:stretch;
-  gap:10px;
+  gap:12px;
 }
 
 .sp-timeline-rail{
-  width:18px;
-  flex:0 0 18px;
+  width:20px;
+  flex:0 0 20px;
   display:flex;
   justify-content:center;
 }
@@ -710,7 +825,7 @@ TIMELINE
 .sp-timeline-rail-line{
   position:relative;
   width:2px;
-  min-height:58px;
+  min-height:66px;
   border-radius:999px;
   background:rgba(15,23,42,0.08);
 }
@@ -723,8 +838,8 @@ TIMELINE
   position:absolute;
   top:0;
   left:50%;
-  width:11px;
-  height:11px;
+  width:12px;
+  height:12px;
   border-radius:999px;
   transform:translateX(-50%);
   box-shadow:0 0 0 4px rgba(255,255,255,0.96);
@@ -742,33 +857,33 @@ TIMELINE
 }
 
 .sp-timeline-kind{
-  font-size:0.76rem;
-  font-weight:760;
-  letter-spacing:0.04em;
+  color:rgba(15,23,42,0.58);
+  font-size:0.78rem;
+  font-weight:780;
   text-transform:uppercase;
-  color:rgba(15,23,42,0.56);
+  letter-spacing:0.04em;
 }
 
 .sp-timeline-title{
-  line-height:1.32;
-  font-weight:790;
   color:var(--text);
+  font-weight:820;
+  line-height:1.35;
 }
 
 .sp-timeline-detail{
-  margin-top:4px;
-  font-size:0.86rem;
+  margin-top:5px;
+  color:rgba(15,23,42,0.72);
+  font-size:0.88rem;
   line-height:1.42;
-  color:rgba(15,23,42,0.70);
 }
 
 .sp-timeline-meta{
-  margin-top:7px;
+  margin-top:8px;
 }
 
 
 /* ======================================================
-EMPTY / ERROR / DIVIDER
+EMPTY STATE
 ====================================================== */
 
 .sp-empty-state{
@@ -776,51 +891,61 @@ EMPTY / ERROR / DIVIDER
   text-align:center;
 }
 
-.sp-empty-state-icon{
+.sp-empty-icon{
   margin-bottom:9px;
   font-size:1.75rem;
   line-height:1;
 }
 
-.sp-empty-state-title{
+.sp-empty-title{
+  color:var(--text);
   font-size:0.98rem;
   font-weight:800;
-  color:var(--text);
 }
 
-.sp-empty-state-subtitle{
+.sp-empty-subtitle{
   margin-top:6px;
+  color:var(--muted);
   font-size:0.89rem;
   line-height:1.46;
-  color:var(--muted);
 }
 
+
+/* ======================================================
+APP ERROR
+====================================================== */
+
 .sp-app-error{
-  margin-bottom:0.36rem;
-  padding:13px 15px;
-  border:1px solid rgba(220,38,38,0.14);
-  border-left:4px solid var(--danger);
-  border-radius:14px;
-  background:linear-gradient(180deg, rgba(220,38,38,0.04) 0%, rgba(220,38,38,0.022) 100%);
+  margin-bottom:0.40rem;
+  padding:14px 16px;
+  border:1px solid rgba(220,38,38,0.15);
+  border-left:5px solid var(--danger);
+  border-radius:16px;
+  background:linear-gradient(180deg, rgba(220,38,38,0.045) 0%, rgba(220,38,38,0.025) 100%);
 }
 
 .sp-app-error-title{
-  font-size:0.96rem;
-  font-weight:800;
   color:#991b1b;
+  font-size:0.98rem;
+  font-weight:820;
 }
 
 .sp-app-error-subtitle{
-  margin-top:4px;
-  font-size:0.89rem;
-  line-height:1.44;
+  margin-top:5px;
   color:#7f1d1d;
+  font-size:0.90rem;
+  line-height:1.45;
 }
 
+
+/* ======================================================
+DIVIDER
+====================================================== */
+
 .sp-divider{
+  margin:0.72rem 0;
   border:0;
-  border-top:1px solid #e5e7eb;
-  margin:0.68rem 0;
+  border-top:1px solid #e7ebea;
 }
 
 
@@ -857,7 +982,7 @@ SCROLLBAR
 }
 
 *::-webkit-scrollbar-thumb:hover{
-  background:rgba(53,94,87,0.30);
+  background:rgba(53,94,87,0.32);
 }
 
 
@@ -869,70 +994,75 @@ MOBILE
 
   .block-container{
     max-width:100% !important;
-    padding:0.88rem !important;
+    padding:0.92rem !important;
   }
 
   .sp-page-title{
-    font-size:1.36rem;
+    font-size:1.42rem;
   }
 
   .sp-page-subtitle{
-    font-size:0.89rem;
+    font-size:0.91rem;
   }
 
-  .sp-topbar{
-    padding:9px 11px;
-    border-radius:15px;
+  .sp-surface{
+    padding:13px 14px;
+    border-radius:16px;
   }
 
   .sp-card{
     min-height:auto;
-    padding:13px;
+    padding:13px 14px;
   }
 
   .sp-card-value{
-    font-size:1.12rem;
+    font-size:1.16rem;
   }
 
   .sp-card-value.emph{
-    font-size:1.28rem;
-  }
-
-  .sp-surface{
-    padding:13px;
-    border-radius:15px;
+    font-size:1.34rem;
   }
 
   .stButton > button{
-    min-height:44px !important;
-    padding:0.70rem 0.95rem !important;
+    min-height:42px !important;
+    padding:0.66rem 0.94rem !important;
   }
 
   .sp-chip{
-    padding:5px 8px;
-    font-size:0.76rem;
+    padding:6px 9px;
+    font-size:0.78rem;
   }
 
   .sp-section-title{
-    font-size:0.96rem;
+    font-size:0.98rem;
   }
 
   .sp-timeline-item{
-    gap:9px;
+    gap:10px;
   }
 
   .sp-timeline-rail{
-    width:16px;
-    flex-basis:16px;
+    width:18px;
+    flex-basis:18px;
   }
 
   .sp-timeline-rail-line{
-    min-height:62px;
+    min-height:72px;
+  }
+
+  section[data-testid="stSidebar"]{
+    min-width:100% !important;
+    max-width:100% !important;
   }
 }
 
 </style>
 """
+
+
+# ==========================================================
+# Helpers privados
+# ==========================================================
 
 
 def _render_html(content: str) -> None:
@@ -948,12 +1078,22 @@ def _normalize_tone(tone: str | None) -> str:
     return tone_norm if tone_norm in _ALLOWED_TONES else "neutral"
 
 
+# ==========================================================
+# CSS global
+# ==========================================================
+
+
 def inject_global_css() -> None:
     if st.session_state.get(_CSS_FLAG_KEY, False):
         return
 
     st.session_state[_CSS_FLAG_KEY] = True
     _render_html(_GLOBAL_CSS)
+
+
+# ==========================================================
+# Componentes públicos
+# ==========================================================
 
 
 def card(
@@ -965,11 +1105,12 @@ def card(
     emphasize: bool = False,
 ) -> None:
     tone_norm = _normalize_tone(tone)
+
     title_html = _escape(title)
     value_html = _escape(value)
     subtitle_html = _escape(subtitle)
 
-    emph_class = " emph" if emphasize else ""
+    emph_class = "emph" if emphasize else ""
     subtitle_block = (
         f"<div class='sp-card-sub'>{subtitle_html}</div>" if subtitle_html else ""
     )
@@ -977,9 +1118,9 @@ def card(
     _render_html(
         f"""
         <div class="sp-card sp-tone-{tone_norm}">
-            <div class="sp-card-title">{title_html}</div>
-            <div class="sp-card-value{emph_class}">{value_html}</div>
-            {subtitle_block}
+          <div class="sp-card-title">{title_html}</div>
+          <div class="sp-card-value {emph_class}">{value_html}</div>
+          {subtitle_block}
         </div>
         """
     )
@@ -987,10 +1128,11 @@ def card(
 
 def section_title(text: str) -> None:
     text_html = _escape(text)
+
     _render_html(
         f"""
         <div class="sp-section-header">
-            <div class="sp-section-title">{text_html}</div>
+          <div class="sp-section-title">{text_html}</div>
         </div>
         """
     )
@@ -1014,8 +1156,8 @@ def app_error(
     _render_html(
         f"""
         <div class="sp-app-error">
-            <div class="sp-app-error-title">{title_html}</div>
-            <div class="sp-app-error-subtitle">{message_html}</div>
+          <div class="sp-app-error-title">{title_html}</div>
+          <div class="sp-app-error-subtitle">{message_html}</div>
         </div>
         """
     )

@@ -38,6 +38,7 @@ __all__ = [
     "page_header",
 ]
 
+
 # ==========================================================
 # Mobile state
 # ==========================================================
@@ -70,7 +71,6 @@ SPACE_LG = 0.88
 SPACE_XL = 1.20
 
 PAGE_MAX_WIDTH = "1360px"
-
 PAGE_PADDING_DESKTOP = "12px"
 PAGE_PADDING_MOBILE = "10px"
 
@@ -99,16 +99,47 @@ def _normalize_float(value: float | int | None, *, minimum: float = 0.0) -> floa
         return minimum
 
 
+def _normalize_positive_sequence(values: Sequence[float] | None) -> tuple[float, ...]:
+    if not values:
+        return ()
+
+    normalized: list[float] = []
+    for value in values:
+        try:
+            weight = float(value)
+        except (TypeError, ValueError):
+            continue
+        if weight > 0:
+            normalized.append(weight)
+
+    return tuple(normalized)
+
+
 def _class_attr(name: str | None) -> str:
     if not name:
         return ""
-    return f' class="{_escape(name.strip(), quote=True)}"'
+    clean = name.strip()
+    if not clean:
+        return ""
+    return f' class="{_escape(clean, quote=True)}"'
 
 
 def _style_attr(style: str | None) -> str:
     if not style:
         return ""
-    return f' style="{_escape(style.strip(), quote=True)}"'
+    clean = style.strip()
+    if not clean:
+        return ""
+    return f' style="{_escape(clean, quote=True)}"'
+
+
+def _merge_classes(*classes: str | None) -> str:
+    merged = [c.strip() for c in classes if c and c.strip()]
+    return " ".join(merged)
+
+
+def _stacked_containers(total: int) -> list:
+    return [st.container() for _ in range(max(1, total))]
 
 
 # ==========================================================
@@ -122,7 +153,6 @@ def spacer(height_rem: float = SPACE_SM) -> None:
 
 
 def divider_space(top: float | None = None, bottom: float | None = None) -> None:
-
     top = SPACE_SM if top is None else _normalize_float(top)
     bottom = SPACE_SM if bottom is None else _normalize_float(bottom)
 
@@ -159,7 +189,6 @@ def content_shell(
     padding_inline: str | None = None,
     class_name: str | None = None,
 ) -> Iterator[None]:
-
     padding = (
         padding_inline
         if padding_inline
@@ -174,9 +203,8 @@ def content_shell(
         f"box-sizing:border-box;"
     )
 
-    _render_html(
-        f'<div class="sp-content-shell {_escape(class_name or "")}" style="{style}">'
-    )
+    classes = _merge_classes("sp-content-shell", class_name)
+    _render_html(f"<div{_class_attr(classes)}{_style_attr(style)}>")
 
     try:
         yield
@@ -186,13 +214,9 @@ def content_shell(
 
 @contextmanager
 def topbar_shell(class_name: str | None = None) -> Iterator[None]:
+    classes = _merge_classes("sp-topbar-shell", class_name)
 
-    classes = "sp-topbar-shell"
-
-    if class_name:
-        classes += f" {class_name}"
-
-    _render_html(f'<div class="{_escape(classes)}">')
+    _render_html(f"<div{_class_attr(classes)}>")
 
     try:
         with plain_block("sp-topbar"):
@@ -212,20 +236,21 @@ def grid(
     columns_mobile: int = 1,
     gap: str = DEFAULT_GRID_GAP,
 ) -> list:
-
-    total = max(1, columns_desktop)
+    total = max(1, int(columns_desktop))
 
     if not is_mobile():
         return list(st.columns(total, gap=gap, vertical_alignment="top"))
 
-    if columns_mobile == 1:
-        return [st.container() for _ in range(total)]
+    mobile_cols = max(1, int(columns_mobile))
+
+    if mobile_cols == 1:
+        return _stacked_containers(total)
 
     slots = []
     remaining = total
 
     while remaining > 0:
-        current = min(columns_mobile, remaining)
+        current = min(mobile_cols, remaining)
         row = st.columns(current, gap=gap, vertical_alignment="top")
         slots.extend(row)
         remaining -= current
@@ -239,21 +264,17 @@ def grid_weights(
     weights_mobile: Sequence[float] | None = None,
     gap: str = DEFAULT_GRID_GAP,
 ):
-
-    desktop = tuple(float(w) for w in weights_desktop if w > 0) or (1,)
+    desktop = _normalize_positive_sequence(weights_desktop) or (1.0,)
 
     if not is_mobile():
-        return list(st.columns(desktop, gap=gap))
+        return list(st.columns(desktop, gap=gap, vertical_alignment="top"))
 
-    if not weights_mobile:
-        return [st.container() for _ in desktop]
-
-    mobile = tuple(float(w) for w in weights_mobile if w > 0)
+    mobile = _normalize_positive_sequence(weights_mobile)
 
     if not mobile:
-        return [st.container() for _ in desktop]
+        return _stacked_containers(len(desktop))
 
-    return list(st.columns(mobile, gap=gap))
+    return list(st.columns(mobile, gap=gap, vertical_alignment="top"))
 
 
 # ==========================================================
@@ -262,20 +283,22 @@ def grid_weights(
 
 
 def content_columns(left: float = 1.45, right: float = 1.0):
-
     if is_mobile():
         return st.container(), st.container()
 
-    cols = st.columns([left, right], gap=DEFAULT_GRID_GAP)
+    cols = st.columns([left, right], gap=DEFAULT_GRID_GAP, vertical_alignment="top")
     return cols[0], cols[1]
 
 
 def split_hero(left_ratio: float = 1.2, right_ratio: float = 1.0):
-
     if is_mobile():
         return st.container(), st.container()
 
-    cols = st.columns([left_ratio, right_ratio], gap=DEFAULT_GRID_GAP)
+    cols = st.columns(
+        [left_ratio, right_ratio],
+        gap=DEFAULT_GRID_GAP,
+        vertical_alignment="top",
+    )
     return cols[0], cols[1]
 
 
@@ -290,7 +313,6 @@ def surface(
     style: str | None = None,
     padded: bool = True,
 ):
-
     classes = ["sp-surface"]
 
     if not padded:
@@ -309,7 +331,6 @@ def surface(
 
 @contextmanager
 def plain_block(class_name: str | None = None, style: str | None = None):
-
     _render_html(f"<div{_class_attr(class_name)}{_style_attr(style)}>")
 
     try:
@@ -323,10 +344,8 @@ def plain_block(class_name: str | None = None, style: str | None = None):
 # ==========================================================
 
 
-def _section_header(title: str, subtitle: str | None = None):
-
+def _section_header(title: str, subtitle: str | None = None) -> None:
     title_html = _escape(title)
-
     subtitle_block = (
         f"<div class='sp-section-subtitle'>{_escape(subtitle)}</div>"
         if subtitle
@@ -353,19 +372,29 @@ def section(
     compact: bool = False,
 ):
     if title:
-        _section_header(title, subtitle)
+        if header_actions and not is_mobile():
+            left, right = st.columns(
+                [4, 1.2], gap=DEFAULT_GRID_GAP, vertical_alignment="center"
+            )
 
-    if header_actions:
-        with plain_block("sp-section-actions"):
-            header_actions()
+            with left:
+                _section_header(title, subtitle)
+
+            with right:
+                with plain_block("sp-section-actions"):
+                    header_actions()
+        else:
+            _section_header(title, subtitle)
+
+            if header_actions:
+                compact_gap()
+                with plain_block("sp-section-actions"):
+                    header_actions()
 
     if divider:
         divider_space(SPACE_XS, SPACE_SM)
     elif title:
-        if compact:
-            spacer(SPACE_2XS)
-        else:
-            spacer(SPACE_XS)
+        spacer(SPACE_2XS if compact else SPACE_XS)
 
     with surface():
         yield
@@ -373,7 +402,6 @@ def section(
 
 @contextmanager
 def section_surface(title: str | None = None, **kwargs):
-
     with section(title, **kwargs):
         yield
 
@@ -387,9 +415,7 @@ def toolbar_row(
     left_content: Callable[[], None] | None = None,
     right_actions: Callable[[], None] | None = None,
 ):
-
     if is_mobile():
-
         if left_content:
             left_content()
 
@@ -400,7 +426,7 @@ def toolbar_row(
         spacer(SPACE_SM)
         return
 
-    left, right = st.columns([3, 2], gap=DEFAULT_GRID_GAP)
+    left, right = st.columns([3, 2], gap=DEFAULT_GRID_GAP, vertical_alignment="center")
 
     with left:
         if left_content:
@@ -414,7 +440,6 @@ def toolbar_row(
 
 
 def actions_row(render_actions: Callable[[], None]):
-
     with plain_block("sp-actions-row"):
         render_actions()
 
@@ -431,13 +456,16 @@ def empty_state(
     subtitle: str | None = "Quando você adicionar itens, eles aparecerão aqui.",
     icon: str = "📭",
 ):
+    subtitle_block = (
+        f"<div class='sp-empty-subtitle'>{_escape(subtitle)}</div>" if subtitle else ""
+    )
 
     _render_html(
         f"""
         <div class="sp-surface sp-empty-state">
             <div class="sp-empty-icon">{_escape(icon)}</div>
             <div class="sp-empty-title">{_escape(title)}</div>
-            <div class="sp-empty-subtitle">{_escape(subtitle)}</div>
+            {subtitle_block}
         </div>
         """
     )
@@ -459,21 +487,19 @@ def page_header(
     *,
     right_actions: Callable[[], None] | None = None,
 ):
-
     spacer(SPACE_XS)
 
     if right_actions and not is_mobile():
-
-        left, right = st.columns([4, 1.5], gap=DEFAULT_GRID_GAP)
+        left, right = st.columns(
+            [4, 1.5], gap=DEFAULT_GRID_GAP, vertical_alignment="center"
+        )
 
         with left:
             _page_title(meta)
 
         with right:
             right_actions()
-
     else:
-
         _page_title(meta)
 
         if right_actions:
@@ -483,8 +509,7 @@ def page_header(
     spacer(SPACE_MD)
 
 
-def _page_title(meta: PageMeta):
-
+def _page_title(meta: PageMeta) -> None:
     subtitle = (
         f"<div class='sp-page-subtitle'>{_escape(meta.subtitle)}</div>"
         if meta.subtitle
