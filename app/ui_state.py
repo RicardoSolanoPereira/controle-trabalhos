@@ -9,20 +9,31 @@ __all__ = [
     "MENU_DEFAULT",
     "STATE_DEFAULTS",
     "init_state",
+    "has_state",
+    "get_state",
+    "set_state",
+    "del_state",
+    "toggle_state_bool",
     "is_valid_menu",
     "get_current_menu",
     "set_current_menu",
     "navigate",
     "consume_nav_target",
+    "peek_nav_target",
     "on_top_nav_change",
     "on_sidebar_menu_change",
     "apply_menu_from_qp",
     "clear_qp_keys",
+    "set_qp",
     "get_qp_str",
     "get_qp_json",
     "get_qp_bool",
+    "get_qp_int",
     "get_ui_flag",
     "set_ui_flag",
+    "toggle_ui_flag",
+    "apply_ui_flags_from_qp",
+    "sync_ui_flags_to_qp",
     "bump_data_version",
     "get_data_version",
     "reset_data_version",
@@ -49,6 +60,13 @@ STATE_DEFAULTS: dict[str, Any] = {
 _TRUE_VALUES = {"1", "true", "yes", "on", "sim"}
 _FALSE_VALUES = {"0", "false", "no", "off", "nao", "não"}
 
+_UI_FLAG_TO_QP_KEY: dict[str, str] = {
+    "ui_show_top_nav": "topnav",
+    "ui_mobile_cards": "mobile_cards",
+    "force_mobile": "force_mobile",
+    "ui_debug": "debug",
+}
+
 
 # ==========================================================
 # Init
@@ -56,10 +74,40 @@ _FALSE_VALUES = {"0", "false", "no", "off", "nao", "não"}
 
 
 def init_state() -> None:
-    """Inicializa os valores padrão da sessão."""
+    """Inicializa os valores padrão da sessão sem sobrescrever o que já existe."""
     for key, value in STATE_DEFAULTS.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+        st.session_state.setdefault(key, value)
+
+
+# ==========================================================
+# Helpers básicos de state
+# ==========================================================
+
+
+def has_state(key: str) -> bool:
+    return key in st.session_state
+
+
+def get_state(key: str, default: Any = None) -> Any:
+    return st.session_state.get(key, default)
+
+
+def set_state(key: str, value: Any) -> None:
+    st.session_state[key] = value
+
+
+def del_state(key: str) -> None:
+    try:
+        del st.session_state[key]
+    except Exception:
+        pass
+
+
+def toggle_state_bool(key: str, default: bool = False) -> bool:
+    current = _as_bool(get_state(key, default), default=default)
+    updated = not current
+    set_state(key, updated)
+    return updated
 
 
 # ==========================================================
@@ -73,6 +121,13 @@ def _get_state(key: str, default: Any = None) -> Any:
 
 def _set_state(key: str, value: Any) -> None:
     st.session_state[key] = value
+
+
+def _del_state(key: str) -> None:
+    try:
+        del st.session_state[key]
+    except Exception:
+        pass
 
 
 def _as_clean_str(value: Any, default: str | None = None) -> str | None:
@@ -101,8 +156,25 @@ def _as_bool(value: Any, default: bool = False) -> bool:
     return default
 
 
+def _as_int(value: Any, default: int = 0) -> int:
+    if value is None:
+        return default
+
+    if isinstance(value, bool):
+        return int(value)
+
+    try:
+        return int(str(value).strip())
+    except Exception:
+        return default
+
+
 def _json_dumps_safe(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def _is_non_empty_str(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
 # ==========================================================
@@ -160,6 +232,11 @@ def _set_qp(**params: Any) -> None:
         qp[key] = normalized
 
 
+def set_qp(**params: Any) -> None:
+    """Wrapper público para atualizar query params."""
+    _set_qp(**params)
+
+
 def clear_qp_keys(*keys: str) -> None:
     """Remove chaves específicas dos query params."""
     if not keys:
@@ -206,6 +283,12 @@ def get_qp_bool(key: str, default: bool = False) -> bool:
     """Lê um query param booleano em formatos comuns."""
     value = get_qp_str(key)
     return _as_bool(value, default=default)
+
+
+def get_qp_int(key: str, default: int = 0) -> int:
+    """Lê um query param inteiro com fallback seguro."""
+    value = get_qp_str(key)
+    return _as_int(value, default=default)
 
 
 # ==========================================================
@@ -268,6 +351,8 @@ def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
 def navigate(
     menu: str | None = None,
     state: dict[str, Any] | None = None,
+    update_session: bool = True,
+    clear_keys: Iterable[str] | None = None,
     **params: Any,
 ) -> None:
     """
@@ -282,8 +367,9 @@ def navigate(
 
     menu_value = _as_clean_str(menu)
     if menu_value:
-        _set_state("nav_target", menu_value)
-        _sync_menu_controls(menu_value)
+        if update_session:
+            _set_state("nav_target", menu_value)
+            _sync_menu_controls(menu_value)
         payload["menu"] = menu_value
 
     if state:
@@ -292,8 +378,16 @@ def navigate(
     if params:
         payload.update(params)
 
+    if clear_keys:
+        clear_qp_keys(*list(clear_keys))
+
     if payload:
         _set_qp(**payload)
+
+
+def peek_nav_target(default: str | None = None) -> str | None:
+    """Lê o alvo de navegação pendente sem consumi-lo."""
+    return _as_clean_str(_get_state("nav_target"), default=default)
 
 
 def consume_nav_target(default: str | None = None) -> str | None:
@@ -361,6 +455,42 @@ def set_ui_flag(key: str, value: bool) -> None:
     _set_state(key, bool(value))
 
 
+def toggle_ui_flag(key: str, default: bool = False) -> bool:
+    """Alterna uma flag booleana de UI."""
+    current = get_ui_flag(key, default=default)
+    updated = not current
+    set_ui_flag(key, updated)
+    return updated
+
+
+def apply_ui_flags_from_qp() -> None:
+    """
+    Aplica preferências visuais vindas da URL.
+    Útil para debug, visualização compacta e links internos.
+    """
+    for state_key, qp_key in _UI_FLAG_TO_QP_KEY.items():
+        qp_value = get_qp_str(qp_key)
+        if qp_value is None:
+            continue
+        _set_state(state_key, _as_bool(qp_value, default=get_ui_flag(state_key)))
+
+
+def sync_ui_flags_to_qp(*, only_existing_keys: bool = False) -> None:
+    """
+    Sincroniza algumas flags de UI para query params.
+    Ajuda a manter experiência previsível em refresh/share de URL.
+    """
+    payload: dict[str, Any] = {}
+
+    for state_key, qp_key in _UI_FLAG_TO_QP_KEY.items():
+        if only_existing_keys and get_qp_str(qp_key) is None:
+            continue
+        payload[qp_key] = get_ui_flag(state_key)
+
+    if payload:
+        _set_qp(**payload)
+
+
 # ==========================================================
 # Refresh / cache visual
 # ==========================================================
@@ -391,12 +521,12 @@ def bump_data_version(owner_user_id: int | None = None) -> int:
     - bump_data_version(owner_user_id) -> versão por usuário
     """
     key = _resolve_data_version_key(owner_user_id)
-    current = int(_get_state(key, 0)) + 1
+    current = _as_int(_get_state(key, 0), default=0) + 1
     _set_state(key, current)
 
     if owner_user_id is not None:
         global_key = _global_data_version_key()
-        _set_state(global_key, int(_get_state(global_key, 0)) + 1)
+        _set_state(global_key, _as_int(_get_state(global_key, 0), default=0) + 1)
 
     return current
 
@@ -410,7 +540,7 @@ def get_data_version(owner_user_id: int | None = None) -> int:
     - get_data_version(owner_user_id) -> versão por usuário
     """
     key = _resolve_data_version_key(owner_user_id)
-    return int(_get_state(key, 0))
+    return _as_int(_get_state(key, 0), default=0)
 
 
 def reset_data_version(owner_user_id: int | None = None) -> None:

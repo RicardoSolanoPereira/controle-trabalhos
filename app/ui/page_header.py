@@ -14,7 +14,7 @@ __all__ = [
     "page_header",
 ]
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v21"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v30"
 _MAX_INLINE_ACTIONS = 3
 
 
@@ -41,6 +41,15 @@ def _safe_key(text: str) -> str:
 def _normalize_action_type(value: str | None) -> str:
     kind = (value or "primary").strip().lower()
     return kind if kind in {"primary", "secondary"} else "primary"
+
+
+def _normalize_badge_tone(value: str | None) -> str:
+    tone = (value or "neutral").strip().lower()
+    return (
+        tone
+        if tone in {"neutral", "success", "warning", "danger", "info"}
+        else "neutral"
+    )
 
 
 def _action_key(action: "HeaderAction", *, base_key: str) -> str:
@@ -73,6 +82,8 @@ def _normalize_actions(
                     use_container_width=bool(action.use_container_width),
                     disabled=bool(action.disabled),
                     on_click=action.on_click,
+                    icon=(action.icon or "").strip() or None,
+                    emphasis=(action.emphasis or "default").strip().lower(),
                 )
             )
 
@@ -89,6 +100,7 @@ def _normalize_actions(
                 use_container_width=True,
                 disabled=False,
                 on_click=right_button_on_click,
+                emphasis="primary",
             )
         ]
 
@@ -104,7 +116,15 @@ def _mobile_action(action: "HeaderAction") -> "HeaderAction":
         use_container_width=True,
         disabled=action.disabled,
         on_click=action.on_click,
+        icon=action.icon,
+        emphasis=action.emphasis,
     )
+
+
+def _action_label(action: "HeaderAction") -> str:
+    if action.icon:
+        return f"{action.icon} {action.label}"
+    return action.label
 
 
 # ==========================================================
@@ -121,6 +141,8 @@ class HeaderAction:
     use_container_width: bool = True
     disabled: bool = False
     on_click: Callable[[], None] | None = None
+    icon: str | None = None
+    emphasis: str = "default"  # default | primary
 
 
 # ==========================================================
@@ -139,6 +161,23 @@ def _inject_page_header_css() -> None:
         <style>
         .sp-page-header-wrap{
             width:100%;
+            margin:0;
+        }
+
+        .sp-page-header-shell{
+            width:100%;
+            border:1px solid rgba(15,23,42,0.06);
+            border-radius:18px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(255,255,255,0.82) 0%,
+                    rgba(255,255,255,0.66) 100%
+                );
+            box-shadow:
+                0 1px 2px rgba(15,23,42,0.03),
+                0 12px 30px rgba(15,23,42,0.035);
+            padding:1rem 1.05rem;
         }
 
         .sp-page-header-local{
@@ -150,19 +189,89 @@ def _inject_page_header_css() -> None:
             width:100%;
         }
 
+        .sp-page-header-meta{
+            display:flex;
+            align-items:center;
+            gap:0.5rem;
+            flex-wrap:wrap;
+            margin-bottom:0.32rem;
+        }
+
+        .sp-page-header-eyebrow{
+            display:inline-flex;
+            align-items:center;
+            min-height:24px;
+            padding:0 0.62rem;
+            border-radius:999px;
+            font-size:0.72rem;
+            font-weight:800;
+            letter-spacing:0.08em;
+            text-transform:uppercase;
+            background:rgba(15,23,42,0.055);
+            color:rgba(15,23,42,0.72);
+            border:1px solid rgba(15,23,42,0.05);
+        }
+
+        .sp-page-header-badge{
+            display:inline-flex;
+            align-items:center;
+            min-height:24px;
+            padding:0 0.62rem;
+            border-radius:999px;
+            font-size:0.74rem;
+            font-weight:700;
+            border:1px solid transparent;
+            white-space:nowrap;
+        }
+
+        .sp-page-header-badge--neutral{
+            background:rgba(15,23,42,0.055);
+            color:rgba(15,23,42,0.76);
+            border-color:rgba(15,23,42,0.06);
+        }
+
+        .sp-page-header-badge--success{
+            background:rgba(22,163,74,0.10);
+            color:#166534;
+            border-color:rgba(22,163,74,0.18);
+        }
+
+        .sp-page-header-badge--warning{
+            background:rgba(245,158,11,0.12);
+            color:#92400e;
+            border-color:rgba(245,158,11,0.20);
+        }
+
+        .sp-page-header-badge--danger{
+            background:rgba(239,68,68,0.10);
+            color:#b91c1c;
+            border-color:rgba(239,68,68,0.18);
+        }
+
+        .sp-page-header-badge--info{
+            background:rgba(59,130,246,0.10);
+            color:#1d4ed8;
+            border-color:rgba(59,130,246,0.18);
+        }
+
         .sp-page-header-title-text{
             display:block;
             margin:0;
             min-width:0;
             color:var(--text);
-            letter-spacing:-0.03em;
+            letter-spacing:-0.035em;
         }
 
         .sp-page-header-subtitle-text{
-            margin-top:0.28rem;
-            max-width:72ch;
+            margin-top:0.34rem;
+            max-width:74ch;
             color:var(--muted);
-            line-height:1.48;
+            line-height:1.56;
+        }
+
+        .sp-page-header-subtitle-text strong{
+            color:var(--text);
+            font-weight:700;
         }
 
         .sp-page-header-actions{
@@ -179,8 +288,8 @@ def _inject_page_header_css() -> None:
 
         .sp-page-header-actions .stButton > button{
             width:100%;
-            min-height:42px !important;
-            border-radius:12px !important;
+            min-height:44px !important;
+            border-radius:14px !important;
             display:flex !important;
             align-items:center !important;
             justify-content:center !important;
@@ -189,6 +298,17 @@ def _inject_page_header_css() -> None:
             overflow:hidden !important;
             text-overflow:ellipsis !important;
             padding-inline:14px !important;
+            font-weight:650 !important;
+            transition:
+                transform 120ms ease,
+                box-shadow 120ms ease,
+                border-color 120ms ease !important;
+            box-shadow:0 1px 2px rgba(15,23,42,0.04);
+        }
+
+        .sp-page-header-actions .stButton > button:hover{
+            transform:translateY(-1px);
+            box-shadow:0 8px 18px rgba(15,23,42,0.08);
         }
 
         .sp-page-header-actions-inline{
@@ -196,7 +316,7 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-actions-stack > div{
-            margin-bottom:0.36rem;
+            margin-bottom:0.42rem;
         }
 
         .sp-page-header-actions-stack > div:last-child{
@@ -204,11 +324,7 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-more-actions{
-            margin-top:0.40rem;
-        }
-
-        .sp-page-header-more-actions summary{
-            font-weight:650;
+            margin-top:0.50rem;
         }
 
         .sp-page-header-more-actions details{
@@ -217,14 +333,43 @@ def _inject_page_header_css() -> None:
             border:none;
         }
 
+        .sp-page-header-more-actions summary{
+            font-weight:700;
+        }
+
+        .sp-page-header-more-actions [data-testid="stExpander"]{
+            border-radius:14px !important;
+            border:1px solid rgba(15,23,42,0.07) !important;
+            background:rgba(255,255,255,0.52) !important;
+        }
+
+        .sp-page-header-more-actions [data-testid="stExpanderDetails"]{
+            padding-top:0.25rem;
+        }
+
+        .sp-page-header-inline-hint{
+            margin-top:0.55rem;
+            font-size:0.78rem;
+            color:var(--muted);
+        }
+
+        .sp-page-header-divider-space{
+            margin-top:0.18rem;
+        }
+
         @media (max-width:768px){
+            .sp-page-header-shell{
+                border-radius:16px;
+                padding:0.90rem 0.92rem;
+            }
+
             .sp-page-header-subtitle-text{
                 max-width:100%;
-                font-size:0.89rem;
+                font-size:0.90rem;
             }
 
             .sp-page-header-actions .stButton > button{
-                min-height:44px !important;
+                min-height:46px !important;
             }
         }
         </style>
@@ -237,25 +382,64 @@ def _inject_page_header_css() -> None:
 # ==========================================================
 
 
+def _render_meta_row(
+    *,
+    eyebrow: str | None = None,
+    badge: str | None = None,
+    badge_tone: str = "neutral",
+) -> None:
+    eyebrow_html = _escape(eyebrow) if eyebrow else ""
+    badge_html = _escape(badge) if badge else ""
+
+    if not eyebrow_html and not badge_html:
+        return
+
+    badge_tone = _normalize_badge_tone(badge_tone)
+
+    eyebrow_block = (
+        f'<div class="sp-page-header-eyebrow">{eyebrow_html}</div>'
+        if eyebrow_html
+        else ""
+    )
+
+    badge_block = (
+        f'<div class="sp-page-header-badge sp-page-header-badge--{badge_tone}">{badge_html}</div>'
+        if badge_html
+        else ""
+    )
+
+    _render_html(
+        f"""
+        <div class="sp-page-header-meta">
+            {eyebrow_block}
+            {badge_block}
+        </div>
+        """
+    )
+
+
 def _render_title_block(
     title: str,
     subtitle: str | None = None,
     *,
+    eyebrow: str | None = None,
+    badge: str | None = None,
+    badge_tone: str = "neutral",
     compact: bool = False,
 ) -> None:
     title_html = _escape(title)
     subtitle_html = _escape(subtitle) if subtitle else ""
 
     if compact:
-        title_size = "1.02rem"
-        title_weight = "760"
+        title_size = "1.04rem"
+        title_weight = "780"
         title_line_height = "1.16"
         subtitle_size = "0.86rem"
     else:
-        title_size = "1.54rem"
+        title_size = "1.62rem"
         title_weight = "820"
-        title_line_height = "1.04"
-        subtitle_size = "0.92rem"
+        title_line_height = "1.03"
+        subtitle_size = "0.93rem"
 
     subtitle_block = (
         f"""
@@ -267,9 +451,11 @@ def _render_title_block(
         else ""
     )
 
-    _render_html(
-        f"""
-        <div class="sp-page-header-title-block">
+    _render_html('<div class="sp-page-header-title-block">')
+    try:
+        _render_meta_row(eyebrow=eyebrow, badge=badge, badge_tone=badge_tone)
+        _render_html(
+            f"""
             <div
                 class="sp-page-header-title-text"
                 style="
@@ -281,14 +467,15 @@ def _render_title_block(
                 {title_html}
             </div>
             {subtitle_block}
-        </div>
-        """
-    )
+            """
+        )
+    finally:
+        _render_html("</div>")
 
 
 def _render_single_action(action: HeaderAction, *, key: str) -> bool:
     return st.button(
-        action.label,
+        _action_label(action),
         key=key,
         help=action.help,
         type=action.type,
@@ -376,12 +563,16 @@ def page_header(
     actions: Sequence[HeaderAction] | None = None,
     divider: bool = False,
     compact: bool = False,
-    actions_width_ratio: tuple[float, float] = (4.0, 2.5),
+    actions_width_ratio: tuple[float, float] = (4.2, 2.6),
     top_spacing_rem: float = 0.06,
-    bottom_spacing_rem: float = 0.24,
+    bottom_spacing_rem: float = 0.28,
+    eyebrow: str | None = None,
+    badge: str | None = None,
+    badge_tone: str = "neutral",
+    surface: bool = True,
 ) -> bool:
     """
-    Renderiza o header padrão de página.
+    Renderiza o header padrão de página com visual mais próximo de produto SaaS.
     Retorna True se algum botão foi clicado.
     """
     _inject_page_header_css()
@@ -405,10 +596,20 @@ def page_header(
     clicked = False
 
     _render_html('<div class="sp-page-header-wrap">')
+    if surface:
+        _render_html('<div class="sp-page-header-shell">')
     _render_html('<div class="sp-page-header-local">')
+
     try:
         if is_mobile():
-            _render_title_block(title, subtitle, compact=compact)
+            _render_title_block(
+                title,
+                subtitle,
+                eyebrow=eyebrow,
+                badge=badge,
+                badge_tone=badge_tone,
+                compact=compact,
+            )
             if normalized_actions:
                 clicked = _render_actions(normalized_actions, base_key=base_key)
         else:
@@ -421,18 +622,34 @@ def page_header(
                 )
 
                 with left:
-                    _render_title_block(title, subtitle, compact=compact)
+                    _render_title_block(
+                        title,
+                        subtitle,
+                        eyebrow=eyebrow,
+                        badge=badge,
+                        badge_tone=badge_tone,
+                        compact=compact,
+                    )
 
                 with right:
                     clicked = _render_actions(normalized_actions, base_key=base_key)
             else:
-                _render_title_block(title, subtitle, compact=compact)
+                _render_title_block(
+                    title,
+                    subtitle,
+                    eyebrow=eyebrow,
+                    badge=badge,
+                    badge_tone=badge_tone,
+                    compact=compact,
+                )
     finally:
         _render_html("</div>")
+        if surface:
+            _render_html("</div>")
         _render_html("</div>")
 
     if divider:
-        spacer(0.18)
+        _render_html('<div class="sp-page-header-divider-space"></div>')
         st.divider()
 
     if bottom_spacing_rem > 0:
