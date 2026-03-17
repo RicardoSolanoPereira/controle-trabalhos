@@ -148,7 +148,7 @@ def _owner_stmt(owner_user_id: int):
 
 
 def _status_rank_expr():
-    status_lower = func.lower(Processo.status)
+    status_lower = func.lower(func.coalesce(Processo.status, ""))
     return case(
         (status_lower == "ativo", 3),
         (status_lower == "suspenso", 2),
@@ -159,17 +159,21 @@ def _status_rank_expr():
 
 def _build_q_filter(qv: str):
     like = _like(qv)
+
+    def c(col):
+        return func.coalesce(col, "")
+
     return or_(
-        Processo.numero_processo.ilike(like),
-        Processo.comarca.ilike(like),
-        Processo.vara.ilike(like),
-        Processo.contratante.ilike(like),
-        Processo.tipo_acao.ilike(like),
-        Processo.categoria_servico.ilike(like),
-        Processo.papel.ilike(like),
-        Processo.status.ilike(like),
-        Processo.observacoes.ilike(like),
-        Processo.pasta_local.ilike(like),
+        c(Processo.numero_processo).ilike(like),
+        c(Processo.comarca).ilike(like),
+        c(Processo.vara).ilike(like),
+        c(Processo.contratante).ilike(like),
+        c(Processo.tipo_acao).ilike(like),
+        c(Processo.categoria_servico).ilike(like),
+        c(Processo.papel).ilike(like),
+        c(Processo.status).ilike(like),
+        c(Processo.observacoes).ilike(like),
+        c(Processo.pasta_local).ilike(like),
     )
 
 
@@ -430,10 +434,14 @@ class ProcessosService:
         if _numero_ja_existe(session, owner_user_id, proc.numero_processo):
             raise ValueError("Já existe processo com essa referência")
 
-        session.add(proc)
-        session.commit()
-        session.refresh(proc)
-        return proc
+        try:
+            session.add(proc)
+            session.commit()
+            session.refresh(proc)
+            return proc
+        except Exception:
+            session.rollback()
+            raise
 
     @staticmethod
     def list(
@@ -589,13 +597,18 @@ class ProcessosService:
         ):
             raise ValueError("Já existe processo com essa referência")
 
-        if data:
+        if not data:
+            return proc
+
+        try:
             for field, value in data.items():
                 setattr(proc, field, value)
             session.commit()
             session.refresh(proc)
-
-        return proc
+            return proc
+        except Exception:
+            session.rollback()
+            raise
 
     @staticmethod
     def delete(
@@ -607,8 +620,12 @@ class ProcessosService:
         if not proc:
             raise ValueError("Processo não encontrado")
 
-        session.delete(proc)
-        session.commit()
+        try:
+            session.delete(proc)
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
     @staticmethod
     def duplicate(
@@ -641,10 +658,15 @@ class ProcessosService:
             pasta_local=_clean_str(proc.pasta_local),
             observacoes=_clean_str(proc.observacoes),
         )
-        session.add(new_proc)
-        session.commit()
-        session.refresh(new_proc)
-        return new_proc
+
+        try:
+            session.add(new_proc)
+            session.commit()
+            session.refresh(new_proc)
+            return new_proc
+        except Exception:
+            session.rollback()
+            raise
 
     @staticmethod
     def stats(session: Session, owner_user_id: int) -> dict[str, int]:
@@ -659,11 +681,11 @@ class ProcessosService:
 
         grouped = session.execute(
             select(
-                func.lower(Processo.status).label("status"),
+                func.lower(func.coalesce(Processo.status, "")).label("status"),
                 func.count().label("total"),
             )
             .where(_owner_stmt(owner_user_id))
-            .group_by(func.lower(Processo.status))
+            .group_by(func.lower(func.coalesce(Processo.status, "")))
         ).all()
 
         by_status = {str(status or ""): int(qty or 0) for status, qty in grouped}
@@ -728,22 +750,27 @@ class ProcessosService:
         rows = list(session.execute(stmt).scalars().all())
 
         changed = 0
-        for processo in rows:
-            current_cat = _clean_str(getattr(processo, "categoria_servico", None))
-            if only_if_empty and current_cat:
-                continue
 
-            obs = (processo.observacoes or "").strip()
-            categoria = _extract_categoria_prefix(obs)
-            if not categoria:
-                continue
+        try:
+            for processo in rows:
+                current_cat = _clean_str(getattr(processo, "categoria_servico", None))
+                if only_if_empty and current_cat:
+                    continue
 
-            if remove_prefix:
-                processo.observacoes = _clean_str(_remove_categoria_prefix(obs))
-            processo.categoria_servico = _clean_str(categoria)
-            changed += 1
+                obs = (processo.observacoes or "").strip()
+                categoria = _extract_categoria_prefix(obs)
+                if not categoria:
+                    continue
 
-        if changed:
-            session.commit()
+                if remove_prefix:
+                    processo.observacoes = _clean_str(_remove_categoria_prefix(obs))
+                processo.categoria_servico = _clean_str(categoria)
+                changed += 1
 
-        return changed
+            if changed:
+                session.commit()
+
+            return changed
+        except Exception:
+            session.rollback()
+            raise

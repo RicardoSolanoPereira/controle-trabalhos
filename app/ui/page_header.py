@@ -14,8 +14,11 @@ __all__ = [
     "page_header",
 ]
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v30"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v40"
 _MAX_INLINE_ACTIONS = 3
+_ALLOWED_ACTION_TYPES = {"primary", "secondary"}
+_ALLOWED_BADGE_TONES = {"neutral", "success", "warning", "danger", "info"}
+_ALLOWED_EMPHASIS = {"default", "primary"}
 
 
 # ==========================================================
@@ -28,7 +31,7 @@ def _render_html(content: str) -> None:
 
 
 def _escape(text: str | None, *, quote: bool = False) -> str:
-    return html.escape(text or "", quote=quote)
+    return html.escape(str(text or ""), quote=quote)
 
 
 def _safe_key(text: str) -> str:
@@ -40,85 +43,21 @@ def _safe_key(text: str) -> str:
 
 def _normalize_action_type(value: str | None) -> str:
     kind = (value or "primary").strip().lower()
-    return kind if kind in {"primary", "secondary"} else "primary"
+    return kind if kind in _ALLOWED_ACTION_TYPES else "primary"
 
 
 def _normalize_badge_tone(value: str | None) -> str:
     tone = (value or "neutral").strip().lower()
-    return (
-        tone
-        if tone in {"neutral", "success", "warning", "danger", "info"}
-        else "neutral"
-    )
+    return tone if tone in _ALLOWED_BADGE_TONES else "neutral"
+
+
+def _normalize_emphasis(value: str | None) -> str:
+    emphasis = (value or "default").strip().lower()
+    return emphasis if emphasis in _ALLOWED_EMPHASIS else "default"
 
 
 def _action_key(action: "HeaderAction", *, base_key: str) -> str:
     return action.key or f"{base_key}_{_safe_key(action.label)}"
-
-
-def _normalize_actions(
-    *,
-    title: str,
-    actions: Sequence["HeaderAction"] | None,
-    right_button_label: str | None,
-    right_button_key: str | None,
-    right_button_help: str | None,
-    right_button_on_click: Callable[[], None] | None,
-) -> list["HeaderAction"]:
-    if actions:
-        normalized: list[HeaderAction] = []
-
-        for action in actions:
-            label = (action.label or "").strip()
-            if not label:
-                continue
-
-            normalized.append(
-                HeaderAction(
-                    label=label,
-                    key=action.key,
-                    help=action.help,
-                    type=_normalize_action_type(action.type),
-                    use_container_width=bool(action.use_container_width),
-                    disabled=bool(action.disabled),
-                    on_click=action.on_click,
-                    icon=(action.icon or "").strip() or None,
-                    emphasis=(action.emphasis or "default").strip().lower(),
-                )
-            )
-
-        return normalized
-
-    if right_button_label and right_button_label.strip():
-        base_key = f"ph_{_safe_key(title)}"
-        return [
-            HeaderAction(
-                label=right_button_label.strip(),
-                key=right_button_key or f"{base_key}_btn",
-                help=right_button_help,
-                type="primary",
-                use_container_width=True,
-                disabled=False,
-                on_click=right_button_on_click,
-                emphasis="primary",
-            )
-        ]
-
-    return []
-
-
-def _mobile_action(action: "HeaderAction") -> "HeaderAction":
-    return HeaderAction(
-        label=action.label,
-        key=action.key,
-        help=action.help,
-        type=action.type,
-        use_container_width=True,
-        disabled=action.disabled,
-        on_click=action.on_click,
-        icon=action.icon,
-        emphasis=action.emphasis,
-    )
 
 
 def _action_label(action: "HeaderAction") -> str:
@@ -143,6 +82,77 @@ class HeaderAction:
     on_click: Callable[[], None] | None = None
     icon: str | None = None
     emphasis: str = "default"  # default | primary
+
+
+# ==========================================================
+# Normalização
+# ==========================================================
+
+
+def _normalize_actions(
+    *,
+    title: str,
+    actions: Sequence[HeaderAction] | None,
+    right_button_label: str | None,
+    right_button_key: str | None,
+    right_button_help: str | None,
+    right_button_on_click: Callable[[], None] | None,
+) -> list[HeaderAction]:
+    normalized: list[HeaderAction] = []
+
+    if actions:
+        for action in actions:
+            label = (action.label or "").strip()
+            if not label:
+                continue
+
+            normalized.append(
+                HeaderAction(
+                    label=label,
+                    key=action.key,
+                    help=action.help,
+                    type=_normalize_action_type(action.type),
+                    use_container_width=bool(action.use_container_width),
+                    disabled=bool(action.disabled),
+                    on_click=action.on_click,
+                    icon=(action.icon or "").strip() or None,
+                    emphasis=_normalize_emphasis(action.emphasis),
+                )
+            )
+
+        return normalized
+
+    if right_button_label and right_button_label.strip():
+        base_key = f"ph_{_safe_key(title)}"
+        normalized.append(
+            HeaderAction(
+                label=right_button_label.strip(),
+                key=right_button_key or f"{base_key}_btn",
+                help=right_button_help,
+                type="primary",
+                use_container_width=True,
+                disabled=False,
+                on_click=right_button_on_click,
+                icon=None,
+                emphasis="primary",
+            )
+        )
+
+    return normalized
+
+
+def _mobile_action(action: HeaderAction) -> HeaderAction:
+    return HeaderAction(
+        label=action.label,
+        key=action.key,
+        help=action.help,
+        type=action.type,
+        use_container_width=True,
+        disabled=action.disabled,
+        on_click=action.on_click,
+        icon=action.icon,
+        emphasis=action.emphasis,
+    )
 
 
 # ==========================================================
@@ -171,8 +181,8 @@ def _inject_page_header_css() -> None:
             background:
                 linear-gradient(
                     180deg,
-                    rgba(255,255,255,0.82) 0%,
-                    rgba(255,255,255,0.66) 100%
+                    rgba(255,255,255,0.84) 0%,
+                    rgba(255,255,255,0.68) 100%
                 );
             box-shadow:
                 0 1px 2px rgba(15,23,42,0.03),
@@ -278,12 +288,12 @@ def _inject_page_header_css() -> None:
             width:100%;
         }
 
-        .sp-page-header-actions [data-testid="column"]{
-            min-width:0 !important;
-        }
-
         .sp-page-header-actions .stButton{
             width:100%;
+        }
+
+        .sp-page-header-actions [data-testid="column"]{
+            min-width:0 !important;
         }
 
         .sp-page-header-actions .stButton > button{
@@ -347,12 +357,6 @@ def _inject_page_header_css() -> None:
             padding-top:0.25rem;
         }
 
-        .sp-page-header-inline-hint{
-            margin-top:0.55rem;
-            font-size:0.78rem;
-            color:var(--muted);
-        }
-
         .sp-page-header-divider-space{
             margin-top:0.18rem;
         }
@@ -394,7 +398,7 @@ def _render_meta_row(
     if not eyebrow_html and not badge_html:
         return
 
-    badge_tone = _normalize_badge_tone(badge_tone)
+    tone = _normalize_badge_tone(badge_tone)
 
     eyebrow_block = (
         f'<div class="sp-page-header-eyebrow">{eyebrow_html}</div>'
@@ -403,7 +407,7 @@ def _render_meta_row(
     )
 
     badge_block = (
-        f'<div class="sp-page-header-badge sp-page-header-badge--{badge_tone}">{badge_html}</div>'
+        f'<div class="sp-page-header-badge sp-page-header-badge--{tone}">{badge_html}</div>'
         if badge_html
         else ""
     )
@@ -474,11 +478,13 @@ def _render_title_block(
 
 
 def _render_single_action(action: HeaderAction, *, key: str) -> bool:
+    button_type = "primary" if action.emphasis == "primary" else action.type
+
     return st.button(
         _action_label(action),
         key=key,
         help=action.help,
-        type=action.type,
+        type=button_type,
         use_container_width=action.use_container_width,
         disabled=action.disabled,
         on_click=action.on_click,
@@ -505,8 +511,13 @@ def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -
     clicked = False
     action_list = list(actions)
 
-    inline_actions = action_list[:_MAX_INLINE_ACTIONS]
-    extra_actions = action_list[_MAX_INLINE_ACTIONS:]
+    primary_actions = [a for a in action_list if a.emphasis == "primary"]
+    default_actions = [a for a in action_list if a.emphasis != "primary"]
+
+    ordered_actions = primary_actions[:1] + default_actions + primary_actions[1:]
+
+    inline_actions = ordered_actions[:_MAX_INLINE_ACTIONS]
+    extra_actions = ordered_actions[_MAX_INLINE_ACTIONS:]
 
     if inline_actions:
         _render_html('<div class="sp-page-header-actions-inline">')
@@ -548,7 +559,7 @@ def _render_actions(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
 
 
 # ==========================================================
-# Page Header
+# Public API
 # ==========================================================
 
 
@@ -572,7 +583,8 @@ def page_header(
     surface: bool = True,
 ) -> bool:
     """
-    Renderiza o header padrão de página com visual mais próximo de produto SaaS.
+    Renderiza o header padrão de página com comportamento previsível
+    para uso em páginas SaaS.
     Retorna True se algum botão foi clicado.
     """
     _inject_page_header_css()
@@ -603,8 +615,8 @@ def page_header(
     try:
         if is_mobile():
             _render_title_block(
-                title,
-                subtitle,
+                title=title,
+                subtitle=subtitle,
                 eyebrow=eyebrow,
                 badge=badge,
                 badge_tone=badge_tone,
@@ -623,8 +635,8 @@ def page_header(
 
                 with left:
                     _render_title_block(
-                        title,
-                        subtitle,
+                        title=title,
+                        subtitle=subtitle,
                         eyebrow=eyebrow,
                         badge=badge,
                         badge_tone=badge_tone,
@@ -635,8 +647,8 @@ def page_header(
                     clicked = _render_actions(normalized_actions, base_key=base_key)
             else:
                 _render_title_block(
-                    title,
-                    subtitle,
+                    title=title,
+                    subtitle=subtitle,
                     eyebrow=eyebrow,
                     badge=badge,
                     badge_tone=badge_tone,

@@ -14,7 +14,8 @@ from db.init_db import init_db
 from db.models import User
 
 from ui import agendamentos, andamentos, dashboard, financeiro, prazos, processos
-from ui.theme import inject_global_css
+from ui.layout import content_shell
+from ui.theme import app_error, inject_global_css
 from ui_state import (
     MENU_DEFAULT,
     consume_nav_target,
@@ -62,7 +63,7 @@ st.set_page_config(
 )
 
 # ==========================================================
-# Menu
+# Menu / rotas
 # ==========================================================
 
 MENU_KEYS = [
@@ -92,11 +93,16 @@ ROUTES: dict[str, Callable[[int], None]] = {
     "Financeiro": financeiro.render,
 }
 
+# ==========================================================
+# Estado base
+# ==========================================================
+
 init_state()
 
 st.session_state.setdefault(NAV_MODE_KEY, "sidebar")
 st.session_state.setdefault("force_mobile", False)
 st.session_state.setdefault("ui_mobile_cards", False)
+st.session_state.setdefault("ui_debug", False)
 
 # ==========================================================
 # Bootstrap cache
@@ -137,7 +143,6 @@ def get_or_create_owner_user_id(default_email: str, default_name: str) -> int:
             s.flush()
             s.refresh(user)
             return int(user.id)
-
         except IntegrityError:
             s.rollback()
             user = (
@@ -207,6 +212,11 @@ def _go_to_menu(menu_key: str) -> None:
     _rerun_soft()
 
 
+def _clear_ui_cache() -> None:
+    st.cache_data.clear()
+    st.toast("Cache limpo", icon="🧹")
+
+
 # ==========================================================
 # Navegação
 # ==========================================================
@@ -250,11 +260,13 @@ def _nav_mode_from_label(label: str | None) -> str:
 def _on_sidebar_nav_mode_change() -> None:
     selected_label = st.session_state.get(SIDEBAR_NAV_MODE_WIDGET_KEY, "Sidebar")
     _set_nav_mode(_nav_mode_from_label(selected_label))
+    _rerun_soft()
 
 
 def _on_top_nav_mode_change() -> None:
     selected_label = st.session_state.get(TOP_NAV_MODE_WIDGET_KEY, "Topo")
     _set_nav_mode(_nav_mode_from_label(selected_label))
+    _rerun_soft()
 
 
 # ==========================================================
@@ -271,41 +283,43 @@ def _top_nav(current_menu: str) -> str:
     st.session_state[TOP_NAV_MENU_KEY] = current_value
     st.session_state[TOP_NAV_MODE_WIDGET_KEY] = _nav_mode_label(_nav_mode())
 
-    col_menu, col_mode, col_action = st.columns(
-        [4.0, 1.3, 1.2],
-        gap="medium",
-        vertical_alignment="center",
-    )
-
-    with col_menu:
-        st.selectbox(
-            "Ir para",
-            MENU_KEYS,
-            index=MENU_KEYS.index(current_value),
-            format_func=_menu_format,
-            key=TOP_NAV_MENU_KEY,
-            on_change=on_top_nav_change,
-            label_visibility="collapsed",
+    with content_shell():
+        col_menu, col_mode, col_action = st.columns(
+            [4.0, 1.3, 1.2],
+            gap="medium",
+            vertical_alignment="center",
         )
 
-    with col_mode:
-        st.selectbox(
-            "Modo de navegação",
-            ["Sidebar", "Topo"],
-            key=TOP_NAV_MODE_WIDGET_KEY,
-            on_change=_on_top_nav_mode_change,
-            label_visibility="collapsed",
-        )
+        with col_menu:
+            st.selectbox(
+                "Ir para",
+                MENU_KEYS,
+                index=MENU_KEYS.index(current_value),
+                format_func=_menu_format,
+                key=TOP_NAV_MENU_KEY,
+                on_change=on_top_nav_change,
+                label_visibility="collapsed",
+            )
 
-    with col_action:
-        if st.button(
-            "Atualizar",
-            help="Recarregar a página atual",
-            use_container_width=True,
-        ):
-            _rerun_soft()
+        with col_mode:
+            st.selectbox(
+                "Modo de navegação",
+                ["Sidebar", "Topo"],
+                key=TOP_NAV_MODE_WIDGET_KEY,
+                on_change=_on_top_nav_mode_change,
+                label_visibility="collapsed",
+            )
 
-    st.divider()
+        with col_action:
+            if st.button(
+                "Atualizar",
+                help="Recarregar a página atual",
+                use_container_width=True,
+            ):
+                _rerun_soft()
+
+        st.divider()
+
     return get_current_menu(default=current_menu)
 
 
@@ -378,8 +392,7 @@ def _render_sidebar_config() -> None:
 
         if bool(st.session_state.get("ui_debug", False)):
             if st.button("Limpar cache", use_container_width=True):
-                st.cache_data.clear()
-                st.toast("Cache limpo", icon="🧹")
+                _clear_ui_cache()
 
 
 def _render_sidebar_build() -> None:
@@ -413,19 +426,38 @@ def render_sidebar(current_menu: str) -> str:
 # ==========================================================
 
 
+def _render_invalid_route(menu: str) -> None:
+    with content_shell():
+        app_error(
+            title="Rota inválida",
+            message=f"A seção '{menu}' não está disponível no momento.",
+        )
+
+
+def _render_page_error(menu: str, exc: Exception) -> None:
+    with content_shell():
+        app_error(
+            title=f"Não foi possível abrir '{menu}'",
+            message="A página não pôde ser carregada agora. Tente atualizar a tela.",
+            technical_details=str(exc) if DEBUG else None,
+            details_expanded=False,
+        )
+
+        if DEBUG:
+            st.exception(exc)
+
+
 def render_shell(menu: str, owner_user_id: int) -> None:
     render_fn = ROUTES.get(menu)
 
     if render_fn is None:
-        st.error("Rota inválida.")
+        _render_invalid_route(menu)
         return
 
     try:
         render_fn(owner_user_id)
-    except Exception as e:
-        st.error(f"Erro ao abrir '{menu}'.")
-        if DEBUG:
-            st.exception(e)
+    except Exception as exc:
+        _render_page_error(menu, exc)
 
 
 # ==========================================================

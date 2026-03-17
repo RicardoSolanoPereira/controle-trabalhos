@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+from typing import Iterable
 
 import streamlit as st
 
@@ -10,9 +11,19 @@ __all__ = [
     "section_title",
     "subtle_divider",
     "app_error",
+    "surface_start",
+    "surface_end",
+    "surface",
+    "chip",
+    "pill",
+    "empty_state",
+    "kv_row",
+    "status_banner",
+    "caption",
+    "muted",
 ]
 
-_CSS_VERSION = "v20"
+_CSS_VERSION = "v30"
 _CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
 
 _ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
@@ -79,8 +90,17 @@ TOKENS
   --sidebar-width:320px;
   --sidebar-item-height:40px;
   --sidebar-item-radius:12px;
-}
 
+  --container-max:1360px;
+  --space-1:4px;
+  --space-2:8px;
+  --space-3:12px;
+  --space-4:16px;
+  --space-5:20px;
+  --space-6:24px;
+  --space-7:28px;
+  --space-8:32px;
+}
 
 /* ======================================================
 BASE
@@ -127,14 +147,13 @@ section.main{
   overflow:visible !important;
 }
 
-
 /* ======================================================
 LAYOUT
 ====================================================== */
 
 .block-container{
-  max-width:1360px;
-  padding-top:0.90rem;
+  max-width:var(--container-max);
+  padding-top:0.95rem;
   padding-right:1.20rem;
   padding-bottom:1.35rem;
   padding-left:1.20rem;
@@ -145,6 +164,15 @@ div[data-testid="stVerticalBlock"] > div{
   margin-bottom:0.30rem;
 }
 
+.sp-content-shell{
+  width:100%;
+}
+
+.sp-stack-xs > * + *{ margin-top:6px; }
+.sp-stack-sm > * + *{ margin-top:10px; }
+.sp-stack-md > * + *{ margin-top:14px; }
+.sp-stack-lg > * + *{ margin-top:18px; }
+.sp-stack-xl > * + *{ margin-top:24px; }
 
 /* ======================================================
 TYPOGRAPHY
@@ -185,6 +213,19 @@ small,
   color:var(--muted) !important;
 }
 
+.sp-caption{
+  color:var(--muted);
+  font-size:0.82rem;
+  line-height:1.4;
+}
+
+.sp-muted{
+  color:var(--muted) !important;
+}
+
+.sp-text-soft{
+  color:var(--text-soft) !important;
+}
 
 /* ======================================================
 PAGE HEADER
@@ -210,13 +251,12 @@ PAGE HEADER
   color:var(--muted);
 }
 
-
 /* ======================================================
 SECTION HEADER
 ====================================================== */
 
 .sp-section-header{
-  margin-bottom:0.14rem;
+  margin-bottom:0.16rem;
 }
 
 .sp-section-title{
@@ -232,16 +272,6 @@ SECTION HEADER
   line-height:1.44;
   color:var(--muted);
 }
-
-
-/* ======================================================
-CONTENT SHELL
-====================================================== */
-
-.sp-content-shell{
-  width:100%;
-}
-
 
 /* ======================================================
 SURFACES
@@ -266,6 +296,13 @@ SURFACES
   padding:0 !important;
 }
 
+.sp-surface-muted{
+  background:linear-gradient(180deg, #fcfdfd 0%, #f8faf9 100%);
+}
+
+.sp-surface-strong{
+  background:linear-gradient(180deg, #ffffff 0%, #f6f9f8 100%);
+}
 
 /* ======================================================
 CHIPS / PILLS
@@ -308,6 +345,12 @@ CHIPS / PILLS
   background:var(--info-bg);
   border-color:rgba(37,99,235,0.16);
   color:#1d4ed8;
+}
+
+.sp-chip-neutral{
+  background:var(--neutral-bg);
+  border-color:rgba(15,23,42,0.08);
+  color:var(--text-soft);
 }
 
 .sp-pill{
@@ -355,7 +398,6 @@ CHIPS / PILLS
   border-color:rgba(15,23,42,0.08);
 }
 
-
 /* ======================================================
 SIDEBAR
 ====================================================== */
@@ -374,11 +416,6 @@ section[data-testid="stSidebar"] .block-container{
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
   margin-bottom:0.16rem !important;
 }
-
-
-/* ======================================================
-SIDEBAR TEXT HELPERS
-====================================================== */
 
 .sidebar-title{
   margin-bottom:0.30rem;
@@ -403,11 +440,6 @@ SIDEBAR TEXT HELPERS
   font-size:0.74rem;
   color:var(--muted);
 }
-
-
-/* ======================================================
-SIDEBAR RADIO MENU
-====================================================== */
 
 section[data-testid="stSidebar"] div[role="radiogroup"]{
   gap:0.22rem !important;
@@ -458,11 +490,6 @@ label[data-baseweb="radio"][aria-checked="true"]{
   color:var(--text);
 }
 
-
-/* ======================================================
-SIDEBAR EXPANDER
-====================================================== */
-
 section[data-testid="stSidebar"] details{
   border:1px solid rgba(15,23,42,0.08);
   border-radius:14px;
@@ -478,7 +505,6 @@ section[data-testid="stSidebar"] summary{
 section[data-testid="stSidebar"] details > div{
   padding-top:0.15rem;
 }
-
 
 /* ======================================================
 BUTTONS
@@ -526,18 +552,12 @@ BUTTONS
   border-color:var(--primary-hover) !important;
 }
 
-
-/* ======================================================
-SIDEBAR BUTTON DENSITY
-====================================================== */
-
 section[data-testid="stSidebar"] .stButton > button{
   min-height:38px;
   padding:0.46rem 0.82rem;
   border-radius:12px;
   font-size:0.90rem;
 }
-
 
 /* ======================================================
 INPUTS / SELECTS / TEXTAREA
@@ -576,11 +596,6 @@ section[data-testid="stSidebar"] label[data-testid="stWidgetLabel"] p{
   font-size:0.84rem !important;
 }
 
-
-/* ======================================================
-TOP NAV / FILTER BAR FEEL
-====================================================== */
-
 div[data-baseweb="select"]{
   width:100%;
 }
@@ -590,9 +605,8 @@ div[data-baseweb="input"] > div{
   box-shadow:none !important;
 }
 
-
 /* ======================================================
-CHECKBOX / RADIO FORM CONTROLS
+FORM CONTROLS / TABS / DATA
 ====================================================== */
 
 div[data-testid="stCheckbox"]{
@@ -602,11 +616,6 @@ div[data-testid="stCheckbox"]{
 div[data-testid="stRadio"] > div{
   gap:0.22rem !important;
 }
-
-
-/* ======================================================
-TABS
-====================================================== */
 
 div[data-testid="stTabs"]{
   gap:0.20rem;
@@ -623,11 +632,6 @@ button[data-baseweb="tab"][aria-selected="true"]{
   border-bottom-color:var(--primary) !important;
 }
 
-
-/* ======================================================
-DATAFRAME
-====================================================== */
-
 div[data-testid="stDataFrame"]{
   overflow:hidden;
   border:1px solid var(--border);
@@ -640,11 +644,6 @@ div[data-testid="stDataFrame"] [role="grid"]{
   border:none !important;
 }
 
-
-/* ======================================================
-EXPANDER
-====================================================== */
-
 details{
   border:1px solid var(--border);
   border-radius:14px;
@@ -655,7 +654,6 @@ details{
 summary{
   border-radius:12px;
 }
-
 
 /* ======================================================
 CARD KPI
@@ -723,7 +721,6 @@ CARD KPI
   min-height:auto;
 }
 
-
 /* ======================================================
 TONES
 ====================================================== */
@@ -753,6 +750,31 @@ TONES
   padding-left:13px;
 }
 
+/* ======================================================
+STATUS BANNER
+====================================================== */
+
+.sp-status-banner{
+  padding:14px 16px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #ffffff 100%);
+  box-shadow:var(--shadow-xs);
+}
+
+.sp-status-banner-title{
+  color:var(--text);
+  font-size:0.98rem;
+  font-weight:820;
+  line-height:1.35;
+}
+
+.sp-status-banner-subtitle{
+  margin-top:4px;
+  color:var(--muted-strong);
+  font-size:0.89rem;
+  line-height:1.45;
+}
 
 /* ======================================================
 KEY-VALUE / STRIPS
@@ -797,7 +819,6 @@ KEY-VALUE / STRIPS
   line-height:1.35;
   text-align:right;
 }
-
 
 /* ======================================================
 TIMELINE
@@ -881,7 +902,6 @@ TIMELINE
   margin-top:8px;
 }
 
-
 /* ======================================================
 EMPTY STATE
 ====================================================== */
@@ -910,7 +930,6 @@ EMPTY STATE
   line-height:1.46;
 }
 
-
 /* ======================================================
 APP ERROR
 ====================================================== */
@@ -937,7 +956,6 @@ APP ERROR
   line-height:1.45;
 }
 
-
 /* ======================================================
 DIVIDER
 ====================================================== */
@@ -947,20 +965,6 @@ DIVIDER
   border:0;
   border-top:1px solid #e7ebea;
 }
-
-
-/* ======================================================
-HELPERS
-====================================================== */
-
-.sp-muted{
-  color:var(--muted) !important;
-}
-
-.sp-text-soft{
-  color:var(--text-soft) !important;
-}
-
 
 /* ======================================================
 SCROLLBAR
@@ -984,7 +988,6 @@ SCROLLBAR
 *::-webkit-scrollbar-thumb:hover{
   background:rgba(53,94,87,0.32);
 }
-
 
 /* ======================================================
 MOBILE
@@ -1060,17 +1063,12 @@ MOBILE
 """
 
 
-# ==========================================================
-# Helpers privados
-# ==========================================================
-
-
 def _render_html(content: str) -> None:
     st.markdown(content, unsafe_allow_html=True)
 
 
 def _escape(text: str | None) -> str:
-    return html.escape(text or "")
+    return html.escape(str(text or ""))
 
 
 def _normalize_tone(tone: str | None) -> str:
@@ -1078,9 +1076,8 @@ def _normalize_tone(tone: str | None) -> str:
     return tone_norm if tone_norm in _ALLOWED_TONES else "neutral"
 
 
-# ==========================================================
-# CSS global
-# ==========================================================
+def _join_classes(*classes: str) -> str:
+    return " ".join(part for part in classes if part)
 
 
 def inject_global_css() -> None:
@@ -1091,9 +1088,41 @@ def inject_global_css() -> None:
     _render_html(_GLOBAL_CSS)
 
 
-# ==========================================================
-# Componentes públicos
-# ==========================================================
+def surface_start(
+    *,
+    tone: str = "neutral",
+    extra_classes: str = "",
+    no_padding: bool = False,
+) -> None:
+    tone_norm = _normalize_tone(tone)
+    classes = _join_classes(
+        "sp-surface",
+        f"sp-tone-{tone_norm}",
+        "sp-surface-no-pad" if no_padding else "",
+        extra_classes,
+    )
+    _render_html(f"<div class='{classes}'>")
+
+
+def surface_end() -> None:
+    _render_html("</div>")
+
+
+def surface(
+    content: str,
+    *,
+    tone: str = "neutral",
+    extra_classes: str = "",
+    no_padding: bool = False,
+) -> None:
+    tone_norm = _normalize_tone(tone)
+    classes = _join_classes(
+        "sp-surface",
+        f"sp-tone-{tone_norm}",
+        "sp-surface-no-pad" if no_padding else "",
+        extra_classes,
+    )
+    _render_html(f"<div class='{classes}'>{content}</div>")
 
 
 def card(
@@ -1126,13 +1155,21 @@ def card(
     )
 
 
-def section_title(text: str) -> None:
+def section_title(text: str, subtitle: str = "") -> None:
     text_html = _escape(text)
+    subtitle_html = _escape(subtitle)
+
+    subtitle_block = (
+        f"<div class='sp-section-subtitle'>{subtitle_html}</div>"
+        if subtitle_html
+        else ""
+    )
 
     _render_html(
         f"""
         <div class="sp-section-header">
           <div class="sp-section-title">{text_html}</div>
+          {subtitle_block}
         </div>
         """
     )
@@ -1140,6 +1177,76 @@ def section_title(text: str) -> None:
 
 def subtle_divider() -> None:
     _render_html("<hr class='sp-divider'>")
+
+
+def chip(text: str, *, tone: str = "neutral") -> None:
+    tone_norm = _normalize_tone(tone)
+    _render_html(f"<span class='sp-chip sp-chip-{tone_norm}'>{_escape(text)}</span>")
+
+
+def pill(text: str, *, tone: str = "neutral") -> None:
+    tone_norm = _normalize_tone(tone)
+    _render_html(f"<span class='sp-pill sp-pill-{tone_norm}'>{_escape(text)}</span>")
+
+
+def empty_state(
+    title: str,
+    subtitle: str,
+    *,
+    icon: str = "○",
+) -> None:
+    _render_html(
+        f"""
+        <div class="sp-surface">
+          <div class="sp-empty-state">
+            <div class="sp-empty-icon">{_escape(icon)}</div>
+            <div class="sp-empty-title">{_escape(title)}</div>
+            <div class="sp-empty-subtitle">{_escape(subtitle)}</div>
+          </div>
+        </div>
+        """
+    )
+
+
+def kv_row(label: str, value: str) -> None:
+    _render_html(
+        f"""
+        <div class="sp-kv">
+          <div class="sp-kv-label">{_escape(label)}</div>
+          <div class="sp-kv-value">{_escape(value)}</div>
+        </div>
+        """
+    )
+
+
+def status_banner(
+    title: str,
+    subtitle: str = "",
+    *,
+    tone: str = "neutral",
+) -> None:
+    tone_norm = _normalize_tone(tone)
+    subtitle_block = (
+        f"<div class='sp-status-banner-subtitle'>{_escape(subtitle)}</div>"
+        if subtitle
+        else ""
+    )
+    _render_html(
+        f"""
+        <div class="sp-status-banner sp-tone-{tone_norm}">
+          <div class="sp-status-banner-title">{_escape(title)}</div>
+          {subtitle_block}
+        </div>
+        """
+    )
+
+
+def caption(text: str) -> None:
+    _render_html(f"<div class='sp-caption'>{_escape(text)}</div>")
+
+
+def muted(text: str) -> None:
+    _render_html(f"<div class='sp-muted'>{_escape(text)}</div>")
 
 
 def app_error(

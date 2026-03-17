@@ -57,7 +57,7 @@ MENU_FIN_KEY = "Financeiro"
 
 SECTION_CARTEIRA = "Carteira"
 SECTION_NOVO = "Novo"
-SECTION_PAINEL = "Painel do processo"
+SECTION_PAINEL = "Painel do trabalho"
 SECTIONS = (SECTION_CARTEIRA, SECTION_NOVO, SECTION_PAINEL)
 
 K_SECTION = "processos_section"
@@ -598,12 +598,19 @@ def _sync_from_dashboard_and_qp() -> None:
 
     if qp_q:
         st.session_state[K_FILTER_Q] = qp_q
-        st.session_state[K_SECTION] = SECTION_CARTEIRA
+        _set_section(SECTION_CARTEIRA)
 
 
 def _set_section(sec: str) -> None:
     sec = _legacy_section_to_new(sec)
     st.session_state[K_SECTION] = sec
+    st.session_state[K_SECTION_SELECTOR] = sec
+
+
+def _go_new() -> None:
+    st.session_state.pop("proc_last_created_id", None)
+    st.session_state.pop("proc_last_created_ref", None)
+    _set_section(SECTION_NOVO)
 
 
 def _open_edit(processo_id: int) -> None:
@@ -660,7 +667,7 @@ def _duplicate_processo(owner_user_id: int, processo_id: int) -> None:
             getattr(created, "numero_processo", "") or ""
         )
         st.session_state[K_SELECTED_ID] = int(getattr(created, "id", 0) or 0)
-        _toast("📄 Processo duplicado")
+        _toast("📄 Trabalho duplicado")
         _set_section(SECTION_PAINEL)
     except Exception as e:
         st.error(f"Erro ao duplicar: {e}")
@@ -792,7 +799,7 @@ def _render_header(stats: dict[str, int]) -> None:
           <div class="sp-page-hero-grid">
             <div>
               <div class="sp-page-kicker">gestão operacional</div>
-              <div class="sp-page-title">Processos e Trabalhos</div>
+              <div class="sp-page-title">Trabalhos</div>
               <div class="sp-page-subtitle">
                 Carteira central de processos, perícias e serviços técnicos, com acesso rápido
                 a prazo, agenda, financeiro e contexto operacional.
@@ -848,7 +855,7 @@ def _render_priority_banners(stats: dict[str, int], rows: list[dict]) -> None:
             _banner_html(
                 "success",
                 "Carteira ativa",
-                f"{stats.get('ativos', 0)} processo(s) ativo(s) na base.",
+                f"{stats.get('ativos', 0)} trabalho(s) ativo(s) na base.",
             )
         )
 
@@ -866,7 +873,7 @@ def _render_priority_banners(stats: dict[str, int], rows: list[dict]) -> None:
             _banner_html(
                 "warning",
                 "Atenção de carteira",
-                f"{stats.get('suspensos', 0)} processo(s) suspenso(s) aguardando retomada.",
+                f"{stats.get('suspensos', 0)} trabalho(s) suspenso(s) aguardando retomada.",
             )
         )
 
@@ -945,18 +952,17 @@ def _render_list_insights(rows: list[dict]) -> None:
 
 def _render_empty_list() -> None:
     empty_state(
-        title="Nenhum processo encontrado",
+        title="Nenhum trabalho encontrado",
         subtitle="Ajuste os filtros ou cadastre um novo registro.",
         icon="📁",
     )
     a, b = grid(2, columns_mobile=1)
     with a:
         _button(
-            "➕ Cadastrar novo processo",
+            "➕ Cadastrar novo trabalho",
             key="proc_empty_new",
             type="primary",
-            on_click=_set_section,
-            args=(SECTION_NOVO,),
+            on_click=_go_new,
         )
     with b:
         _button("🧹 Limpar filtros", key="proc_empty_clear", on_click=_clear_filters)
@@ -965,7 +971,7 @@ def _render_empty_list() -> None:
 def _render_selected_context(selected_row: dict | None) -> None:
     if not selected_row:
         empty_state(
-            title="Nenhum processo selecionado",
+            title="Nenhum trabalho selecionado",
             subtitle="Selecione um registro para ver os detalhes.",
             icon="🧭",
         )
@@ -1054,11 +1060,11 @@ def _render_next_steps_panel(row: dict) -> None:
     if status.lower() == "ativo":
         if prazos > 0:
             items.append(
-                "Há prazos em aberto. Priorize a revisão da agenda de entregas deste processo."
+                "Há prazos em aberto. Priorize a revisão da agenda de entregas deste trabalho."
             )
         else:
             items.append(
-                "Cadastre os principais marcos e prazos para manter o processo operacional."
+                "Cadastre os principais marcos e prazos para manter o trabalho operacional."
             )
     elif status.lower() == "suspenso":
         items.append(
@@ -1071,11 +1077,11 @@ def _render_next_steps_panel(row: dict) -> None:
 
     if agendamentos == 0:
         items.append(
-            "Avalie se este processo precisa de diligência, vistoria ou compromisso futuro na agenda."
+            "Avalie se este trabalho precisa de diligência, vistoria ou compromisso futuro na agenda."
         )
     if not pasta:
         items.append(
-            "Vincule a pasta local para acesso rápido aos arquivos do processo."
+            "Vincule a pasta local para acesso rápido aos arquivos do trabalho."
         )
     if not contratante:
         items.append(
@@ -1085,7 +1091,7 @@ def _render_next_steps_panel(row: dict) -> None:
         items.append("Adicione observações resumidas para retomada rápida do caso.")
 
     items = items[:4] or [
-        "Registro consistente. O processo está bem estruturado nesta etapa."
+        "Registro consistente. O trabalho está bem estruturado nesta etapa."
     ]
 
     for idx, item in enumerate(items, start=1):
@@ -1271,7 +1277,7 @@ def render(owner_user_id: int):
     )
 
     if st.session_state.pop("tb_new", False):
-        _set_section(SECTION_NOVO)
+        _go_new()
 
     if st.session_state.pop("tb_reload", False):
         _clear_data_cache()
@@ -1280,7 +1286,7 @@ def render(owner_user_id: int):
     label_vis = "collapsed" if _use_cards() else "visible"
 
     if st.session_state.get(K_SECTION) not in SECTIONS:
-        st.session_state[K_SECTION] = SECTION_CARTEIRA
+        _set_section(SECTION_CARTEIRA)
 
     if K_SECTION_SELECTOR not in st.session_state:
         st.session_state[K_SECTION_SELECTOR] = st.session_state.get(
@@ -1289,7 +1295,7 @@ def render(owner_user_id: int):
 
     with section(
         "Modo da tela",
-        subtitle="Escolha entre carteira, cadastro e painel do processo",
+        subtitle="Escolha entre carteira, cadastro e painel do trabalho",
         divider=False,
         compact=True,
     ):
@@ -1309,7 +1315,9 @@ def render(owner_user_id: int):
                 label_visibility=label_vis,
             )
 
+    sec = _legacy_section_to_new(sec)
     st.session_state[K_SECTION] = sec
+    st.session_state[K_SECTION_SELECTOR] = sec
 
     if sec == SECTION_NOVO:
         _render_cadastrar(owner_user_id)
@@ -1325,14 +1333,14 @@ def _render_cadastrar(owner_user_id: int) -> None:
         last_ref = st.session_state.get("proc_last_created_ref", "")
 
         with section(
-            "✅ Processo cadastrado",
+            "✅ Trabalho cadastrado",
             subtitle="Escolha o próximo passo para continuar o fluxo.",
             divider=False,
         ):
             a, b, c, d = grid(4, columns_mobile=1)
             with a:
                 _button(
-                    "Abrir processo",
+                    "Abrir trabalho",
                     key="proc_post_edit",
                     type="primary",
                     on_click=_open_edit,
@@ -1353,13 +1361,14 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     args=(owner_user_id, last_id),
                 )
             with d:
-                if _button("Cadastrar outro", key="proc_post_new"):
-                    st.session_state.pop("proc_last_created_id", None)
-                    st.session_state.pop("proc_last_created_ref", None)
-                    st.rerun()
+                _button(
+                    "Cadastrar outro",
+                    key="proc_post_new",
+                    on_click=_go_new,
+                )
 
     with section(
-        "Novo processo",
+        "Novo trabalho",
         subtitle="Cadastre o essencial primeiro. Depois complemente com prazos, agenda, financeiro e notas.",
         divider=False,
     ):
@@ -1384,8 +1393,11 @@ def _render_cadastrar(owner_user_id: int) -> None:
                     )
         with b:
             st.caption(
-                "Se estiver no Windows local, já vincule a pasta do processo desde o cadastro."
+                "Se estiver no Windows local, já vincule a pasta do trabalho desde o cadastro."
             )
+
+        suggest_folder = False
+        submitted = False
 
         with st.form("form_trabalho_create", clear_on_submit=False):
             c1, c2, c3 = grid(3, columns_mobile=1)
@@ -1448,7 +1460,7 @@ def _render_cadastrar(owner_user_id: int) -> None:
             submit_col1, submit_col2 = grid(2, columns_mobile=1)
             with submit_col1:
                 submitted = st.form_submit_button(
-                    "Salvar processo", type="primary", use_container_width=True
+                    "Salvar trabalho", type="primary", use_container_width=True
                 )
             with submit_col2:
                 spacer(0.01)
@@ -1460,7 +1472,8 @@ def _render_cadastrar(owner_user_id: int) -> None:
             st.rerun()
 
         if submitted:
-            if not (numero or "").strip():
+            numero_v = (numero or "").strip()
+            if not numero_v:
                 st.error("Informe o Número / Código.")
                 return
 
@@ -1471,7 +1484,7 @@ def _render_cadastrar(owner_user_id: int) -> None:
                         s,
                         owner_user_id=owner_user_id,
                         payload=ProcessoCreate(
-                            numero_processo=numero.strip(),
+                            numero_processo=numero_v,
                             comarca=(comarca or "").strip(),
                             vara=(vara or "").strip(),
                             tipo_acao=(tipo_acao or "").strip(),
@@ -1479,17 +1492,19 @@ def _render_cadastrar(owner_user_id: int) -> None:
                             papel=papel_db,
                             status=status,
                             pasta_local=(pasta or "").strip(),
-                            categoria_servico=categoria,
+                            categoria_servico=(categoria or "").strip(),
                             observacoes=(obs or "").strip(),
                         ),
                     )
 
                 bump_data_version(owner_user_id)
-                st.session_state["proc_last_created_id"] = int(
-                    getattr(created, "id", 0) or 0
-                )
-                st.session_state["proc_last_created_ref"] = numero.strip()
-                _toast("✅ Processo cadastrado")
+                _clear_data_cache()
+                created_id = int(getattr(created, "id", 0) or 0)
+                st.session_state["proc_last_created_id"] = created_id
+                st.session_state["proc_last_created_ref"] = numero_v
+                st.session_state[K_SELECTED_ID] = created_id
+                _toast("✅ Trabalho cadastrado")
+                _set_section(SECTION_PAINEL)
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao cadastrar: {e}")
@@ -1497,18 +1512,17 @@ def _render_cadastrar(owner_user_id: int) -> None:
 
 def _render_carteira(owner_user_id: int, stats: dict[str, int], version: int) -> None:
     with section(
-        "Carteira de processos",
+        "Carteira de trabalhos",
         subtitle="Filtre, localize e opere rapidamente sobre os registros cadastrados.",
         divider=False,
     ):
         cta1, cta2, cta3 = grid(3, columns_mobile=1)
         with cta1:
             _button(
-                "➕ Novo processo",
+                "➕ Novo trabalho",
                 key="proc_list_new",
                 type="primary",
-                on_click=_set_section,
-                args=(SECTION_NOVO,),
+                on_click=_go_new,
             )
         with cta2:
             _button("🧹 Limpar filtros", key="proc_list_clear", on_click=_clear_filters)
@@ -1622,7 +1636,7 @@ def _render_carteira(owner_user_id: int, stats: dict[str, int], version: int) ->
         )
 
     with section(
-        "Ações rápidas por processo",
+        "Ações rápidas por trabalho",
         subtitle="Selecione um registro para abrir o painel ou navegar para áreas relacionadas.",
         divider=False,
     ):
@@ -1710,7 +1724,7 @@ def _render_carteira(owner_user_id: int, stats: dict[str, int], version: int) ->
 
 def _render_painel(owner_user_id: int) -> None:
     with section(
-        "Abrir processo",
+        "Abrir trabalho",
         subtitle="Localize o registro para visualizar contexto, ações e edição.",
         divider=False,
     ):
@@ -1732,7 +1746,7 @@ def _render_painel(owner_user_id: int) -> None:
 
         if not processos_all:
             empty_state(
-                title="Nenhum processo encontrado",
+                title="Nenhum trabalho encontrado",
                 subtitle="Não há registros compatíveis com a busca informada.",
                 icon="🔎",
             )
@@ -1767,7 +1781,7 @@ def _render_painel(owner_user_id: int) -> None:
     version = get_data_version(owner_user_id)
     p = _cached_get_row(owner_user_id, int(selected_id), version)
     if not p:
-        st.error("Processo não encontrado.")
+        st.error("Trabalho não encontrado.")
         return
 
     papel_atual = _norm_tipo_trabalho(p.get("papel"))
@@ -1785,7 +1799,7 @@ def _render_painel(owner_user_id: int) -> None:
     obs = html.escape(_compact_text(p.get("observacoes"), 280) or "Sem observações.")
 
     with section(
-        "Painel do processo",
+        "Painel do trabalho",
         subtitle="Visão consolidada do registro selecionado",
         divider=False,
     ):
@@ -1812,7 +1826,7 @@ def _render_painel(owner_user_id: int) -> None:
 
     with section(
         "Ações operacionais",
-        subtitle="Atalhos mais usados para seguir o fluxo do processo",
+        subtitle="Atalhos mais usados para seguir o fluxo do trabalho",
         divider=False,
     ):
         _render_operational_actions(
@@ -1825,7 +1839,7 @@ def _render_painel(owner_user_id: int) -> None:
 
     with section(
         "Resumo executivo",
-        subtitle="Leitura rápida do estado operacional do processo",
+        subtitle="Leitura rápida do estado operacional do trabalho",
         divider=False,
     ):
         a, b, c, d = grid(4, columns_mobile=2)
@@ -1860,7 +1874,7 @@ def _render_painel(owner_user_id: int) -> None:
 
     with left:
         with section(
-            "Contexto do processo",
+            "Contexto do trabalho",
             subtitle="Informações úteis para entendimento rápido do registro",
             divider=False,
         ):
@@ -1934,7 +1948,7 @@ def _render_painel(owner_user_id: int) -> None:
                         st.warning(msg)
 
     with section(
-        "Editar dados do processo",
+        "Editar dados do trabalho",
         subtitle="Ajuste os campos principais do registro abaixo",
         divider=False,
     ):
@@ -2060,12 +2074,13 @@ def _render_painel(owner_user_id: int) -> None:
                             papel=papel_db_e,
                             status=status_e,
                             pasta_local=(pasta_e or "").strip(),
-                            categoria_servico=categoria_e,
+                            categoria_servico=(categoria_e or "").strip(),
                             observacoes=(obs_e or "").strip(),
                         ),
                     )
                 bump_data_version(owner_user_id)
-                _toast("✅ Processo atualizado")
+                _clear_data_cache()
+                _toast("✅ Trabalho atualizado")
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao atualizar: {e}")
@@ -2082,7 +2097,7 @@ def _render_painel(owner_user_id: int) -> None:
             )
         with b:
             if _button(
-                "🗑️ Excluir processo",
+                "🗑️ Excluir trabalho",
                 key=f"proc_delete_{selected_id}",
                 disabled=not bool(confirm),
             ):
@@ -2090,8 +2105,9 @@ def _render_painel(owner_user_id: int) -> None:
                     with get_session() as s:
                         ProcessosService.delete(s, owner_user_id, int(selected_id))
                     bump_data_version(owner_user_id)
+                    _clear_data_cache()
                     st.session_state.pop(K_SELECTED_ID, None)
-                    _toast("🗑️ Processo excluído")
+                    _toast("🗑️ Trabalho excluído")
                     _set_section(SECTION_CARTEIRA)
                     st.rerun()
                 except Exception as e:

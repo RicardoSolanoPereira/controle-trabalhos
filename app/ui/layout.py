@@ -8,25 +8,23 @@ from typing import Callable, Iterator, Sequence
 import streamlit as st
 
 
-# ==========================================================
-# Public API
-# ==========================================================
-
 __all__ = [
     "MOBILE_FLAG_KEY",
     "PageMeta",
     "is_mobile",
     "mobile_debug_toggle",
     "spacer",
-    "divider_space",
     "compact_gap",
     "section_gap",
     "page_gap",
+    "divider_space",
     "grid",
     "grid_weights",
     "content_columns",
     "split_hero",
+    "dashboard_rail",
     "content_shell",
+    "page_stack",
     "topbar_shell",
     "surface",
     "plain_block",
@@ -55,7 +53,7 @@ def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
         label,
         key=MOBILE_FLAG_KEY,
         value=is_mobile(),
-        help="Simula layout mobile para validar empilhamento e densidade visual.",
+        help="Simula layout mobile para validar empilhamento, densidade e ordem visual.",
     )
 
 
@@ -69,6 +67,7 @@ SPACE_SM = 0.30
 SPACE_MD = 0.54
 SPACE_LG = 0.88
 SPACE_XL = 1.20
+SPACE_2XL = 1.60
 
 PAGE_MAX_WIDTH = "1360px"
 PAGE_PADDING_DESKTOP = "12px"
@@ -87,7 +86,7 @@ def _render_html(content: str) -> None:
 
 
 def _escape(text: str | None, *, quote: bool = False) -> str:
-    return html.escape(text or "", quote=quote)
+    return html.escape(str(text or ""), quote=quote)
 
 
 def _normalize_float(value: float | int | None, *, minimum: float = 0.0) -> float:
@@ -116,26 +115,17 @@ def _normalize_positive_sequence(values: Sequence[float] | None) -> tuple[float,
 
 
 def _class_attr(name: str | None) -> str:
-    if not name:
-        return ""
-    clean = name.strip()
-    if not clean:
-        return ""
-    return f' class="{_escape(clean, quote=True)}"'
+    clean = (name or "").strip()
+    return f' class="{_escape(clean, quote=True)}"' if clean else ""
 
 
 def _style_attr(style: str | None) -> str:
-    if not style:
-        return ""
-    clean = style.strip()
-    if not clean:
-        return ""
-    return f' style="{_escape(clean, quote=True)}"'
+    clean = (style or "").strip()
+    return f' style="{_escape(clean, quote=True)}"' if clean else ""
 
 
 def _merge_classes(*classes: str | None) -> str:
-    merged = [c.strip() for c in classes if c and c.strip()]
-    return " ".join(merged)
+    return " ".join(c.strip() for c in classes if c and c.strip())
 
 
 def _stacked_containers(total: int) -> list:
@@ -143,26 +133,13 @@ def _stacked_containers(total: int) -> list:
 
 
 # ==========================================================
-# Spacing
+# Spacing system
 # ==========================================================
 
 
 def spacer(height_rem: float = SPACE_SM) -> None:
     height = _normalize_float(height_rem)
     _render_html(f"<div style='height:{height:.3f}rem'></div>")
-
-
-def divider_space(top: float | None = None, bottom: float | None = None) -> None:
-    top = SPACE_SM if top is None else _normalize_float(top)
-    bottom = SPACE_SM if bottom is None else _normalize_float(bottom)
-
-    if top > 0:
-        spacer(top)
-
-    st.divider()
-
-    if bottom > 0:
-        spacer(bottom)
 
 
 def compact_gap() -> None:
@@ -175,6 +152,19 @@ def section_gap() -> None:
 
 def page_gap() -> None:
     spacer(SPACE_MD if is_mobile() else SPACE_LG)
+
+
+def divider_space(top: float | None = None, bottom: float | None = None) -> None:
+    top_value = SPACE_SM if top is None else _normalize_float(top)
+    bottom_value = SPACE_SM if bottom is None else _normalize_float(bottom)
+
+    if top_value > 0:
+        spacer(top_value)
+
+    st.divider()
+
+    if bottom_value > 0:
+        spacer(bottom_value)
 
 
 # ==========================================================
@@ -197,10 +187,10 @@ def content_shell(
 
     style = (
         f"max-width:{max_width};"
-        f"margin:0 auto;"
-        f"width:100%;"
+        "margin:0 auto;"
+        "width:100%;"
         f"padding-inline:{padding};"
-        f"box-sizing:border-box;"
+        "box-sizing:border-box;"
     )
 
     classes = _merge_classes("sp-content-shell", class_name)
@@ -213,9 +203,19 @@ def content_shell(
 
 
 @contextmanager
+def page_stack(class_name: str | None = None) -> Iterator[None]:
+    classes = _merge_classes("sp-stack-lg", class_name)
+    _render_html(f"<div{_class_attr(classes)}>")
+
+    try:
+        yield
+    finally:
+        _render_html("</div>")
+
+
+@contextmanager
 def topbar_shell(class_name: str | None = None) -> Iterator[None]:
     classes = _merge_classes("sp-topbar-shell", class_name)
-
     _render_html(f"<div{_class_attr(classes)}>")
 
     try:
@@ -270,7 +270,6 @@ def grid_weights(
         return list(st.columns(desktop, gap=gap, vertical_alignment="top"))
 
     mobile = _normalize_positive_sequence(weights_mobile)
-
     if not mobile:
         return _stacked_containers(len(desktop))
 
@@ -278,7 +277,7 @@ def grid_weights(
 
 
 # ==========================================================
-# Common column layouts
+# Common semantic layouts
 # ==========================================================
 
 
@@ -302,9 +301,29 @@ def split_hero(left_ratio: float = 1.2, right_ratio: float = 1.0):
     return cols[0], cols[1]
 
 
+def dashboard_rail(main: float = 1.55, aside: float = 1.0):
+    if is_mobile():
+        return st.container(), st.container()
+
+    cols = st.columns([main, aside], gap=DEFAULT_GRID_GAP, vertical_alignment="top")
+    return cols[0], cols[1]
+
+
 # ==========================================================
-# Surface containers
+# Primitive containers
 # ==========================================================
+
+
+@contextmanager
+def plain_block(
+    class_name: str | None = None,
+    style: str | None = None,
+) -> Iterator[None]:
+    _render_html(f"<div{_class_attr(class_name)}{_style_attr(style)}>")
+    try:
+        yield
+    finally:
+        _render_html("</div>")
 
 
 @contextmanager
@@ -312,7 +331,7 @@ def surface(
     class_name: str | None = None,
     style: str | None = None,
     padded: bool = True,
-):
+) -> Iterator[None]:
     classes = ["sp-surface"]
 
     if not padded:
@@ -329,23 +348,12 @@ def surface(
         _render_html("</div>")
 
 
-@contextmanager
-def plain_block(class_name: str | None = None, style: str | None = None):
-    _render_html(f"<div{_class_attr(class_name)}{_style_attr(style)}>")
-
-    try:
-        yield
-    finally:
-        _render_html("</div>")
-
-
 # ==========================================================
 # Section layout
 # ==========================================================
 
 
 def _section_header(title: str, subtitle: str | None = None) -> None:
-    title_html = _escape(title)
     subtitle_block = (
         f"<div class='sp-section-subtitle'>{_escape(subtitle)}</div>"
         if subtitle
@@ -355,7 +363,7 @@ def _section_header(title: str, subtitle: str | None = None) -> None:
     _render_html(
         f"""
         <div class="sp-section-header">
-            <div class="sp-section-title">{title_html}</div>
+            <div class="sp-section-title">{_escape(title)}</div>
             {subtitle_block}
         </div>
         """
@@ -370,11 +378,16 @@ def section(
     header_actions: Callable[[], None] | None = None,
     divider: bool = False,
     compact: bool = False,
-):
+    surface_class: str | None = None,
+    surface_style: str | None = None,
+    padded: bool = True,
+) -> Iterator[None]:
     if title:
         if header_actions and not is_mobile():
             left, right = st.columns(
-                [4, 1.2], gap=DEFAULT_GRID_GAP, vertical_alignment="center"
+                [4, 1.2],
+                gap=DEFAULT_GRID_GAP,
+                vertical_alignment="center",
             )
 
             with left:
@@ -396,25 +409,25 @@ def section(
     elif title:
         spacer(SPACE_2XS if compact else SPACE_XS)
 
-    with surface():
+    with surface(class_name=surface_class, style=surface_style, padded=padded):
         yield
 
 
 @contextmanager
-def section_surface(title: str | None = None, **kwargs):
+def section_surface(title: str | None = None, **kwargs) -> Iterator[None]:
     with section(title, **kwargs):
         yield
 
 
 # ==========================================================
-# Toolbars
+# Toolbars / action rows
 # ==========================================================
 
 
 def toolbar_row(
     left_content: Callable[[], None] | None = None,
     right_actions: Callable[[], None] | None = None,
-):
+) -> None:
     if is_mobile():
         if left_content:
             left_content()
@@ -439,10 +452,9 @@ def toolbar_row(
     spacer(SPACE_SM)
 
 
-def actions_row(render_actions: Callable[[], None]):
+def actions_row(render_actions: Callable[[], None]) -> None:
     with plain_block("sp-actions-row"):
         render_actions()
-
     spacer(SPACE_SM)
 
 
@@ -455,17 +467,19 @@ def empty_state(
     title: str = "Nada por aqui ainda",
     subtitle: str | None = "Quando você adicionar itens, eles aparecerão aqui.",
     icon: str = "📭",
-):
+) -> None:
     subtitle_block = (
         f"<div class='sp-empty-subtitle'>{_escape(subtitle)}</div>" if subtitle else ""
     )
 
     _render_html(
         f"""
-        <div class="sp-surface sp-empty-state">
-            <div class="sp-empty-icon">{_escape(icon)}</div>
-            <div class="sp-empty-title">{_escape(title)}</div>
-            {subtitle_block}
+        <div class="sp-surface">
+            <div class="sp-empty-state">
+                <div class="sp-empty-icon">{_escape(icon)}</div>
+                <div class="sp-empty-title">{_escape(title)}</div>
+                {subtitle_block}
+            </div>
         </div>
         """
     )
@@ -480,33 +494,6 @@ def empty_state(
 class PageMeta:
     title: str
     subtitle: str | None = None
-
-
-def page_header(
-    meta: PageMeta,
-    *,
-    right_actions: Callable[[], None] | None = None,
-):
-    spacer(SPACE_XS)
-
-    if right_actions and not is_mobile():
-        left, right = st.columns(
-            [4, 1.5], gap=DEFAULT_GRID_GAP, vertical_alignment="center"
-        )
-
-        with left:
-            _page_title(meta)
-
-        with right:
-            right_actions()
-    else:
-        _page_title(meta)
-
-        if right_actions:
-            compact_gap()
-            right_actions()
-
-    spacer(SPACE_MD)
 
 
 def _page_title(meta: PageMeta) -> None:
@@ -524,3 +511,32 @@ def _page_title(meta: PageMeta) -> None:
         </div>
         """
     )
+
+
+def page_header(
+    meta: PageMeta,
+    *,
+    right_actions: Callable[[], None] | None = None,
+) -> None:
+    spacer(SPACE_XS)
+
+    if right_actions and not is_mobile():
+        left, right = st.columns(
+            [4, 1.5],
+            gap=DEFAULT_GRID_GAP,
+            vertical_alignment="center",
+        )
+
+        with left:
+            _page_title(meta)
+
+        with right:
+            right_actions()
+    else:
+        _page_title(meta)
+
+        if right_actions:
+            compact_gap()
+            right_actions()
+
+    spacer(SPACE_MD)
