@@ -679,13 +679,15 @@ class ProcessosService:
             or 0
         )
 
+        status_expr = func.lower(func.coalesce(Processo.status, ""))
+
         grouped = session.execute(
             select(
-                func.lower(func.coalesce(Processo.status, "")).label("status"),
+                status_expr.label("status"),
                 func.count().label("total"),
             )
             .where(_owner_stmt(owner_user_id))
-            .group_by(func.lower(func.coalesce(Processo.status, "")))
+            .group_by(status_expr)
         ).all()
 
         by_status = {str(status or ""): int(qty or 0) for status, qty in grouped}

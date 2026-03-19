@@ -18,11 +18,13 @@ from ui.layout import content_shell
 from ui.theme import app_error, inject_global_css
 from ui_state import (
     MENU_DEFAULT,
+    apply_menu_from_qp,
     consume_nav_target,
     get_current_menu,
-    get_qp_str,
+    get_current_section,
     init_state,
     is_valid_menu,
+    on_sidebar_menu_change,
     on_top_nav_change,
     set_current_menu,
 )
@@ -49,7 +51,8 @@ APP_ICON = "📐"
 
 NAV_MODE_KEY = "ui_nav_mode"
 
-SIDEBAR_MENU_KEY = "sidebar_menu_radio"
+# usar as chaves canônicas do ui_state
+SIDEBAR_MENU_KEY = "sidebar_menu"
 TOP_NAV_MENU_KEY = "top_nav_menu"
 
 SIDEBAR_NAV_MODE_WIDGET_KEY = "sidebar_nav_mode_widget"
@@ -103,6 +106,13 @@ st.session_state.setdefault(NAV_MODE_KEY, "sidebar")
 st.session_state.setdefault("force_mobile", False)
 st.session_state.setdefault("ui_mobile_cards", False)
 st.session_state.setdefault("ui_debug", False)
+
+# garante que os widgets usem valores válidos
+if st.session_state.get(SIDEBAR_MENU_KEY) not in MENU_KEYS:
+    st.session_state[SIDEBAR_MENU_KEY] = MENU_DEFAULT
+
+if st.session_state.get(TOP_NAV_MENU_KEY) not in MENU_KEYS:
+    st.session_state[TOP_NAV_MENU_KEY] = MENU_DEFAULT
 
 # ==========================================================
 # Bootstrap cache
@@ -168,16 +178,21 @@ owner_user_id = _get_owner_user_id_cached(DEFAULT_EMAIL, DEFAULT_NAME)
 
 
 def _apply_initial_route_sync() -> None:
+    """
+    Prioridade de rota:
+    1. navegação interna por botão/atalho (nav_target)
+    2. query param da URL (deep link)
+    3. estado atual válido
+    4. fallback para default
+    """
     nav_target = consume_nav_target(default=None)
-    qp_menu = get_qp_str("menu")
 
     if is_valid_menu(nav_target, MENU_KEYS):
         set_current_menu(str(nav_target), update_qp=False)
         return
 
-    if is_valid_menu(qp_menu, MENU_KEYS):
-        set_current_menu(str(qp_menu), update_qp=False)
-        return
+    menu_from_qp = apply_menu_from_qp(allowed=MENU_KEYS, default=MENU_DEFAULT)
+    set_current_menu(menu_from_qp, update_qp=False)
 
     current = get_current_menu(default=MENU_DEFAULT)
     if not is_valid_menu(current, MENU_KEYS):
@@ -208,6 +223,8 @@ def _menu_format(menu_key: str) -> str:
 
 
 def _go_to_menu(menu_key: str) -> None:
+    if menu_key not in MENU_KEYS:
+        return
     set_current_menu(menu_key)
     _rerun_soft()
 
@@ -260,13 +277,11 @@ def _nav_mode_from_label(label: str | None) -> str:
 def _on_sidebar_nav_mode_change() -> None:
     selected_label = st.session_state.get(SIDEBAR_NAV_MODE_WIDGET_KEY, "Sidebar")
     _set_nav_mode(_nav_mode_from_label(selected_label))
-    _rerun_soft()
 
 
 def _on_top_nav_mode_change() -> None:
     selected_label = st.session_state.get(TOP_NAV_MODE_WIDGET_KEY, "Topo")
     _set_nav_mode(_nav_mode_from_label(selected_label))
-    _rerun_soft()
 
 
 # ==========================================================
@@ -279,6 +294,7 @@ def _top_nav(current_menu: str) -> str:
         return current_menu
 
     current_value = get_current_menu(default=current_menu)
+    current_section = get_current_section(current_value, default=None)
 
     st.session_state[TOP_NAV_MENU_KEY] = current_value
     st.session_state[TOP_NAV_MODE_WIDGET_KEY] = _nav_mode_label(_nav_mode())
@@ -313,12 +329,18 @@ def _top_nav(current_menu: str) -> str:
         with col_action:
             if st.button(
                 "Atualizar",
+                key="top_nav_refresh_button",
                 help="Recarregar a página atual",
                 use_container_width=True,
             ):
                 _rerun_soft()
 
         st.divider()
+
+        if current_section:
+            st.caption(f"📍 {current_value} • {current_section}")
+        else:
+            st.caption(f"📍 {current_value}")
 
     return get_current_menu(default=current_menu)
 
@@ -341,17 +363,17 @@ def _render_sidebar_navigation(current_menu: str) -> None:
         unsafe_allow_html=True,
     )
 
-    selected = st.sidebar.radio(
+    st.session_state[SIDEBAR_MENU_KEY] = current_menu
+
+    st.sidebar.radio(
         "Menu principal",
         MENU_KEYS,
         index=MENU_KEYS.index(current_menu) if current_menu in MENU_KEYS else 0,
         format_func=_menu_format,
         label_visibility="collapsed",
         key=SIDEBAR_MENU_KEY,
+        on_change=on_sidebar_menu_change,
     )
-
-    if selected != current_menu:
-        _go_to_menu(selected)
 
 
 def _render_sidebar_quick_actions() -> None:
@@ -363,11 +385,20 @@ def _render_sidebar_quick_actions() -> None:
     col1, col2 = st.sidebar.columns(2, gap="small")
 
     with col1:
-        if st.button("Sincronizar", use_container_width=True, type="primary"):
+        if st.button(
+            "Sincronizar",
+            key="sidebar_sync_button",
+            use_container_width=True,
+            type="primary",
+        ):
             _sync_hard()
 
     with col2:
-        if st.button("Atualizar", use_container_width=True):
+        if st.button(
+            "Atualizar",
+            key="sidebar_refresh_button",
+            use_container_width=True,
+        ):
             _rerun_soft()
 
 
@@ -391,7 +422,11 @@ def _render_sidebar_config() -> None:
         st.checkbox("Debug UI", key="ui_debug")
 
         if bool(st.session_state.get("ui_debug", False)):
-            if st.button("Limpar cache", use_container_width=True):
+            if st.button(
+                "Limpar cache",
+                key="sidebar_clear_cache_button",
+                use_container_width=True,
+            ):
                 _clear_ui_cache()
 
 
@@ -471,5 +506,8 @@ if _show_sidebar():
 
 if _show_top_nav():
     current_menu = _top_nav(current_menu)
+
+# sincroniza com o estado final depois de qualquer interação de UI
+current_menu = get_current_menu(default=MENU_DEFAULT)
 
 render_shell(current_menu, owner_user_id)

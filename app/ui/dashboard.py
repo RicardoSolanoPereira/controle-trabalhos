@@ -14,7 +14,11 @@ from services.utils import ensure_br, format_date_br, now_br
 from ui.layout import content_shell, empty_state, grid, grid_weights, section, spacer
 from ui.page_header import HeaderAction, page_header
 from ui.theme import card
-from ui_state import get_data_version, navigate
+from ui_state import (
+    get_data_version,
+    set_current_menu,
+    set_current_section,
+)
 
 ATUACAO_UI = {
     "(Todas)": None,
@@ -586,11 +590,50 @@ def _today_label() -> str:
     return f"{dias[agora.weekday()]}, {agora.strftime('%d/%m/%Y')}"
 
 
-def _make_nav_callback(page: str, state: dict[str, Any] | None = None):
-    def _callback() -> None:
-        navigate(page, state=state)
+# ==========================================================
+# Navegação SaaS
+# ==========================================================
 
-    return _callback
+
+def _sync_query_params(menu: str, section: str | None = None) -> None:
+    """
+    Sincroniza a navegação na URL para evitar o cenário em que
+    o app lê `?menu=Painel` e sobrescreve o clique do botão no rerun.
+    """
+    try:
+        st.query_params["menu"] = menu
+        if section:
+            st.query_params["section"] = section
+        else:
+            try:
+                del st.query_params["section"]
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _go_to(menu: str, section: str | None = None) -> None:
+    set_current_menu(menu)
+    if section:
+        set_current_section(menu, section)
+    _sync_query_params(menu, section)
+
+
+def _nav_map(menu: str, state: dict[str, Any] | None) -> str | None:
+    if not state:
+        return None
+
+    mapping = {
+        "Prazos": "prazos_section",
+        "Trabalhos": "trabalhos_section",
+        "Financeiro": "financeiro_section",
+        "Agenda": "agenda_section",
+        "Andamentos": "andamentos_section",
+    }
+
+    key = mapping.get(menu)
+    return state.get(key) if key else None
 
 
 def _render_nav_button(
@@ -601,12 +644,15 @@ def _render_nav_button(
     key: str,
     type: str = "secondary",
 ) -> None:
+    section = _nav_map(page, state)
+
     st.button(
         label,
         key=key,
         type=type,
         use_container_width=True,
-        on_click=_make_nav_callback(page, state),
+        on_click=_go_to,
+        args=(page, section),
     )
 
 
@@ -826,32 +872,32 @@ def _build_trabalhos_df(rows: list[tuple]) -> pd.DataFrame:
 
 
 # ==========================================================
-# Navegação
+# Navegação específica do dashboard
 # ==========================================================
 
 
 def _go_prazos_lista() -> None:
-    navigate("Prazos", state={"prazos_section": "Lista"})
+    _go_to("Prazos", "Lista")
 
 
 def _go_trabalhos_lista() -> None:
-    navigate("Trabalhos", state={"trabalhos_section": "Lista"})
+    _go_to("Trabalhos", "Lista")
 
 
 def _go_financeiro_lancamentos() -> None:
-    navigate("Financeiro", state={"financeiro_section": "Lançamentos"})
+    _go_to("Financeiro", "Lançamentos")
 
 
 def _go_agenda() -> None:
-    navigate("Agenda")
+    _go_to("Agenda", "Agenda")
 
 
 def _go_prazos_cadastro() -> None:
-    navigate("Prazos", state={"prazos_section": "Cadastro"})
+    _go_to("Prazos", "Cadastro")
 
 
 def _go_trabalhos_cadastro() -> None:
-    navigate("Trabalhos", state={"trabalhos_section": "Cadastro"})
+    _go_to("Trabalhos", "Cadastro")
 
 
 # ==========================================================
@@ -875,7 +921,7 @@ def _build_focus_state(kpis: dict[str, Any]) -> dict[str, Any]:
                 "Tratar primeiro os itens com maior urgência",
                 "Registrar a atualização logo após cada avanço",
             ],
-            "primary": ("Abrir prazos", _go_prazos_lista),
+            "primary": ("Ver prazos", _go_prazos_lista),
             "secondary": ("Novo prazo", _go_prazos_cadastro),
         }
 
@@ -894,8 +940,8 @@ def _build_focus_state(kpis: dict[str, Any]) -> dict[str, Any]:
                 "Separar documentos e anexos",
                 "Confirmar logística da visita ou audiência",
             ],
-            "primary": ("Abrir agenda", _go_agenda),
-            "secondary": ("Abrir trabalhos", _go_trabalhos_lista),
+            "primary": ("Ver agenda", _go_agenda),
+            "secondary": ("Ver trabalhos", _go_trabalhos_lista),
         }
 
     if kpis["prazos_7dias"] > 0:
@@ -913,7 +959,7 @@ def _build_focus_state(kpis: dict[str, Any]) -> dict[str, Any]:
                 "Separar as peças por trabalho",
                 "Distribuir a carga antes do vencimento",
             ],
-            "primary": ("Ver próximos prazos", _go_prazos_lista),
+            "primary": ("Ver prazos", _go_prazos_lista),
             "secondary": ("Novo trabalho", _go_trabalhos_cadastro),
         }
 
@@ -1708,40 +1754,36 @@ def _render_quick_actions() -> None:
         subtitle="Atalhos para os fluxos mais usados",
         divider=False,
     ):
-        _render_html('<div class="sp-dashboard-action-grid">')
-        try:
-            c1, c2, c3, c4 = grid(4, columns_mobile=2)
+        c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
-            with c1:
-                _render_action_button(
-                    "📁 Novo trabalho",
-                    key="dash_quick_new_trabalho",
-                    button_type="primary",
-                    on_click=_go_trabalhos_cadastro,
-                )
+        with c1:
+            _render_action_button(
+                "📁 Novo trabalho",
+                key="dash_quick_new_trabalho",
+                button_type="primary",
+                on_click=_go_trabalhos_cadastro,
+            )
 
-            with c2:
-                _render_action_button(
-                    "⏳ Novo prazo",
-                    key="dash_quick_new_prazo",
-                    on_click=_go_prazos_cadastro,
-                )
+        with c2:
+            _render_action_button(
+                "⏳ Novo prazo",
+                key="dash_quick_new_prazo",
+                on_click=_go_prazos_cadastro,
+            )
 
-            with c3:
-                _render_action_button(
-                    "📅 Novo agendamento",
-                    key="dash_quick_agenda",
-                    on_click=_go_agenda,
-                )
+        with c3:
+            _render_action_button(
+                "📅 Novo agendamento",
+                key="dash_quick_agenda",
+                on_click=_go_agenda,
+            )
 
-            with c4:
-                _render_action_button(
-                    "💰 Registrar financeiro",
-                    key="dash_quick_financeiro",
-                    on_click=_go_financeiro_lancamentos,
-                )
-        finally:
-            _render_html("</div>")
+        with c4:
+            _render_action_button(
+                "💰 Registrar financeiro",
+                key="dash_quick_financeiro",
+                on_click=_go_financeiro_lancamentos,
+            )
 
 
 def _render_focus_panel(kpis: dict[str, Any]) -> None:
@@ -2093,7 +2135,7 @@ def _render_tab_prazos(
             )
             spacer(0.08)
             _render_nav_button(
-                "Ver todos os atrasados",
+                "Ver prazos atrasados",
                 page="Prazos",
                 state={"prazos_section": "Lista"},
                 key="dash_prazos_preview_all_atrasados",
@@ -2128,7 +2170,7 @@ def _render_tab_prazos(
             )
             spacer(0.08)
             _render_nav_button(
-                "Abrir módulo de prazos",
+                "Ver prazos",
                 page="Prazos",
                 state={"prazos_section": "Lista"},
                 key="dash_prazos_preview_open",
@@ -2209,8 +2251,9 @@ def _render_tab_agenda(
             )
             spacer(0.08)
             _render_nav_button(
-                "Abrir agenda",
+                "Ver agenda",
                 page="Agenda",
+                state={"agenda_section": "Agenda"},
                 key="dash_agenda_preview_open_24h",
                 type="primary",
             )
@@ -2247,8 +2290,9 @@ def _render_tab_agenda(
             )
             spacer(0.08)
             _render_nav_button(
-                "Ir para agenda completa",
+                "Abrir agenda",
                 page="Agenda",
+                state={"agenda_section": "Agenda"},
                 key="dash_agenda_preview_open_7d",
                 type="secondary",
             )
@@ -2318,7 +2362,7 @@ def _render_tab_trabalhos(
 
         with c1:
             _render_nav_button(
-                "Abrir trabalhos",
+                "Ver trabalhos",
                 page="Trabalhos",
                 state={"trabalhos_section": "Lista"},
                 key="dash_open_trabalhos",

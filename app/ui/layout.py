@@ -114,22 +114,19 @@ def _normalize_positive_sequence(values: Sequence[float] | None) -> tuple[float,
     return tuple(normalized)
 
 
-def _class_attr(name: str | None) -> str:
-    clean = (name or "").strip()
-    return f' class="{_escape(clean, quote=True)}"' if clean else ""
-
-
-def _style_attr(style: str | None) -> str:
-    clean = (style or "").strip()
-    return f' style="{_escape(clean, quote=True)}"' if clean else ""
-
-
-def _merge_classes(*classes: str | None) -> str:
-    return " ".join(c.strip() for c in classes if c and c.strip())
-
-
 def _stacked_containers(total: int) -> list:
     return [st.container() for _ in range(max(1, total))]
+
+
+def _surface_container(*, bordered: bool = True):
+    """
+    Wrapper nativo do Streamlit para evitar HTML envolvendo widgets.
+    """
+    try:
+        return st.container(border=bordered)
+    except TypeError:
+        # compatibilidade com versões sem border=
+        return st.container()
 
 
 # ==========================================================
@@ -179,50 +176,30 @@ def content_shell(
     padding_inline: str | None = None,
     class_name: str | None = None,
 ) -> Iterator[None]:
-    padding = (
-        padding_inline
-        if padding_inline
-        else (PAGE_PADDING_MOBILE if is_mobile() else PAGE_PADDING_DESKTOP)
-    )
+    """
+    Mantido por compatibilidade.
+    Não usa mais div HTML envolvendo widgets.
+    """
+    _ = max_width
+    _ = padding_inline
+    _ = class_name
 
-    style = (
-        f"max-width:{max_width};"
-        "margin:0 auto;"
-        "width:100%;"
-        f"padding-inline:{padding};"
-        "box-sizing:border-box;"
-    )
-
-    classes = _merge_classes("sp-content-shell", class_name)
-    _render_html(f"<div{_class_attr(classes)}{_style_attr(style)}>")
-
-    try:
+    with st.container():
         yield
-    finally:
-        _render_html("</div>")
 
 
 @contextmanager
 def page_stack(class_name: str | None = None) -> Iterator[None]:
-    classes = _merge_classes("sp-stack-lg", class_name)
-    _render_html(f"<div{_class_attr(classes)}>")
-
-    try:
+    _ = class_name
+    with st.container():
         yield
-    finally:
-        _render_html("</div>")
 
 
 @contextmanager
 def topbar_shell(class_name: str | None = None) -> Iterator[None]:
-    classes = _merge_classes("sp-topbar-shell", class_name)
-    _render_html(f"<div{_class_attr(classes)}>")
-
-    try:
-        with plain_block("sp-topbar"):
-            yield
-    finally:
-        _render_html("</div>")
+    _ = class_name
+    with st.container():
+        yield
 
 
 # ==========================================================
@@ -319,11 +296,14 @@ def plain_block(
     class_name: str | None = None,
     style: str | None = None,
 ) -> Iterator[None]:
-    _render_html(f"<div{_class_attr(class_name)}{_style_attr(style)}>")
-    try:
+    """
+    Mantido por compatibilidade.
+    Não envolve widgets com HTML.
+    """
+    _ = class_name
+    _ = style
+    with st.container():
         yield
-    finally:
-        _render_html("</div>")
 
 
 @contextmanager
@@ -332,20 +312,16 @@ def surface(
     style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
-    classes = ["sp-surface"]
+    """
+    Superfície nativa do Streamlit.
+    class_name/style ficam mantidos só por compatibilidade de assinatura.
+    """
+    _ = class_name
+    _ = style
+    _ = padded
 
-    if not padded:
-        classes.append("sp-surface-no-pad")
-
-    if class_name:
-        classes.append(class_name)
-
-    _render_html(f'<div class="{" ".join(classes)}"{_style_attr(style)}>')
-
-    try:
+    with _surface_container(bordered=True):
         yield
-    finally:
-        _render_html("</div>")
 
 
 # ==========================================================
@@ -354,20 +330,9 @@ def surface(
 
 
 def _section_header(title: str, subtitle: str | None = None) -> None:
-    subtitle_block = (
-        f"<div class='sp-section-subtitle'>{_escape(subtitle)}</div>"
-        if subtitle
-        else ""
-    )
-
-    _render_html(
-        f"""
-        <div class="sp-section-header">
-            <div class="sp-section-title">{_escape(title)}</div>
-            {subtitle_block}
-        </div>
-        """
-    )
+    st.markdown(f"### {_escape(title)}")
+    if subtitle:
+        st.caption(subtitle)
 
 
 @contextmanager
@@ -382,6 +347,10 @@ def section(
     surface_style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
+    _ = surface_class
+    _ = surface_style
+    _ = padded
+
     if title:
         if header_actions and not is_mobile():
             left, right = st.columns(
@@ -394,22 +363,20 @@ def section(
                 _section_header(title, subtitle)
 
             with right:
-                with plain_block("sp-section-actions"):
-                    header_actions()
+                header_actions()
         else:
             _section_header(title, subtitle)
 
             if header_actions:
                 compact_gap()
-                with plain_block("sp-section-actions"):
-                    header_actions()
+                header_actions()
 
     if divider:
         divider_space(SPACE_XS, SPACE_SM)
     elif title:
         spacer(SPACE_2XS if compact else SPACE_XS)
 
-    with surface(class_name=surface_class, style=surface_style, padded=padded):
+    with _surface_container(bordered=True):
         yield
 
 
@@ -453,7 +420,7 @@ def toolbar_row(
 
 
 def actions_row(render_actions: Callable[[], None]) -> None:
-    with plain_block("sp-actions-row"):
+    with st.container():
         render_actions()
     spacer(SPACE_SM)
 
@@ -468,21 +435,10 @@ def empty_state(
     subtitle: str | None = "Quando você adicionar itens, eles aparecerão aqui.",
     icon: str = "📭",
 ) -> None:
-    subtitle_block = (
-        f"<div class='sp-empty-subtitle'>{_escape(subtitle)}</div>" if subtitle else ""
-    )
-
-    _render_html(
-        f"""
-        <div class="sp-surface">
-            <div class="sp-empty-state">
-                <div class="sp-empty-icon">{_escape(icon)}</div>
-                <div class="sp-empty-title">{_escape(title)}</div>
-                {subtitle_block}
-            </div>
-        </div>
-        """
-    )
+    text = f"{icon} **{title}**"
+    if subtitle:
+        text += f"\n\n{subtitle}"
+    st.info(text)
 
 
 # ==========================================================
@@ -497,20 +453,9 @@ class PageMeta:
 
 
 def _page_title(meta: PageMeta) -> None:
-    subtitle = (
-        f"<div class='sp-page-subtitle'>{_escape(meta.subtitle)}</div>"
-        if meta.subtitle
-        else ""
-    )
-
-    _render_html(
-        f"""
-        <div class="sp-page-header">
-            <div class="sp-page-title">{_escape(meta.title)}</div>
-            {subtitle}
-        </div>
-        """
-    )
+    st.title(meta.title)
+    if meta.subtitle:
+        st.caption(meta.subtitle)
 
 
 def page_header(

@@ -14,7 +14,7 @@ __all__ = [
     "page_header",
 ]
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v40"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v41"
 _MAX_INLINE_ACTIONS = 3
 _ALLOWED_ACTION_TYPES = {"primary", "secondary"}
 _ALLOWED_BADGE_TONES = {"neutral", "success", "warning", "danger", "info"}
@@ -119,7 +119,6 @@ def _normalize_actions(
                     emphasis=_normalize_emphasis(action.emphasis),
                 )
             )
-
         return normalized
 
     if right_button_label and right_button_label.strip():
@@ -169,11 +168,6 @@ def _inject_page_header_css() -> None:
     _render_html(
         """
         <style>
-        .sp-page-header-wrap{
-            width:100%;
-            margin:0;
-        }
-
         .sp-page-header-shell{
             width:100%;
             border:1px solid rgba(15,23,42,0.06);
@@ -188,10 +182,6 @@ def _inject_page_header_css() -> None:
                 0 1px 2px rgba(15,23,42,0.03),
                 0 12px 30px rgba(15,23,42,0.035);
             padding:1rem 1.05rem;
-        }
-
-        .sp-page-header-local{
-            width:100%;
         }
 
         .sp-page-header-title-block{
@@ -284,10 +274,6 @@ def _inject_page_header_css() -> None:
             font-weight:700;
         }
 
-        .sp-page-header-actions{
-            width:100%;
-        }
-
         .sp-page-header-actions .stButton{
             width:100%;
         }
@@ -319,42 +305,6 @@ def _inject_page_header_css() -> None:
         .sp-page-header-actions .stButton > button:hover{
             transform:translateY(-1px);
             box-shadow:0 8px 18px rgba(15,23,42,0.08);
-        }
-
-        .sp-page-header-actions-inline{
-            width:100%;
-        }
-
-        .sp-page-header-actions-stack > div{
-            margin-bottom:0.42rem;
-        }
-
-        .sp-page-header-actions-stack > div:last-child{
-            margin-bottom:0;
-        }
-
-        .sp-page-header-more-actions{
-            margin-top:0.50rem;
-        }
-
-        .sp-page-header-more-actions details{
-            background:transparent;
-            box-shadow:none;
-            border:none;
-        }
-
-        .sp-page-header-more-actions summary{
-            font-weight:700;
-        }
-
-        .sp-page-header-more-actions [data-testid="stExpander"]{
-            border-radius:14px !important;
-            border:1px solid rgba(15,23,42,0.07) !important;
-            background:rgba(255,255,255,0.52) !important;
-        }
-
-        .sp-page-header-more-actions [data-testid="stExpanderDetails"]{
-            padding-top:0.25rem;
         }
 
         .sp-page-header-divider-space{
@@ -455,8 +405,8 @@ def _render_title_block(
         else ""
     )
 
-    _render_html('<div class="sp-page-header-title-block">')
-    try:
+    with st.container():
+        _render_html('<div class="sp-page-header-title-block">')
         _render_meta_row(eyebrow=eyebrow, badge=badge, badge_tone=badge_tone)
         _render_html(
             f"""
@@ -473,8 +423,6 @@ def _render_title_block(
             {subtitle_block}
             """
         )
-    finally:
-        _render_html("</div>")
 
 
 def _render_single_action(action: HeaderAction, *, key: str) -> bool:
@@ -495,14 +443,11 @@ def _render_actions_mobile(actions: Sequence[HeaderAction], *, base_key: str) ->
     clicked = False
 
     spacer(0.18)
-    _render_html('<div class="sp-page-header-actions-stack">')
-    try:
+    with st.container():
         for action in actions:
             resolved_key = _action_key(action, base_key=base_key)
             if _render_single_action(_mobile_action(action), key=resolved_key):
                 clicked = True
-    finally:
-        _render_html("</div>")
 
     return clicked
 
@@ -520,27 +465,19 @@ def _render_actions_desktop(actions: Sequence[HeaderAction], *, base_key: str) -
     extra_actions = ordered_actions[_MAX_INLINE_ACTIONS:]
 
     if inline_actions:
-        _render_html('<div class="sp-page-header-actions-inline">')
-        try:
-            cols = st.columns(len(inline_actions), gap="small")
-            for col, action in zip(cols, inline_actions):
-                with col:
-                    resolved_key = _action_key(action, base_key=base_key)
-                    if _render_single_action(action, key=resolved_key):
-                        clicked = True
-        finally:
-            _render_html("</div>")
+        cols = st.columns(len(inline_actions), gap="small")
+        for col, action in zip(cols, inline_actions):
+            with col:
+                resolved_key = _action_key(action, base_key=base_key)
+                if _render_single_action(action, key=resolved_key):
+                    clicked = True
 
     if extra_actions:
-        _render_html('<div class="sp-page-header-more-actions">')
-        try:
-            with st.expander("Mais ações", expanded=False):
-                for action in extra_actions:
-                    resolved_key = _action_key(action, base_key=base_key)
-                    if _render_single_action(_mobile_action(action), key=resolved_key):
-                        clicked = True
-        finally:
-            _render_html("</div>")
+        with st.expander("Mais ações", expanded=False):
+            for action in extra_actions:
+                resolved_key = _action_key(action, base_key=base_key)
+                if _render_single_action(_mobile_action(action), key=resolved_key):
+                    clicked = True
 
     return clicked
 
@@ -549,13 +486,11 @@ def _render_actions(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
     if not actions:
         return False
 
-    _render_html('<div class="sp-page-header-actions">')
-    try:
+    with st.container():
+        _render_html('<div class="sp-page-header-actions">')
         if is_mobile():
             return _render_actions_mobile(actions, base_key=base_key)
         return _render_actions_desktop(actions, base_key=base_key)
-    finally:
-        _render_html("</div>")
 
 
 # ==========================================================
@@ -582,11 +517,6 @@ def page_header(
     badge_tone: str = "neutral",
     surface: bool = True,
 ) -> bool:
-    """
-    Renderiza o header padrão de página com comportamento previsível
-    para uso em páginas SaaS.
-    Retorna True se algum botão foi clicado.
-    """
     _inject_page_header_css()
 
     if not (title or "").strip():
@@ -607,12 +537,11 @@ def page_header(
 
     clicked = False
 
-    _render_html('<div class="sp-page-header-wrap">')
-    if surface:
-        _render_html('<div class="sp-page-header-shell">')
-    _render_html('<div class="sp-page-header-local">')
+    container = st.container(border=True) if surface else st.container()
+    with container:
+        if surface:
+            _render_html('<div class="sp-page-header-shell">')
 
-    try:
         if is_mobile():
             _render_title_block(
                 title=title,
@@ -654,11 +583,6 @@ def page_header(
                     badge_tone=badge_tone,
                     compact=compact,
                 )
-    finally:
-        _render_html("</div>")
-        if surface:
-            _render_html("</div>")
-        _render_html("</div>")
 
     if divider:
         _render_html('<div class="sp-page-header-divider-space"></div>')

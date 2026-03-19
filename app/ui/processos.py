@@ -63,6 +63,8 @@ SECTIONS = (SECTION_CARTEIRA, SECTION_NOVO, SECTION_PAINEL)
 K_SECTION = "processos_section"
 K_SECTION_SELECTOR = "processos_section_selector"
 K_SELECTED_ID = "processo_selected_id"
+K_SECTION_LEGACY = "trabalhos_section"
+K_SECTION_SELECTOR_LEGACY = "trabalhos_section_selector"
 
 K_FILTER_STATUS = "processos_filter_status"
 K_FILTER_ATUACAO = "processos_filter_atuacao"
@@ -83,6 +85,8 @@ K_CREATE_CONTRATANTE = "proc_create_contratante"
 K_CREATE_OBS = "proc_create_obs"
 
 K_EDIT_SEARCH = "proc_edit_search"
+
+K_PENDING_SECTION = "_processos_pending_section"
 
 
 def _html_block(content: str) -> str:
@@ -545,26 +549,47 @@ def _inject_css() -> None:
 
 def _legacy_section_to_new(value: str | None) -> str:
     v = (value or "").strip()
+
     if v in SECTIONS:
         return v
-    if v == "Lista":
-        return SECTION_CARTEIRA
-    if v == "Cadastrar":
-        return SECTION_NOVO
-    if v == "Editar":
-        return SECTION_PAINEL
-    return SECTION_CARTEIRA
+
+    mapping = {
+        "Lista": SECTION_CARTEIRA,
+        "Cadastro": SECTION_NOVO,
+        "Cadastrar": SECTION_NOVO,
+        "Novo": SECTION_NOVO,
+        "Editar": SECTION_PAINEL,
+        "Painel": SECTION_PAINEL,
+        "Painel do trabalho": SECTION_PAINEL,
+    }
+
+    return mapping.get(v, SECTION_CARTEIRA)
 
 
 def _sync_from_dashboard_and_qp() -> None:
-    current_section = _legacy_section_to_new(st.session_state.get(K_SECTION))
-    current_selector = _legacy_section_to_new(st.session_state.get(K_SECTION_SELECTOR))
+    raw_section = (
+        get_qp_str("processos_section", "")
+        or get_qp_str("trabalhos_section", "")
+        or st.session_state.get(K_SECTION)
+        or st.session_state.get(K_SECTION_LEGACY)
+        or SECTION_CARTEIRA
+    )
 
-    if K_SECTION not in st.session_state:
-        st.session_state[K_SECTION] = current_section
+    current_section = _legacy_section_to_new(raw_section)
+
+    st.session_state[K_SECTION] = current_section
 
     if K_SECTION_SELECTOR not in st.session_state:
-        st.session_state[K_SECTION_SELECTOR] = current_selector or current_section
+        st.session_state[K_SECTION_SELECTOR] = current_section
+
+    legacy_map = {
+        SECTION_CARTEIRA: "Lista",
+        SECTION_NOVO: "Cadastro",
+        SECTION_PAINEL: "Painel",
+    }
+    legacy_value = legacy_map.get(current_section, "Lista")
+    st.session_state[K_SECTION_LEGACY] = legacy_value
+    st.session_state[K_SECTION_SELECTOR_LEGACY] = legacy_value
 
     st.session_state.setdefault(K_FILTER_ORDEM, "Mais recentes")
     st.session_state.setdefault(K_FILTER_STATUS, "(Todos)")
@@ -598,13 +623,23 @@ def _sync_from_dashboard_and_qp() -> None:
 
     if qp_q:
         st.session_state[K_FILTER_Q] = qp_q
-        _set_section(SECTION_CARTEIRA)
+        st.session_state[K_SECTION] = SECTION_CARTEIRA
 
 
 def _set_section(sec: str) -> None:
     sec = _legacy_section_to_new(sec)
     st.session_state[K_SECTION] = sec
-    st.session_state[K_SECTION_SELECTOR] = sec
+
+    legacy_map = {
+        SECTION_CARTEIRA: "Lista",
+        SECTION_NOVO: "Cadastro",
+        SECTION_PAINEL: "Painel",
+    }
+    legacy_value = legacy_map.get(sec, "Lista")
+    st.session_state[K_SECTION_LEGACY] = legacy_value
+    st.session_state[K_SECTION_SELECTOR_LEGACY] = legacy_value
+
+    navigate("Trabalhos", state={"processos_section": sec})
 
 
 def _go_new() -> None:
@@ -1277,7 +1312,8 @@ def render(owner_user_id: int):
     )
 
     if st.session_state.pop("tb_new", False):
-        _go_new()
+        _set_section(SECTION_NOVO)
+        st.rerun()
 
     if st.session_state.pop("tb_reload", False):
         _clear_data_cache()
@@ -1285,13 +1321,12 @@ def render(owner_user_id: int):
 
     label_vis = "collapsed" if _use_cards() else "visible"
 
-    if st.session_state.get(K_SECTION) not in SECTIONS:
-        _set_section(SECTION_CARTEIRA)
+    section_from_qp = _legacy_section_to_new(
+        get_qp_str("processos_section", st.session_state.get(K_SECTION, SECTION_CARTEIRA))
+    )
 
-    if K_SECTION_SELECTOR not in st.session_state:
-        st.session_state[K_SECTION_SELECTOR] = st.session_state.get(
-            K_SECTION, SECTION_CARTEIRA
-        )
+    if st.session_state.get(K_SECTION_SELECTOR) != section_from_qp:
+        st.session_state[K_SECTION_SELECTOR] = section_from_qp
 
     with section(
         "Modo da tela",
@@ -1317,7 +1352,20 @@ def render(owner_user_id: int):
 
     sec = _legacy_section_to_new(sec)
     st.session_state[K_SECTION] = sec
-    st.session_state[K_SECTION_SELECTOR] = sec
+
+    legacy_map = {
+        SECTION_CARTEIRA: "Lista",
+        SECTION_NOVO: "Cadastro",
+        SECTION_PAINEL: "Painel",
+    }
+    legacy_value = legacy_map.get(sec, "Lista")
+    st.session_state[K_SECTION_LEGACY] = legacy_value
+    st.session_state[K_SECTION_SELECTOR_LEGACY] = legacy_value
+
+    current_qp_section = _legacy_section_to_new(get_qp_str("processos_section", ""))
+    if current_qp_section != sec:
+        navigate("Trabalhos", state={"processos_section": sec})
+        st.rerun()
 
     if sec == SECTION_NOVO:
         _render_cadastrar(owner_user_id)

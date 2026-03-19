@@ -12,12 +12,16 @@ __all__ = [
     "has_state",
     "get_state",
     "set_state",
+    "set_states",
     "del_state",
     "toggle_state_bool",
     "is_valid_menu",
     "get_current_menu",
     "set_current_menu",
+    "get_current_section",
+    "set_current_section",
     "navigate",
+    "navigate_to_section",
     "consume_nav_target",
     "peek_nav_target",
     "on_top_nav_change",
@@ -41,19 +45,56 @@ __all__ = [
 
 MENU_DEFAULT = "Painel"
 
+# Menus efetivos da UI
+VALID_MENUS = {
+    "Painel",
+    "Trabalhos",
+    "Processos",
+    "Prazos",
+    "Financeiro",
+    "Agenda",
+    "Andamentos",
+    "Clientes",
+    "Configurações",
+    # alias legado
+    "Agendamentos",
+}
+
+# alias de compatibilidade
+_MENU_ALIASES: dict[str, str] = {
+    "Agendamentos": "Agenda",
+}
+
 STATE_DEFAULTS: dict[str, Any] = {
-    # navegação
+    # navegação principal
     "sidebar_menu": MENU_DEFAULT,
     "top_nav_menu": MENU_DEFAULT,
     "_last_menu": MENU_DEFAULT,
     "nav_target": None,
     "ui_nav_mode": "sidebar",
+    # subseções por módulo
+    "dashboard_section": "Visão geral",
+    "trabalhos_section": "Lista",
+    "processos_section": "Lista",
+    "prazos_section": "Lista",
+    "financeiro_section": "Lançamentos",
+    "agenda_section": "Agenda",
+    "andamentos_section": "Lista",
+    "clientes_section": "Lista",
+    "configuracoes_section": "Geral",
+    # legado / compatibilidade
+    "agendamentos_section": "Agenda",
+    # ação rápida / contexto de origem
+    "last_action_source": None,
+    "last_action_label": None,
     # refresh / invalidação visual
     "data_version": 0,
     # preferências visuais
     "ui_show_top_nav": True,
     "ui_mobile_cards": False,
     "force_mobile": False,
+    "ui_dense_mode": False,
+    "ui_show_secondary_info": True,
     # suporte / diagnóstico
     "ui_debug": False,
 }
@@ -65,8 +106,25 @@ _UI_FLAG_TO_QP_KEY: dict[str, str] = {
     "ui_show_top_nav": "topnav",
     "ui_mobile_cards": "mobile_cards",
     "force_mobile": "force_mobile",
+    "ui_dense_mode": "dense",
+    "ui_show_secondary_info": "secondary",
     "ui_debug": "debug",
 }
+
+_MENU_TO_SECTION_KEY: dict[str, str] = {
+    "Painel": "dashboard_section",
+    "Trabalhos": "trabalhos_section",
+    "Processos": "processos_section",
+    "Prazos": "prazos_section",
+    "Financeiro": "financeiro_section",
+    "Agenda": "agenda_section",
+    "Andamentos": "andamentos_section",
+    "Clientes": "clientes_section",
+    "Configurações": "configuracoes_section",
+    # alias legado
+    "Agendamentos": "agenda_section",
+}
+
 
 # ==========================================================
 # Helpers básicos
@@ -83,6 +141,11 @@ def get_state(key: str, default: Any = None) -> Any:
 
 def set_state(key: str, value: Any) -> None:
     st.session_state[key] = value
+
+
+def set_states(values: dict[str, Any]) -> None:
+    for key, value in values.items():
+        st.session_state[key] = value
 
 
 def del_state(key: str) -> None:
@@ -107,9 +170,38 @@ def toggle_state_bool(key: str, default: bool = False) -> bool:
 def init_state() -> None:
     """
     Inicializa a sessão com defaults sem sobrescrever valores já existentes.
+    Também normaliza chaves legadas.
     """
     for key, value in STATE_DEFAULTS.items():
         st.session_state.setdefault(key, value)
+
+    _normalize_legacy_state()
+
+
+def _normalize_legacy_state() -> None:
+    """
+    Compatibilidade com nomenclaturas antigas.
+    """
+    current_menu = _normalize_menu(get_state("_last_menu"), default=MENU_DEFAULT)
+    sidebar_menu = _normalize_menu(get_state("sidebar_menu"), default=MENU_DEFAULT)
+    top_nav_menu = _normalize_menu(get_state("top_nav_menu"), default=MENU_DEFAULT)
+    nav_target = _normalize_menu(get_state("nav_target"), default=None)
+
+    set_states(
+        {
+            "_last_menu": current_menu,
+            "sidebar_menu": sidebar_menu,
+            "top_nav_menu": top_nav_menu,
+            "nav_target": nav_target,
+        }
+    )
+
+    # migração suave de seção legado -> atual
+    if has_state("agendamentos_section") and not has_state("agenda_section"):
+        set_state("agenda_section", get_state("agendamentos_section", "Agenda"))
+
+    # espelha legado
+    set_state("agendamentos_section", get_state("agenda_section", "Agenda"))
 
 
 # ==========================================================
@@ -158,6 +250,13 @@ def _as_int(value: Any, default: int = 0) -> int:
 
 def _json_dumps_safe(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def _normalize_menu(menu: Any, default: str | None = None) -> str | None:
+    menu_value = _as_clean_str(menu, default=default)
+    if not menu_value:
+        return default
+    return _MENU_ALIASES.get(menu_value, menu_value)
 
 
 # ==========================================================
@@ -264,15 +363,17 @@ def get_qp_int(key: str, default: int = 0) -> int:
 
 
 def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> bool:
-    menu_value = _as_clean_str(menu)
+    menu_value = _normalize_menu(menu)
     if not menu_value:
         return False
 
     if allowed is None:
-        return True
+        return menu_value in VALID_MENUS
 
     allowed_set = {
-        item.strip() for item in allowed if isinstance(item, str) and item.strip()
+        _normalize_menu(item)
+        for item in allowed
+        if isinstance(item, str) and item.strip()
     }
     return menu_value in allowed_set
 
@@ -282,18 +383,23 @@ def _sync_menu_controls(menu: str) -> None:
     Mantém todos os widgets e referências de navegação
     alinhados com o menu efetivamente selecionado.
     """
-    set_state("_last_menu", menu)
-    set_state("sidebar_menu", menu)
-    set_state("top_nav_menu", menu)
+    menu_value = _normalize_menu(menu, default=MENU_DEFAULT) or MENU_DEFAULT
+    set_states(
+        {
+            "_last_menu": menu_value,
+            "sidebar_menu": menu_value,
+            "top_nav_menu": menu_value,
+        }
+    )
 
 
 def get_current_menu(default: str = MENU_DEFAULT) -> str:
-    value = _as_clean_str(get_state("_last_menu"), default=default)
+    value = _normalize_menu(get_state("_last_menu"), default=default)
     return value or default
 
 
 def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
-    menu_value = _as_clean_str(menu)
+    menu_value = _normalize_menu(menu)
     if not menu_value:
         return
 
@@ -302,6 +408,41 @@ def set_current_menu(menu: str, *, update_qp: bool = True) -> None:
 
     if update_qp:
         _set_qp(menu=menu_value)
+
+
+def get_current_section(
+    menu: str | None = None, default: str | None = None
+) -> str | None:
+    menu_value = _normalize_menu(menu, default=get_current_menu())
+    if not menu_value:
+        return default
+
+    section_key = _MENU_TO_SECTION_KEY.get(menu_value)
+    if not section_key:
+        return default
+
+    return _as_clean_str(get_state(section_key), default=default)
+
+
+def set_current_section(menu: str, section: str, *, update_qp: bool = False) -> None:
+    menu_value = _normalize_menu(menu)
+    section_value = _as_clean_str(section)
+
+    if not menu_value or not section_value:
+        return
+
+    section_key = _MENU_TO_SECTION_KEY.get(menu_value)
+    if not section_key:
+        return
+
+    set_state(section_key, section_value)
+
+    # compatibilidade com chave antiga
+    if menu_value == "Agenda":
+        set_state("agendamentos_section", section_value)
+
+    if update_qp:
+        _set_qp(section=section_value)
 
 
 def navigate(
@@ -321,18 +462,55 @@ def navigate(
     """
     payload: dict[str, Any] = {}
 
-    menu_value = _as_clean_str(menu)
+    menu_value = _normalize_menu(menu)
     if menu_value:
         if update_session:
             set_state("nav_target", menu_value)
             _sync_menu_controls(menu_value)
         payload["menu"] = menu_value
 
+    normalized_state: dict[str, Any] = {}
     if state:
-        payload.update(state)
+        normalized_state = dict(state)
 
+        # migração suave
+        if (
+            "agendamentos_section" in normalized_state
+            and "agenda_section" not in normalized_state
+        ):
+            normalized_state["agenda_section"] = normalized_state[
+                "agendamentos_section"
+            ]
+
+        if "agenda_section" in normalized_state:
+            normalized_state["agendamentos_section"] = normalized_state[
+                "agenda_section"
+            ]
+
+        if update_session:
+            set_states(normalized_state)
+        payload.update(normalized_state)
+
+    normalized_params: dict[str, Any] = {}
     if params:
-        payload.update(params)
+        normalized_params = dict(params)
+
+        if (
+            "agendamentos_section" in normalized_params
+            and "agenda_section" not in normalized_params
+        ):
+            normalized_params["agenda_section"] = normalized_params[
+                "agendamentos_section"
+            ]
+
+        if "agenda_section" in normalized_params:
+            normalized_params["agendamentos_section"] = normalized_params[
+                "agenda_section"
+            ]
+
+        if update_session:
+            set_states(normalized_params)
+        payload.update(normalized_params)
 
     if clear_keys:
         clear_qp_keys(*list(clear_keys))
@@ -341,24 +519,70 @@ def navigate(
         _set_qp(**payload)
 
 
+def navigate_to_section(
+    menu: str,
+    section: str,
+    *,
+    state: dict[str, Any] | None = None,
+    source: str | None = None,
+    action_label: str | None = None,
+    update_qp: bool = True,
+) -> None:
+    """
+    Navegação padronizada para ações rápidas e atalhos internos.
+    """
+    menu_value = _normalize_menu(menu)
+    section_value = _as_clean_str(section)
+
+    if not menu_value or not section_value:
+        return
+
+    section_key = _MENU_TO_SECTION_KEY.get(menu_value)
+    payload_state: dict[str, Any] = {}
+
+    if section_key:
+        payload_state[section_key] = section_value
+
+    if menu_value == "Agenda":
+        payload_state["agendamentos_section"] = section_value
+
+    if state:
+        payload_state.update(state)
+
+    if source:
+        payload_state["last_action_source"] = source
+
+    if action_label:
+        payload_state["last_action_label"] = action_label
+
+    navigate(
+        menu=menu_value,
+        state=payload_state,
+        update_session=True,
+    )
+
+    if update_qp:
+        _set_qp(menu=menu_value, section=section_value)
+
+
 def peek_nav_target(default: str | None = None) -> str | None:
-    return _as_clean_str(get_state("nav_target"), default=default)
+    return _normalize_menu(get_state("nav_target"), default=default)
 
 
 def consume_nav_target(default: str | None = None) -> str | None:
-    target = _as_clean_str(get_state("nav_target"), default=default)
+    target = _normalize_menu(get_state("nav_target"), default=default)
     set_state("nav_target", None)
     return target
 
 
 def on_top_nav_change() -> None:
-    menu = _as_clean_str(get_state("top_nav_menu"), default=MENU_DEFAULT)
+    menu = _normalize_menu(get_state("top_nav_menu"), default=MENU_DEFAULT)
     if menu and menu != get_state("_last_menu"):
         set_current_menu(menu)
 
 
 def on_sidebar_menu_change() -> None:
-    menu = _as_clean_str(get_state("sidebar_menu"), default=MENU_DEFAULT)
+    menu = _normalize_menu(get_state("sidebar_menu"), default=MENU_DEFAULT)
     if menu and menu != get_state("_last_menu"):
         set_current_menu(menu)
 
@@ -371,12 +595,17 @@ def apply_menu_from_qp(
     """
     Aplica o menu vindo da URL, se válido, e retorna o menu efetivo.
     """
-    qp_menu = get_qp_str("menu")
+    qp_menu = _normalize_menu(get_qp_str("menu"))
+    qp_section = get_qp_str("section")
 
     if is_valid_menu(qp_menu, allowed):
-        menu_value = _as_clean_str(qp_menu, default=default) or default
+        menu_value = _normalize_menu(qp_menu, default=default) or default
         _sync_menu_controls(menu_value)
         set_state("nav_target", None)
+
+        if qp_section:
+            set_current_section(menu_value, qp_section, update_qp=False)
+
         return menu_value
 
     current = get_current_menu(default=default)
