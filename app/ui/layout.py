@@ -7,7 +7,7 @@ from typing import Callable, Iterator, Sequence
 
 import streamlit as st
 
-from app.ui import theme
+from . import theme
 
 
 __all__ = [

@@ -7,7 +7,7 @@ from typing import Callable, Sequence
 
 import streamlit as st
 
-from ui.layout import grid_weights, is_mobile, spacer
+from .layout import grid_weights, is_mobile, spacer
 
 __all__ = [
     "HeaderAction",
