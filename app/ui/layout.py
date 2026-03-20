@@ -7,6 +7,8 @@ from typing import Callable, Iterator, Sequence
 
 import streamlit as st
 
+from app.ui import theme
+
 
 __all__ = [
     "MOBILE_FLAG_KEY",
@@ -37,10 +39,6 @@ __all__ = [
 ]
 
 
-# ==========================================================
-# Mobile state
-# ==========================================================
-
 MOBILE_FLAG_KEY = "force_mobile"
 
 
@@ -57,10 +55,6 @@ def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
     )
 
 
-# ==========================================================
-# Layout tokens
-# ==========================================================
-
 SPACE_2XS = 0.08
 SPACE_XS = 0.16
 SPACE_SM = 0.30
@@ -69,16 +63,11 @@ SPACE_LG = 0.88
 SPACE_XL = 1.20
 SPACE_2XL = 1.60
 
-PAGE_MAX_WIDTH = "1360px"
+PAGE_MAX_WIDTH = "1380px"
 PAGE_PADDING_DESKTOP = "12px"
 PAGE_PADDING_MOBILE = "10px"
 
 DEFAULT_GRID_GAP = "medium"
-
-
-# ==========================================================
-# Internal helpers
-# ==========================================================
 
 
 def _render_html(content: str) -> None:
@@ -119,19 +108,26 @@ def _stacked_containers(total: int) -> list:
 
 
 def _surface_container(*, bordered: bool = True):
-    """
-    Wrapper nativo do Streamlit para evitar HTML envolvendo widgets.
-    """
     try:
         return st.container(border=bordered)
     except TypeError:
-        # compatibilidade com versões sem border=
         return st.container()
 
 
-# ==========================================================
-# Spacing system
-# ==========================================================
+def _section_header_html(title: str, subtitle: str | None = None) -> None:
+    subtitle_block = (
+        f"<div class='sp-section-subtitle'>{_escape(subtitle)}</div>"
+        if subtitle
+        else ""
+    )
+    _render_html(
+        f"""
+        <div class="sp-section-header">
+          <div class="sp-section-title">{_escape(title)}</div>
+          {subtitle_block}
+        </div>
+        """
+    )
 
 
 def spacer(height_rem: float = SPACE_SM) -> None:
@@ -157,16 +153,9 @@ def divider_space(top: float | None = None, bottom: float | None = None) -> None
 
     if top_value > 0:
         spacer(top_value)
-
     st.divider()
-
     if bottom_value > 0:
         spacer(bottom_value)
-
-
-# ==========================================================
-# Page shell
-# ==========================================================
 
 
 @contextmanager
@@ -176,35 +165,46 @@ def content_shell(
     padding_inline: str | None = None,
     class_name: str | None = None,
 ) -> Iterator[None]:
-    """
-    Mantido por compatibilidade.
-    Não usa mais div HTML envolvendo widgets.
-    """
     _ = max_width
     _ = padding_inline
-    _ = class_name
+    wrapper_classes = "sp-content-shell"
+    if class_name:
+        wrapper_classes = f"{wrapper_classes} {class_name.strip()}"
 
-    with st.container():
-        yield
+    _render_html(f"<div class='{wrapper_classes}'>")
+    try:
+        with st.container():
+            yield
+    finally:
+        _render_html("</div>")
 
 
 @contextmanager
 def page_stack(class_name: str | None = None) -> Iterator[None]:
-    _ = class_name
-    with st.container():
-        yield
+    classes = "sp-stack-lg"
+    if class_name:
+        classes = f"{classes} {class_name.strip()}"
+
+    _render_html(f"<div class='{classes}'>")
+    try:
+        with st.container():
+            yield
+    finally:
+        _render_html("</div>")
 
 
 @contextmanager
 def topbar_shell(class_name: str | None = None) -> Iterator[None]:
-    _ = class_name
-    with st.container():
-        yield
+    classes = "sp-stack-sm"
+    if class_name:
+        classes = f"{classes} {class_name.strip()}"
 
-
-# ==========================================================
-# Grid system
-# ==========================================================
+    _render_html(f"<div class='{classes}'>")
+    try:
+        with st.container():
+            yield
+    finally:
+        _render_html("</div>")
 
 
 def grid(
@@ -219,19 +219,16 @@ def grid(
         return list(st.columns(total, gap=gap, vertical_alignment="top"))
 
     mobile_cols = max(1, int(columns_mobile))
-
     if mobile_cols == 1:
         return _stacked_containers(total)
 
     slots = []
     remaining = total
-
     while remaining > 0:
         current = min(mobile_cols, remaining)
         row = st.columns(current, gap=gap, vertical_alignment="top")
         slots.extend(row)
         remaining -= current
-
     return slots
 
 
@@ -253,15 +250,9 @@ def grid_weights(
     return list(st.columns(mobile, gap=gap, vertical_alignment="top"))
 
 
-# ==========================================================
-# Common semantic layouts
-# ==========================================================
-
-
 def content_columns(left: float = 1.45, right: float = 1.0):
     if is_mobile():
         return st.container(), st.container()
-
     cols = st.columns([left, right], gap=DEFAULT_GRID_GAP, vertical_alignment="top")
     return cols[0], cols[1]
 
@@ -269,7 +260,6 @@ def content_columns(left: float = 1.45, right: float = 1.0):
 def split_hero(left_ratio: float = 1.2, right_ratio: float = 1.0):
     if is_mobile():
         return st.container(), st.container()
-
     cols = st.columns(
         [left_ratio, right_ratio],
         gap=DEFAULT_GRID_GAP,
@@ -281,14 +271,8 @@ def split_hero(left_ratio: float = 1.2, right_ratio: float = 1.0):
 def dashboard_rail(main: float = 1.55, aside: float = 1.0):
     if is_mobile():
         return st.container(), st.container()
-
     cols = st.columns([main, aside], gap=DEFAULT_GRID_GAP, vertical_alignment="top")
     return cols[0], cols[1]
-
-
-# ==========================================================
-# Primitive containers
-# ==========================================================
 
 
 @contextmanager
@@ -296,14 +280,16 @@ def plain_block(
     class_name: str | None = None,
     style: str | None = None,
 ) -> Iterator[None]:
-    """
-    Mantido por compatibilidade.
-    Não envolve widgets com HTML.
-    """
-    _ = class_name
     _ = style
-    with st.container():
-        yield
+    classes = class_name.strip() if class_name else ""
+    if classes:
+        _render_html(f"<div class='{classes}'>")
+    try:
+        with st.container():
+            yield
+    finally:
+        if classes:
+            _render_html("</div>")
 
 
 @contextmanager
@@ -312,27 +298,26 @@ def surface(
     style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
-    """
-    Superfície nativa do Streamlit.
-    class_name/style ficam mantidos só por compatibilidade de assinatura.
-    """
-    _ = class_name
     _ = style
-    _ = padded
+    classes = ["sp-surface"]
+    if not padded:
+        classes.append("sp-surface-no-pad")
+    if class_name:
+        classes.append(class_name.strip())
 
-    with _surface_container(bordered=True):
-        yield
+    _render_html(f"<div class='{' '.join(classes)}'>")
+    try:
+        with _surface_container(bordered=False):
+            yield
+    finally:
+        _render_html("</div>")
 
 
-# ==========================================================
-# Section layout
-# ==========================================================
-
-
-def _section_header(title: str, subtitle: str | None = None) -> None:
-    st.markdown(f"### {_escape(title)}")
-    if subtitle:
-        st.caption(subtitle)
+def _section_header(
+    title: str,
+    subtitle: str | None = None,
+) -> None:
+    _section_header_html(title, subtitle)
 
 
 @contextmanager
@@ -347,26 +332,21 @@ def section(
     surface_style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
-    _ = surface_class
     _ = surface_style
-    _ = padded
 
     if title:
         if header_actions and not is_mobile():
             left, right = st.columns(
-                [4, 1.2],
+                [4, 1.3],
                 gap=DEFAULT_GRID_GAP,
                 vertical_alignment="center",
             )
-
             with left:
                 _section_header(title, subtitle)
-
             with right:
                 header_actions()
         else:
             _section_header(title, subtitle)
-
             if header_actions:
                 compact_gap()
                 header_actions()
@@ -376,8 +356,18 @@ def section(
     elif title:
         spacer(SPACE_2XS if compact else SPACE_XS)
 
-    with _surface_container(bordered=True):
-        yield
+    classes = ["sp-surface"]
+    if not padded:
+        classes.append("sp-surface-no-pad")
+    if surface_class:
+        classes.append(surface_class.strip())
+
+    _render_html(f"<div class='{' '.join(classes)}'>")
+    try:
+        with _surface_container(bordered=False):
+            yield
+    finally:
+        _render_html("</div>")
 
 
 @contextmanager
@@ -386,48 +376,33 @@ def section_surface(title: str | None = None, **kwargs) -> Iterator[None]:
         yield
 
 
-# ==========================================================
-# Toolbars / action rows
-# ==========================================================
-
-
 def toolbar_row(
     left_content: Callable[[], None] | None = None,
     right_actions: Callable[[], None] | None = None,
 ) -> None:
     if is_mobile():
-        if left_content:
-            left_content()
-
-        if right_actions:
-            compact_gap()
-            right_actions()
-
+        with plain_block("sp-stack-sm"):
+            if left_content:
+                left_content()
+            if right_actions:
+                right_actions()
         spacer(SPACE_SM)
         return
 
     left, right = st.columns([3, 2], gap=DEFAULT_GRID_GAP, vertical_alignment="center")
-
     with left:
         if left_content:
             left_content()
-
     with right:
         if right_actions:
             right_actions()
-
     spacer(SPACE_SM)
 
 
 def actions_row(render_actions: Callable[[], None]) -> None:
-    with st.container():
+    with plain_block("sp-stack-xs"):
         render_actions()
     spacer(SPACE_SM)
-
-
-# ==========================================================
-# Empty state
-# ==========================================================
 
 
 def empty_state(
@@ -435,15 +410,7 @@ def empty_state(
     subtitle: str | None = "Quando você adicionar itens, eles aparecerão aqui.",
     icon: str = "📭",
 ) -> None:
-    text = f"{icon} **{title}**"
-    if subtitle:
-        text += f"\n\n{subtitle}"
-    st.info(text)
-
-
-# ==========================================================
-# Page header
-# ==========================================================
+    theme.empty_state(title=title, subtitle=subtitle or "", icon=icon)
 
 
 @dataclass(frozen=True)
@@ -453,9 +420,19 @@ class PageMeta:
 
 
 def _page_title(meta: PageMeta) -> None:
-    st.title(meta.title)
-    if meta.subtitle:
-        st.caption(meta.subtitle)
+    subtitle_block = (
+        f"<div class='sp-page-subtitle'>{_escape(meta.subtitle)}</div>"
+        if meta.subtitle
+        else ""
+    )
+    _render_html(
+        f"""
+        <div class="sp-page-header">
+          <div class="sp-page-title">{_escape(meta.title)}</div>
+          {subtitle_block}
+        </div>
+        """
+    )
 
 
 def page_header(
@@ -471,15 +448,12 @@ def page_header(
             gap=DEFAULT_GRID_GAP,
             vertical_alignment="center",
         )
-
         with left:
             _page_title(meta)
-
         with right:
             right_actions()
     else:
         _page_title(meta)
-
         if right_actions:
             compact_gap()
             right_actions()

@@ -45,6 +45,11 @@ def _esc(value: Any, fallback: str = "—") -> str:
 
 
 def _inject_dashboard_css() -> None:
+    css_key = "_sp_dashboard_css_v70"
+    if st.session_state.get(css_key):
+        return
+    st.session_state[css_key] = True
+
     _render_html(
         """
         <style>
@@ -86,18 +91,34 @@ def _inject_dashboard_css() -> None:
         }
 
         .sp-dash-hero{
-            padding:20px 22px;
+            position:relative;
+            overflow:hidden;
+            padding:22px 24px;
             border:1px solid rgba(15,23,42,.06);
             border-radius:22px;
             background:
-                radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 26%),
-                linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(248,250,252,.95) 100%);
+                radial-gradient(circle at top right, rgba(53,94,87,.10), transparent 28%),
+                linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(247,250,249,.96) 100%);
             box-shadow:
                 0 1px 2px rgba(15,23,42,.03),
-                0 16px 32px rgba(15,23,42,.05);
+                0 16px 34px rgba(15,23,42,.05);
+        }
+
+        .sp-dash-hero::after{
+            content:"";
+            position:absolute;
+            top:-36px;
+            right:-16px;
+            width:160px;
+            height:160px;
+            border-radius:999px;
+            background:radial-gradient(circle, rgba(53,94,87,.10), transparent 70%);
+            pointer-events:none;
         }
 
         .sp-dash-hero-top{
+            position:relative;
+            z-index:1;
             display:flex;
             align-items:flex-start;
             justify-content:space-between;
@@ -106,26 +127,29 @@ def _inject_dashboard_css() -> None:
         }
 
         .sp-dash-hero-title{
-            font-size:1.24rem;
+            font-size:1.26rem;
             font-weight:840;
-            line-height:1.22;
+            line-height:1.18;
             color:#0f172a;
-            letter-spacing:-0.01em;
+            letter-spacing:-0.02em;
+            max-width:38ch;
         }
 
         .sp-dash-hero-copy{
             color:rgba(15,23,42,.70);
             font-size:.94rem;
-            line-height:1.5;
-            margin-top:6px;
-            max-width:74ch;
+            line-height:1.54;
+            margin-top:7px;
+            max-width:76ch;
         }
 
         .sp-dash-hero-meta{
+            position:relative;
+            z-index:1;
             display:flex;
             gap:8px;
             flex-wrap:wrap;
-            margin-top:14px;
+            margin-top:15px;
         }
 
         .sp-dash-command{
@@ -142,18 +166,18 @@ def _inject_dashboard_css() -> None:
         }
 
         .sp-dash-command-title{
-            font-size:.98rem;
-            font-weight:800;
+            font-size:1rem;
+            font-weight:810;
             color:#0f172a;
             line-height:1.3;
         }
 
         .sp-dash-command-sub{
-            font-size:.86rem;
-            line-height:1.42;
+            font-size:.87rem;
+            line-height:1.44;
             color:rgba(15,23,42,.64);
             margin-top:4px;
-            max-width:70ch;
+            max-width:72ch;
         }
 
         .sp-dash-band{
@@ -175,7 +199,7 @@ def _inject_dashboard_css() -> None:
         .sp-dash-band-copy{
             margin-top:6px;
             font-size:.90rem;
-            line-height:1.46;
+            line-height:1.48;
             color:rgba(15,23,42,.67);
             max-width:72ch;
         }
@@ -386,6 +410,33 @@ def _inject_dashboard_css() -> None:
             margin-top:3px;
         }
 
+        .sp-dash-list-card{
+            border:1px solid rgba(15,23,42,.08);
+            border-radius:16px;
+            padding:13px 14px;
+            background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(249,250,251,.96) 100%);
+            box-shadow:0 1px 2px rgba(15,23,42,.03);
+        }
+
+        .sp-dash-list-card-danger{ border-left:4px solid #dc2626; }
+        .sp-dash-list-card-warning{ border-left:4px solid #f59e0b; }
+        .sp-dash-list-card-info{ border-left:4px solid #2563eb; }
+        .sp-dash-list-card-success{ border-left:4px solid #16a34a; }
+
+        .sp-dash-list-card-title{
+            font-size:.92rem;
+            font-weight:800;
+            line-height:1.34;
+            color:#0f172a;
+        }
+
+        .sp-dash-list-card-sub{
+            margin-top:5px;
+            font-size:.84rem;
+            line-height:1.42;
+            color:rgba(15,23,42,.66);
+        }
+
         .sp-dashboard-action-grid .stButton > button{
             min-height:50px !important;
             font-weight:740 !important;
@@ -429,7 +480,8 @@ def _inject_dashboard_css() -> None:
             .sp-dash-focus,
             .sp-dash-module,
             .sp-dash-alert-strip,
-            .sp-dash-command{
+            .sp-dash-command,
+            .sp-dash-list-card{
                 border-radius:16px;
                 padding:13px;
             }
@@ -506,10 +558,6 @@ def _today_label() -> str:
 
 
 def _sync_query_params(menu: str, section: str | None = None) -> None:
-    """
-    Sincroniza a navegação na URL para evitar o cenário em que
-    o app lê `?menu=Painel` e sobrescreve o clique do botão no rerun.
-    """
     try:
         st.query_params["menu"] = menu
         if section:
@@ -555,7 +603,6 @@ def _render_nav_button(
     type: str = "secondary",
 ) -> None:
     section = _nav_map(page, state)
-
     st.button(
         label,
         key=key,
@@ -893,136 +940,6 @@ def _build_focus_state(kpis: dict[str, Any]) -> dict[str, Any]:
 
 
 # ==========================================================
-# Render helpers de listas
-# ==========================================================
-
-
-def _render_surface_list_item(
-    *,
-    tone: str,
-    title: str,
-    body_lines: list[str] | None = None,
-    chips: list[str] | None = None,
-) -> None:
-    body_lines = body_lines or []
-    chips = chips or []
-
-    tone_cls = {
-        "danger": "sp-dash-list-card-danger",
-        "warning": "sp-dash-list-card-warning",
-        "info": "sp-dash-list-card-info",
-        "success": "sp-dash-list-card-success",
-    }.get(tone, "")
-
-    body_html = "".join(
-        f"<div class='sp-dash-list-card-sub'>{line}</div>"
-        for line in body_lines
-        if line
-    )
-    chips_html = "".join(chips)
-
-    _render_html(
-        f"""
-        <div class="sp-dash-list-card {tone_cls}">
-          <div class="sp-dash-list-card-title">{title}</div>
-          {body_html}
-          <div class="sp-dash-chip-row">{chips_html}</div>
-        </div>
-        """
-    )
-
-
-def _render_prazo_cards(rows: list, empty_title: str, empty_subtitle: str) -> None:
-    if not rows:
-        empty_state(
-            title=empty_title,
-            subtitle=empty_subtitle,
-            icon="✅",
-        )
-        return
-
-    for (
-        _id,
-        evento,
-        data_limite,
-        prioridade,
-        numero_trabalho,
-        descricao_trabalho,
-    ) in rows:
-        dias = int(_dias_restantes(data_limite))
-        status = _status_prazo(dias)
-        tone = _tone_from_prazo_status(dias)
-        prior = _prior_badge(prioridade)
-
-        title = (
-            f"{_esc(numero_trabalho, 'Sem referência')} – "
-            f"{_esc(descricao_trabalho, 'Sem descrição')}"
-        )
-
-        chip_tone = {
-            "danger": "sp-chip-danger",
-            "warning": "sp-chip-warning",
-            "info": "sp-chip-info",
-            "success": "sp-chip-success",
-        }.get(tone, "sp-chip-neutral")
-
-        _render_surface_list_item(
-            tone=tone,
-            title=title,
-            body_lines=[f"<b>Evento:</b> {_esc(evento, 'Sem evento')}"],
-            chips=[
-                f"<span class='sp-chip'>📅 {escape(format_date_br(data_limite))}</span>",
-                f"<span class='sp-chip {chip_tone}'>⏳ {dias} dia(s)</span>",
-                f"<span class='sp-chip'>{escape(status)}</span>",
-                f"<span class='sp-chip'>⚖️ {escape(prior)}</span>",
-            ],
-        )
-
-
-def _render_agenda_cards(rows: list, empty_title: str, empty_subtitle: str) -> None:
-    if not rows:
-        empty_state(
-            title=empty_title,
-            subtitle=empty_subtitle,
-            icon="📭",
-        )
-        return
-
-    now_n = _naive(now_br())
-
-    for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows:
-        inicio_br = ensure_br(inicio)
-        inicio_n = _naive(inicio_br)
-        inicio_br_txt = inicio_br.strftime("%d/%m/%Y %H:%M")
-
-        hours_left = (inicio_n - now_n).total_seconds() / 3600.0
-        alert_label, tone = _agenda_status(hours_left)
-
-        title = (
-            f"{_esc(numero_trabalho, 'Sem referência')} – "
-            f"{_esc(descricao_trabalho, 'Sem descrição')}"
-        )
-
-        chips = [
-            f"<span class='sp-chip'>📌 {_esc(tipo, 'Sem tipo')}</span>",
-            f"<span class='sp-chip'>🕒 {escape(inicio_br_txt)}</span>",
-            _agenda_rest_chip(hours_left),
-            f"<span class='sp-chip'>{escape(alert_label)}</span>",
-        ]
-
-        if local:
-            chips.append(
-                f"<span class='sp-chip'>📍 {_esc(local, 'Local não informado')}</span>"
-            )
-
-        _render_surface_list_item(
-            tone=tone,
-            title=title,
-            chips=chips,
-        )
-
-
-# ==========================================================
 # Timeline
 # ==========================================================
 
@@ -1093,7 +1010,7 @@ def _build_timeline_items(
         )
 
     seen_agenda_keys: set[str] = set()
-    for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows_ag_24h:
+    for _id, *_rest in rows_ag_24h:
         seen_agenda_keys.add(f"{_id}")
 
     for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows_ag_7d:

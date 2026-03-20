@@ -23,9 +23,11 @@ __all__ = [
     "status_banner",
     "caption",
     "muted",
+    "hero_banner",
+    "metric_card",
 ]
 
-_CSS_VERSION: Final[str] = "v31"
+_CSS_VERSION: Final[str] = "v40"
 _CSS_FLAG_KEY: Final[str] = f"_sp_css_injected_{_CSS_VERSION}"
 
 DEFAULT_TONE: Final[str] = "neutral"
@@ -40,17 +42,19 @@ TOKENS
 ====================================================== */
 
 :root{
-  --bg:#f6f8f7;
-  --bg-accent:#eef4f1;
-  --bg-soft:#fbfcfc;
+  --bg:#f4f7f5;
+  --bg-accent:#edf3f0;
+  --bg-soft:#fafcfb;
 
   --surface:#ffffff;
-  --surface-soft:#fcfdfd;
-  --surface-muted:#f5f7f7;
-  --surface-strong:#f1f5f3;
+  --surface-soft:#fbfcfc;
+  --surface-muted:#f5f7f6;
+  --surface-strong:#eef3f0;
+  --surface-elevated:#ffffff;
+  --surface-interactive:#fcfdfd;
 
-  --border:#dfe7e3;
-  --border-strong:#cbd8d2;
+  --border:#dbe5e0;
+  --border-strong:#c7d6cf;
   --border-soft:rgba(15,23,42,0.06);
 
   --text:#0f172a;
@@ -61,8 +65,12 @@ TOKENS
   --primary:#355e57;
   --primary-hover:#294942;
   --primary-soft:rgba(53,94,87,0.08);
-  --primary-soft-2:rgba(53,94,87,0.12);
-  --primary-ring:rgba(53,94,87,0.16);
+  --primary-soft-2:rgba(53,94,87,0.13);
+  --primary-ring:rgba(53,94,87,0.18);
+  --primary-gradient:linear-gradient(180deg, #3c6a62 0%, #2f544d 100%);
+  --hero-gradient:
+    radial-gradient(circle at top right, rgba(53,94,87,0.10), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,250,249,0.98) 100%);
 
   --danger:#dc2626;
   --warning:#d97706;
@@ -76,6 +84,7 @@ TOKENS
   --info-bg:rgba(37,99,235,0.09);
   --neutral-bg:rgba(15,23,42,0.045);
 
+  --radius-3xl:32px;
   --radius-2xl:28px;
   --radius-xl:22px;
   --radius-lg:18px;
@@ -85,17 +94,19 @@ TOKENS
 
   --shadow-xs:0 1px 2px rgba(15,23,42,0.04);
   --shadow-sm:0 6px 14px rgba(15,23,42,0.045);
-  --shadow-md:0 10px 24px rgba(15,23,42,0.06);
-  --shadow-lg:0 18px 38px rgba(15,23,42,0.07);
+  --shadow-md:0 12px 26px rgba(15,23,42,0.06);
+  --shadow-lg:0 18px 38px rgba(15,23,42,0.075);
+  --shadow-float:0 24px 54px rgba(15,23,42,0.08);
 
   --transition-fast:all .16s ease;
   --transition:all .18s ease;
 
-  --sidebar-width:320px;
-  --sidebar-item-height:40px;
-  --sidebar-item-radius:12px;
+  --sidebar-width:318px;
+  --sidebar-item-height:42px;
+  --sidebar-item-radius:14px;
 
-  --container-max:1360px;
+  --container-max:1380px;
+
   --space-1:4px;
   --space-2:8px;
   --space-3:12px;
@@ -104,6 +115,23 @@ TOKENS
   --space-6:24px;
   --space-7:28px;
   --space-8:32px;
+  --space-9:40px;
+  --space-10:48px;
+
+  --fs-2xs:0.72rem;
+  --fs-xs:0.80rem;
+  --fs-sm:0.88rem;
+  --fs-md:0.95rem;
+  --fs-base:1rem;
+  --fs-lg:1.12rem;
+  --fs-xl:1.34rem;
+  --fs-2xl:1.72rem;
+  --fs-3xl:2.08rem;
+
+  --lh-tight:1.08;
+  --lh-snug:1.22;
+  --lh-base:1.45;
+  --lh-relaxed:1.58;
 }
 
 /* ======================================================
@@ -129,8 +157,8 @@ p, li, label, span, div{
 
 .stApp{
   background:
-    radial-gradient(circle at top right, rgba(53,94,87,0.04), transparent 28%),
-    linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.18) 100%),
+    radial-gradient(circle at top right, rgba(53,94,87,0.05), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,0.64) 0%, rgba(255,255,255,0.22) 100%),
     var(--bg);
 }
 
@@ -157,26 +185,28 @@ LAYOUT
 
 .block-container{
   max-width:var(--container-max);
-  padding-top:0.95rem;
-  padding-right:1.20rem;
-  padding-bottom:1.35rem;
-  padding-left:1.20rem;
+  padding-top:1.05rem;
+  padding-right:1.25rem;
+  padding-bottom:1.50rem;
+  padding-left:1.25rem;
   overflow:visible !important;
 }
 
 div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.30rem;
+  margin-bottom:0.34rem;
 }
 
 .sp-content-shell{
   width:100%;
 }
 
+.sp-stack-2xs > * + *{ margin-top:4px; }
 .sp-stack-xs > * + *{ margin-top:6px; }
 .sp-stack-sm > * + *{ margin-top:10px; }
 .sp-stack-md > * + *{ margin-top:14px; }
 .sp-stack-lg > * + *{ margin-top:18px; }
 .sp-stack-xl > * + *{ margin-top:24px; }
+.sp-stack-2xl > * + *{ margin-top:32px; }
 
 /* ======================================================
 TYPOGRAPHY
@@ -189,27 +219,27 @@ h1,h2,h3,h4{
 }
 
 h1{
-  font-size:1.80rem;
-  line-height:1.08;
-  font-weight:820;
+  font-size:var(--fs-2xl);
+  line-height:var(--lh-tight);
+  font-weight:840;
 }
 
 h2{
-  font-size:1.34rem;
-  line-height:1.14;
-  font-weight:790;
+  font-size:var(--fs-xl);
+  line-height:var(--lh-snug);
+  font-weight:800;
 }
 
 h3{
-  font-size:1.05rem;
+  font-size:1.04rem;
   line-height:1.24;
-  font-weight:740;
+  font-weight:760;
 }
 
 h4{
   font-size:0.96rem;
   line-height:1.28;
-  font-weight:700;
+  font-weight:720;
 }
 
 small,
@@ -220,7 +250,7 @@ small,
 .sp-caption{
   color:var(--muted);
   font-size:0.82rem;
-  line-height:1.4;
+  line-height:1.42;
 }
 
 .sp-muted{
@@ -236,22 +266,22 @@ PAGE HEADER
 ====================================================== */
 
 .sp-page-header{
-  padding:0.02rem 0 0.12rem 0;
+  padding:0.04rem 0 0.16rem 0;
 }
 
 .sp-page-title{
-  font-size:1.68rem;
-  font-weight:820;
-  line-height:1.06;
-  letter-spacing:-0.028em;
+  font-size:1.76rem;
+  font-weight:840;
+  line-height:1.04;
+  letter-spacing:-0.03em;
   color:var(--text);
 }
 
 .sp-page-subtitle{
-  margin-top:0.30rem;
-  max-width:82ch;
-  font-size:0.95rem;
-  line-height:1.50;
+  margin-top:0.34rem;
+  max-width:84ch;
+  font-size:0.96rem;
+  line-height:1.54;
   color:var(--muted);
 }
 
@@ -260,20 +290,20 @@ SECTION HEADER
 ====================================================== */
 
 .sp-section-header{
-  margin-bottom:0.16rem;
+  margin-bottom:0.14rem;
 }
 
 .sp-section-title{
-  font-size:1.00rem;
-  font-weight:780;
+  font-size:1.02rem;
+  font-weight:790;
   letter-spacing:-0.012em;
   color:var(--text);
 }
 
 .sp-section-subtitle{
-  margin-top:0.10rem;
+  margin-top:0.12rem;
   font-size:0.90rem;
-  line-height:1.44;
+  line-height:1.46;
   color:var(--muted);
 }
 
@@ -282,8 +312,9 @@ SURFACES
 ====================================================== */
 
 .sp-surface{
+  position:relative;
   overflow:visible;
-  padding:16px 18px;
+  padding:18px 20px;
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
   background:linear-gradient(180deg, rgba(255,255,255,0.99) 0%, #ffffff 100%);
@@ -296,6 +327,16 @@ SURFACES
   box-shadow:var(--shadow-sm);
 }
 
+.sp-surface::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,0.34), transparent 26%);
+  opacity:.9;
+}
+
 .sp-surface-no-pad{
   padding:0 !important;
 }
@@ -305,7 +346,74 @@ SURFACES
 }
 
 .sp-surface-strong{
-  background:linear-gradient(180deg, #ffffff 0%, #f6f9f8 100%);
+  background:linear-gradient(180deg, #ffffff 0%, #f3f8f6 100%);
+}
+
+.sp-surface-hero{
+  padding:22px 24px;
+  border-radius:22px;
+  background:var(--hero-gradient);
+  box-shadow:var(--shadow-md);
+}
+
+.sp-surface-elevated{
+  box-shadow:var(--shadow-md);
+}
+
+.sp-surface-interactive{
+  cursor:default;
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.sp-surface-interactive:hover{
+  transform:translateY(-1px);
+  box-shadow:var(--shadow-md);
+}
+
+/* ======================================================
+HERO
+====================================================== */
+
+.sp-hero{
+  position:relative;
+  overflow:hidden;
+}
+
+.sp-hero::after{
+  content:"";
+  position:absolute;
+  top:-40px;
+  right:-20px;
+  width:180px;
+  height:180px;
+  border-radius:999px;
+  background:radial-gradient(circle, rgba(53,94,87,0.10), transparent 68%);
+  pointer-events:none;
+}
+
+.sp-hero-eyebrow{
+  color:var(--primary);
+  font-size:0.78rem;
+  font-weight:780;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+}
+
+.sp-hero-title{
+  margin-top:6px;
+  color:var(--text);
+  font-size:1.42rem;
+  font-weight:840;
+  line-height:1.08;
+  letter-spacing:-0.03em;
+}
+
+.sp-hero-subtitle{
+  margin-top:8px;
+  max-width:72ch;
+  color:var(--muted-strong);
+  font-size:0.93rem;
+  line-height:1.52;
 }
 
 /* ======================================================
@@ -322,7 +430,7 @@ CHIPS / PILLS
   background:var(--neutral-bg);
   color:var(--text-soft);
   font-size:0.80rem;
-  font-weight:660;
+  font-weight:680;
   line-height:1;
   white-space:nowrap;
 }
@@ -368,7 +476,7 @@ CHIPS / PILLS
   background:#fff;
   color:var(--text-soft);
   font-size:0.78rem;
-  font-weight:760;
+  font-weight:780;
   line-height:1;
 }
 
@@ -409,38 +517,39 @@ SIDEBAR
 section[data-testid="stSidebar"]{
   min-width:var(--sidebar-width) !important;
   max-width:var(--sidebar-width) !important;
-  background:linear-gradient(180deg, #f3f7f5 0%, #eef4f1 100%);
-  border-right:1px solid #dbe5e1;
+  background:
+    linear-gradient(180deg, #f3f7f5 0%, #edf4f0 100%);
+  border-right:1px solid #d7e2dc;
 }
 
 section[data-testid="stSidebar"] .block-container{
-  padding:0.90rem 0.85rem 0.80rem 0.85rem !important;
+  padding:1rem 0.88rem 0.86rem 0.88rem !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div{
-  margin-bottom:0.16rem !important;
+  margin-bottom:0.18rem !important;
 }
 
 .sidebar-title{
-  margin-bottom:0.30rem;
-  font-size:1rem;
-  font-weight:780;
-  letter-spacing:-0.015em;
+  margin-bottom:0.32rem;
+  font-size:1.02rem;
+  font-weight:800;
+  letter-spacing:-0.016em;
   color:var(--text);
 }
 
 .sidebar-section{
-  margin-top:0.08rem;
-  margin-bottom:0.36rem;
-  font-size:0.78rem;
-  font-weight:760;
-  letter-spacing:0.04em;
+  margin-top:0.10rem;
+  margin-bottom:0.40rem;
+  font-size:0.76rem;
+  font-weight:800;
+  letter-spacing:0.05em;
   text-transform:uppercase;
   color:var(--muted);
 }
 
 .sidebar-build{
-  margin-top:0.35rem;
+  margin-top:0.40rem;
   font-size:0.74rem;
   color:var(--muted);
 }
@@ -474,30 +583,32 @@ label[data-baseweb="radio"]{
     background-color .16s ease,
     border-color .16s ease,
     color .16s ease,
-    box-shadow .16s ease;
+    box-shadow .16s ease,
+    transform .16s ease;
 }
 
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"]:hover{
-  background:rgba(255,255,255,0.70);
+  background:rgba(255,255,255,0.76);
   border-color:rgba(15,23,42,0.06);
+  transform:translateX(1px);
 }
 
 section[data-testid="stSidebar"]
 div[role="radiogroup"]
 label[data-baseweb="radio"][aria-checked="true"]{
-  background:linear-gradient(180deg, rgba(53,94,87,0.10) 0%, rgba(53,94,87,0.07) 100%);
-  border-color:rgba(53,94,87,0.10);
+  background:linear-gradient(180deg, rgba(53,94,87,0.11) 0%, rgba(53,94,87,0.07) 100%);
+  border-color:rgba(53,94,87,0.12);
   box-shadow:0 1px 2px rgba(15,23,42,0.03);
-  font-weight:760;
+  font-weight:780;
   color:var(--text);
 }
 
 section[data-testid="stSidebar"] details{
   border:1px solid rgba(15,23,42,0.08);
   border-radius:14px;
-  background:rgba(255,255,255,0.78);
+  background:rgba(255,255,255,0.80);
   box-shadow:none;
 }
 
@@ -516,12 +627,12 @@ BUTTONS
 
 .stButton > button{
   min-height:40px;
-  padding:0.56rem 0.95rem;
+  padding:0.56rem 0.96rem;
   border:1px solid rgba(15,23,42,0.10);
   border-radius:12px;
   background:#ffffff;
   color:var(--text);
-  font-weight:670;
+  font-weight:690;
   box-shadow:none;
   transition:
     background-color .18s ease,
@@ -544,10 +655,10 @@ BUTTONS
 
 .stButton > button[kind="primary"],
 .stButton > button[class*="primary"]{
-  background:linear-gradient(180deg, var(--primary) 0%, #2f544d 100%) !important;
+  background:var(--primary-gradient) !important;
   border:1px solid var(--primary) !important;
   color:#ffffff !important;
-  box-shadow:0 8px 18px rgba(53,94,87,0.16) !important;
+  box-shadow:0 10px 20px rgba(53,94,87,0.16) !important;
 }
 
 .stButton > button[kind="primary"]:hover,
@@ -592,7 +703,7 @@ div[data-baseweb="select"] > div:focus-within{
 
 label[data-testid="stWidgetLabel"] p{
   color:var(--text-soft) !important;
-  font-weight:630 !important;
+  font-weight:640 !important;
   font-size:0.88rem !important;
 }
 
@@ -628,7 +739,7 @@ div[data-testid="stTabs"]{
 button[data-baseweb="tab"]{
   border-radius:12px 12px 0 0 !important;
   color:var(--muted-strong) !important;
-  font-weight:660 !important;
+  font-weight:680 !important;
 }
 
 button[data-baseweb="tab"][aria-selected="true"]{
@@ -660,13 +771,13 @@ summary{
 }
 
 /* ======================================================
-CARD KPI
+CARDS
 ====================================================== */
 
 .sp-card{
   position:relative;
   overflow:hidden;
-  min-height:108px;
+  min-height:110px;
   padding:15px 16px 14px 16px;
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
@@ -680,8 +791,8 @@ CARD KPI
   position:absolute;
   top:0;
   right:0;
-  width:56px;
-  height:56px;
+  width:64px;
+  height:64px;
   background:radial-gradient(circle, rgba(53,94,87,0.05) 0%, transparent 70%);
   pointer-events:none;
 }
@@ -696,7 +807,7 @@ CARD KPI
   margin-bottom:7px;
   color:rgba(15,23,42,0.64);
   font-size:0.75rem;
-  font-weight:780;
+  font-weight:800;
   line-height:1.2;
   text-transform:uppercase;
   letter-spacing:0.045em;
@@ -723,6 +834,18 @@ CARD KPI
 
 .sp-card-operational{
   min-height:auto;
+}
+
+.sp-metric-trend{
+  margin-top:10px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 8px;
+  border-radius:999px;
+  font-size:0.77rem;
+  font-weight:760;
+  line-height:1;
 }
 
 /* ======================================================
@@ -911,27 +1034,27 @@ EMPTY STATE
 ====================================================== */
 
 .sp-empty-state{
-  padding:28px 20px;
+  padding:30px 22px;
   text-align:center;
 }
 
 .sp-empty-icon{
-  margin-bottom:9px;
-  font-size:1.75rem;
+  margin-bottom:10px;
+  font-size:1.85rem;
   line-height:1;
 }
 
 .sp-empty-title{
   color:var(--text);
-  font-size:0.98rem;
-  font-weight:800;
+  font-size:0.99rem;
+  font-weight:820;
 }
 
 .sp-empty-subtitle{
   margin-top:6px;
   color:var(--muted);
   font-size:0.89rem;
-  line-height:1.46;
+  line-height:1.48;
 }
 
 /* ======================================================
@@ -965,7 +1088,7 @@ DIVIDER
 ====================================================== */
 
 .sp-divider{
-  margin:0.72rem 0;
+  margin:0.80rem 0;
   border:0;
   border-top:1px solid #e7ebea;
 }
@@ -1001,11 +1124,11 @@ MOBILE
 
   .block-container{
     max-width:100% !important;
-    padding:0.92rem !important;
+    padding:0.95rem !important;
   }
 
   .sp-page-title{
-    font-size:1.42rem;
+    font-size:1.46rem;
   }
 
   .sp-page-subtitle{
@@ -1013,8 +1136,17 @@ MOBILE
   }
 
   .sp-surface{
-    padding:13px 14px;
+    padding:14px 15px;
     border-radius:16px;
+  }
+
+  .sp-surface-hero{
+    padding:18px 16px;
+    border-radius:18px;
+  }
+
+  .sp-hero-title{
+    font-size:1.16rem;
   }
 
   .sp-card{
@@ -1109,7 +1241,6 @@ def _render_text_block(css_class: str, text: str) -> None:
 def inject_global_css() -> None:
     if st.session_state.get(_CSS_FLAG_KEY):
         return
-
     st.session_state[_CSS_FLAG_KEY] = True
     _render_html(_GLOBAL_CSS)
 
@@ -1177,6 +1308,66 @@ def card(
         <div class="sp-card {_tone_class(tone)}">
           <div class="sp-card-title">{title_html}</div>
           <div class="{value_classes}">{value_html}</div>
+          {subtitle_block}
+        </div>
+        """
+    )
+
+
+def metric_card(
+    title: str,
+    value: str,
+    subtitle: str = "",
+    *,
+    tone: str = DEFAULT_TONE,
+    trend: str = "",
+    emphasize: bool = False,
+) -> None:
+    title_html = _escape(title)
+    value_html = _escape(value)
+    subtitle_html = _escape(subtitle)
+    trend_html = _escape(trend)
+    value_classes = _join_classes("sp-card-value", "emph" if emphasize else "")
+    subtitle_block = (
+        f"<div class='sp-card-sub'>{subtitle_html}</div>" if subtitle_html else ""
+    )
+    trend_block = (
+        f"<div class='sp-metric-trend sp-chip sp-chip-{_normalize_tone(tone)}'>{trend_html}</div>"
+        if trend_html
+        else ""
+    )
+
+    _render_html(
+        f"""
+        <div class="sp-card {_tone_class(tone)}">
+          <div class="sp-card-title">{title_html}</div>
+          <div class="{value_classes}">{value_html}</div>
+          {subtitle_block}
+          {trend_block}
+        </div>
+        """
+    )
+
+
+def hero_banner(
+    title: str,
+    subtitle: str = "",
+    *,
+    eyebrow: str = "",
+    tone: str = DEFAULT_TONE,
+) -> None:
+    eyebrow_block = (
+        f"<div class='sp-hero-eyebrow'>{_escape(eyebrow)}</div>" if eyebrow else ""
+    )
+    subtitle_block = (
+        f"<div class='sp-hero-subtitle'>{_escape(subtitle)}</div>" if subtitle else ""
+    )
+
+    _render_html(
+        f"""
+        <div class="sp-surface sp-surface-hero sp-hero {_tone_class(tone)}">
+          {eyebrow_block}
+          <div class="sp-hero-title">{_escape(title)}</div>
           {subtitle_block}
         </div>
         """
