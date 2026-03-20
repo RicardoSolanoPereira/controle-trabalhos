@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import html
-from typing import Iterable
+from contextlib import contextmanager
+from typing import Final, Iterator
 
 import streamlit as st
 
@@ -14,6 +15,7 @@ __all__ = [
     "surface_start",
     "surface_end",
     "surface",
+    "surface_container",
     "chip",
     "pill",
     "empty_state",
@@ -23,10 +25,12 @@ __all__ = [
     "muted",
 ]
 
-_CSS_VERSION = "v30"
-_CSS_FLAG_KEY = f"_sp_css_injected_{_CSS_VERSION}"
+_CSS_VERSION: Final[str] = "v31"
+_CSS_FLAG_KEY: Final[str] = f"_sp_css_injected_{_CSS_VERSION}"
 
-_ALLOWED_TONES = {"neutral", "danger", "warning", "success", "info"}
+DEFAULT_TONE: Final[str] = "neutral"
+ALLOWED_TONES: Final[set[str]] = {"neutral", "danger", "warning", "success", "info"}
+
 
 _GLOBAL_CSS = """
 <style>
@@ -1067,21 +1071,43 @@ def _render_html(content: str) -> None:
     st.markdown(content, unsafe_allow_html=True)
 
 
-def _escape(text: str | None) -> str:
-    return html.escape(str(text or ""))
+def _escape(text: object | None) -> str:
+    return html.escape("" if text is None else str(text))
 
 
 def _normalize_tone(tone: str | None) -> str:
-    tone_norm = (tone or "neutral").strip().lower()
-    return tone_norm if tone_norm in _ALLOWED_TONES else "neutral"
+    tone_normalized = (tone or DEFAULT_TONE).strip().lower()
+    return tone_normalized if tone_normalized in ALLOWED_TONES else DEFAULT_TONE
 
 
-def _join_classes(*classes: str) -> str:
-    return " ".join(part for part in classes if part)
+def _join_classes(*classes: str | None) -> str:
+    return " ".join(part.strip() for part in classes if part and part.strip())
+
+
+def _tone_class(tone: str | None) -> str:
+    return f"sp-tone-{_normalize_tone(tone)}"
+
+
+def _surface_classes(
+    *,
+    tone: str = DEFAULT_TONE,
+    extra_classes: str = "",
+    no_padding: bool = False,
+) -> str:
+    return _join_classes(
+        "sp-surface",
+        _tone_class(tone),
+        "sp-surface-no-pad" if no_padding else "",
+        extra_classes,
+    )
+
+
+def _render_text_block(css_class: str, text: str) -> None:
+    _render_html(f"<div class='{css_class}'>{_escape(text)}</div>")
 
 
 def inject_global_css() -> None:
-    if st.session_state.get(_CSS_FLAG_KEY, False):
+    if st.session_state.get(_CSS_FLAG_KEY):
         return
 
     st.session_state[_CSS_FLAG_KEY] = True
@@ -1090,39 +1116,43 @@ def inject_global_css() -> None:
 
 def surface_start(
     *,
-    tone: str = "neutral",
+    tone: str = DEFAULT_TONE,
     extra_classes: str = "",
     no_padding: bool = False,
 ) -> None:
-    tone_norm = _normalize_tone(tone)
-    classes = _join_classes(
-        "sp-surface",
-        f"sp-tone-{tone_norm}",
-        "sp-surface-no-pad" if no_padding else "",
-        extra_classes,
+    _render_html(
+        f"<div class='{_surface_classes(tone=tone, extra_classes=extra_classes, no_padding=no_padding)}'>"
     )
-    _render_html(f"<div class='{classes}'>")
 
 
 def surface_end() -> None:
     _render_html("</div>")
 
 
+@contextmanager
+def surface_container(
+    *,
+    tone: str = DEFAULT_TONE,
+    extra_classes: str = "",
+    no_padding: bool = False,
+) -> Iterator[None]:
+    surface_start(tone=tone, extra_classes=extra_classes, no_padding=no_padding)
+    try:
+        yield
+    finally:
+        surface_end()
+
+
 def surface(
     content: str,
     *,
-    tone: str = "neutral",
+    tone: str = DEFAULT_TONE,
     extra_classes: str = "",
     no_padding: bool = False,
 ) -> None:
-    tone_norm = _normalize_tone(tone)
-    classes = _join_classes(
-        "sp-surface",
-        f"sp-tone-{tone_norm}",
-        "sp-surface-no-pad" if no_padding else "",
-        extra_classes,
+    _render_html(
+        f"<div class='{_surface_classes(tone=tone, extra_classes=extra_classes, no_padding=no_padding)}'>{content}</div>"
     )
-    _render_html(f"<div class='{classes}'>{content}</div>")
 
 
 def card(
@@ -1130,25 +1160,23 @@ def card(
     value: str,
     subtitle: str = "",
     *,
-    tone: str = "neutral",
+    tone: str = DEFAULT_TONE,
     emphasize: bool = False,
 ) -> None:
-    tone_norm = _normalize_tone(tone)
-
     title_html = _escape(title)
     value_html = _escape(value)
     subtitle_html = _escape(subtitle)
 
-    emph_class = "emph" if emphasize else ""
+    value_classes = _join_classes("sp-card-value", "emph" if emphasize else "")
     subtitle_block = (
         f"<div class='sp-card-sub'>{subtitle_html}</div>" if subtitle_html else ""
     )
 
     _render_html(
         f"""
-        <div class="sp-card sp-tone-{tone_norm}">
+        <div class="sp-card {_tone_class(tone)}">
           <div class="sp-card-title">{title_html}</div>
-          <div class="sp-card-value {emph_class}">{value_html}</div>
+          <div class="{value_classes}">{value_html}</div>
           {subtitle_block}
         </div>
         """
@@ -1158,7 +1186,6 @@ def card(
 def section_title(text: str, subtitle: str = "") -> None:
     text_html = _escape(text)
     subtitle_html = _escape(subtitle)
-
     subtitle_block = (
         f"<div class='sp-section-subtitle'>{subtitle_html}</div>"
         if subtitle_html
@@ -1179,14 +1206,18 @@ def subtle_divider() -> None:
     _render_html("<hr class='sp-divider'>")
 
 
-def chip(text: str, *, tone: str = "neutral") -> None:
-    tone_norm = _normalize_tone(tone)
-    _render_html(f"<span class='sp-chip sp-chip-{tone_norm}'>{_escape(text)}</span>")
+def chip(text: str, *, tone: str = DEFAULT_TONE) -> None:
+    tone_normalized = _normalize_tone(tone)
+    _render_html(
+        f"<span class='sp-chip sp-chip-{tone_normalized}'>{_escape(text)}</span>"
+    )
 
 
-def pill(text: str, *, tone: str = "neutral") -> None:
-    tone_norm = _normalize_tone(tone)
-    _render_html(f"<span class='sp-pill sp-pill-{tone_norm}'>{_escape(text)}</span>")
+def pill(text: str, *, tone: str = DEFAULT_TONE) -> None:
+    tone_normalized = _normalize_tone(tone)
+    _render_html(
+        f"<span class='sp-pill sp-pill-{tone_normalized}'>{_escape(text)}</span>"
+    )
 
 
 def empty_state(
@@ -1223,17 +1254,17 @@ def status_banner(
     title: str,
     subtitle: str = "",
     *,
-    tone: str = "neutral",
+    tone: str = DEFAULT_TONE,
 ) -> None:
-    tone_norm = _normalize_tone(tone)
     subtitle_block = (
         f"<div class='sp-status-banner-subtitle'>{_escape(subtitle)}</div>"
         if subtitle
         else ""
     )
+
     _render_html(
         f"""
-        <div class="sp-status-banner sp-tone-{tone_norm}">
+        <div class="sp-status-banner {_tone_class(tone)}">
           <div class="sp-status-banner-title">{_escape(title)}</div>
           {subtitle_block}
         </div>
@@ -1242,11 +1273,11 @@ def status_banner(
 
 
 def caption(text: str) -> None:
-    _render_html(f"<div class='sp-caption'>{_escape(text)}</div>")
+    _render_text_block("sp-caption", text)
 
 
 def muted(text: str) -> None:
-    _render_html(f"<div class='sp-muted'>{_escape(text)}</div>")
+    _render_text_block("sp-muted", text)
 
 
 def app_error(
@@ -1258,7 +1289,6 @@ def app_error(
 ) -> None:
     title_html = _escape(title or "Erro")
     message_html = _escape(message)
-    details_text = technical_details or ""
 
     _render_html(
         f"""
@@ -1269,6 +1299,6 @@ def app_error(
         """
     )
 
-    if details_text:
+    if technical_details:
         with st.expander("Detalhes técnicos", expanded=details_expanded):
-            st.code(details_text, language="text")
+            st.code(technical_details, language="text")

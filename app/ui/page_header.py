@@ -14,7 +14,7 @@ __all__ = [
     "page_header",
 ]
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v41"
+_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v51"
 _MAX_INLINE_ACTIONS = 3
 _ALLOWED_ACTION_TYPES = {"primary", "secondary"}
 _ALLOWED_BADGE_TONES = {"neutral", "success", "warning", "danger", "info"}
@@ -171,17 +171,19 @@ def _inject_page_header_css() -> None:
         .sp-page-header-shell{
             width:100%;
             border:1px solid rgba(15,23,42,0.06);
-            border-radius:18px;
+            border-radius:22px;
             background:
+                radial-gradient(circle at top right, rgba(59,130,246,0.07), transparent 24%),
                 linear-gradient(
                     180deg,
-                    rgba(255,255,255,0.84) 0%,
-                    rgba(255,255,255,0.68) 100%
+                    rgba(255,255,255,0.96) 0%,
+                    rgba(248,250,252,0.88) 100%
                 );
             box-shadow:
                 0 1px 2px rgba(15,23,42,0.03),
-                0 12px 30px rgba(15,23,42,0.035);
-            padding:1rem 1.05rem;
+                0 14px 34px rgba(15,23,42,0.045);
+            padding:1.08rem 1.12rem;
+            overflow:hidden;
         }
 
         .sp-page-header-title-block{
@@ -194,32 +196,33 @@ def _inject_page_header_css() -> None:
             align-items:center;
             gap:0.5rem;
             flex-wrap:wrap;
-            margin-bottom:0.32rem;
+            margin-bottom:0.36rem;
         }
 
         .sp-page-header-eyebrow{
             display:inline-flex;
             align-items:center;
-            min-height:24px;
-            padding:0 0.62rem;
+            min-height:25px;
+            padding:0 0.68rem;
             border-radius:999px;
-            font-size:0.72rem;
+            font-size:0.71rem;
             font-weight:800;
             letter-spacing:0.08em;
             text-transform:uppercase;
-            background:rgba(15,23,42,0.055);
-            color:rgba(15,23,42,0.72);
+            background:rgba(15,23,42,0.05);
+            color:rgba(15,23,42,0.70);
             border:1px solid rgba(15,23,42,0.05);
+            white-space:nowrap;
         }
 
         .sp-page-header-badge{
             display:inline-flex;
             align-items:center;
-            min-height:24px;
-            padding:0 0.62rem;
+            min-height:25px;
+            padding:0 0.68rem;
             border-radius:999px;
             font-size:0.74rem;
-            font-weight:700;
+            font-weight:750;
             border:1px solid transparent;
             white-space:nowrap;
         }
@@ -259,14 +262,15 @@ def _inject_page_header_css() -> None:
             margin:0;
             min-width:0;
             color:var(--text);
-            letter-spacing:-0.035em;
+            letter-spacing:-0.04em;
+            text-wrap:balance;
         }
 
         .sp-page-header-subtitle-text{
-            margin-top:0.34rem;
-            max-width:74ch;
+            margin-top:0.42rem;
+            max-width:76ch;
             color:var(--muted);
-            line-height:1.56;
+            line-height:1.58;
         }
 
         .sp-page-header-subtitle-text strong{
@@ -284,8 +288,8 @@ def _inject_page_header_css() -> None:
 
         .sp-page-header-actions .stButton > button{
             width:100%;
-            min-height:44px !important;
-            border-radius:14px !important;
+            min-height:46px !important;
+            border-radius:15px !important;
             display:flex !important;
             align-items:center !important;
             justify-content:center !important;
@@ -294,7 +298,7 @@ def _inject_page_header_css() -> None:
             overflow:hidden !important;
             text-overflow:ellipsis !important;
             padding-inline:14px !important;
-            font-weight:650 !important;
+            font-weight:690 !important;
             transition:
                 transform 120ms ease,
                 box-shadow 120ms ease,
@@ -307,14 +311,18 @@ def _inject_page_header_css() -> None:
             box-shadow:0 8px 18px rgba(15,23,42,0.08);
         }
 
+        .sp-page-header-actions .stButton > button[kind="primary"]{
+            font-weight:730 !important;
+        }
+
         .sp-page-header-divider-space{
-            margin-top:0.18rem;
+            margin-top:0.22rem;
         }
 
         @media (max-width:768px){
             .sp-page-header-shell{
-                border-radius:16px;
-                padding:0.90rem 0.92rem;
+                border-radius:18px;
+                padding:0.94rem 0.96rem;
             }
 
             .sp-page-header-subtitle-text{
@@ -323,7 +331,7 @@ def _inject_page_header_css() -> None:
             }
 
             .sp-page-header-actions .stButton > button{
-                min-height:46px !important;
+                min-height:47px !important;
             }
         }
         </style>
@@ -385,15 +393,15 @@ def _render_title_block(
     subtitle_html = _escape(subtitle) if subtitle else ""
 
     if compact:
-        title_size = "1.04rem"
-        title_weight = "780"
-        title_line_height = "1.16"
-        subtitle_size = "0.86rem"
+        title_size = "1.08rem"
+        title_weight = "790"
+        title_line_height = "1.15"
+        subtitle_size = "0.87rem"
     else:
-        title_size = "1.62rem"
-        title_weight = "820"
-        title_line_height = "1.03"
-        subtitle_size = "0.93rem"
+        title_size = "1.74rem"
+        title_weight = "840"
+        title_line_height = "1.02"
+        subtitle_size = "0.94rem"
 
     subtitle_block = (
         f"""
@@ -486,11 +494,15 @@ def _render_actions(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
     if not actions:
         return False
 
+    clicked = False
     with st.container():
         _render_html('<div class="sp-page-header-actions">')
         if is_mobile():
-            return _render_actions_mobile(actions, base_key=base_key)
-        return _render_actions_desktop(actions, base_key=base_key)
+            clicked = _render_actions_mobile(actions, base_key=base_key)
+        else:
+            clicked = _render_actions_desktop(actions, base_key=base_key)
+
+    return clicked
 
 
 # ==========================================================
@@ -509,7 +521,7 @@ def page_header(
     actions: Sequence[HeaderAction] | None = None,
     divider: bool = False,
     compact: bool = False,
-    actions_width_ratio: tuple[float, float] = (4.2, 2.6),
+    actions_width_ratio: tuple[float, float] = (4.5, 2.5),
     top_spacing_rem: float = 0.06,
     bottom_spacing_rem: float = 0.28,
     eyebrow: str | None = None,
@@ -537,7 +549,7 @@ def page_header(
 
     clicked = False
 
-    container = st.container(border=True) if surface else st.container()
+    container = st.container(border=False) if surface else st.container()
     with container:
         if surface:
             _render_html('<div class="sp-page-header-shell">')

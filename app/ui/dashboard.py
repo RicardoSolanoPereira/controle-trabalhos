@@ -55,17 +55,10 @@ def _inject_dashboard_css() -> None:
             gap:14px;
             flex-wrap:wrap;
             padding:14px 16px;
-            border:1px solid rgba(15,23,42,.07);
-            border-radius:18px;
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(255,255,255,.98) 0%,
-                    rgba(248,250,252,.94) 100%
-                );
-            box-shadow:
-                0 1px 2px rgba(15,23,42,.03),
-                0 10px 24px rgba(15,23,42,.04);
+            border:1px solid rgba(15,23,42,.06);
+            border-radius:20px;
+            background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.94) 100%);
+            box-shadow:0 1px 2px rgba(15,23,42,.03), 0 10px 24px rgba(15,23,42,.04);
         }
 
         .sp-dash-filter-copy{
@@ -74,7 +67,10 @@ def _inject_dashboard_css() -> None:
             gap:4px;
         }
 
-        .sp-dash-filter-kicker{
+        .sp-dash-filter-kicker,
+        .sp-dash-hero-kicker,
+        .sp-dash-focus-kicker,
+        .sp-dash-band-kicker{
             font-size:.72rem;
             font-weight:800;
             letter-spacing:.08em;
@@ -86,80 +82,102 @@ def _inject_dashboard_css() -> None:
             color:rgba(15,23,42,.72);
             font-size:.90rem;
             line-height:1.45;
-            max-width:60ch;
+            max-width:62ch;
         }
 
         .sp-dash-hero{
-            padding:16px 18px;
-            border:1px solid rgba(15,23,42,.07);
-            border-radius:18px;
+            padding:20px 22px;
+            border:1px solid rgba(15,23,42,.06);
+            border-radius:22px;
             background:
-                linear-gradient(
-                    180deg,
-                    rgba(255,255,255,.98) 0%,
-                    rgba(249,250,251,.94) 100%
-                );
+                radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 26%),
+                linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(248,250,252,.95) 100%);
             box-shadow:
                 0 1px 2px rgba(15,23,42,.03),
-                0 12px 26px rgba(15,23,42,.04);
+                0 16px 32px rgba(15,23,42,.05);
         }
 
         .sp-dash-hero-top{
             display:flex;
             align-items:flex-start;
             justify-content:space-between;
-            gap:12px;
+            gap:14px;
             flex-wrap:wrap;
         }
 
-        .sp-dash-hero-kicker{
-            font-size:.72rem;
-            font-weight:800;
-            letter-spacing:.08em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.45);
-            margin-bottom:4px;
-        }
-
         .sp-dash-hero-title{
-            font-size:1.08rem;
-            font-weight:820;
-            line-height:1.28;
+            font-size:1.24rem;
+            font-weight:840;
+            line-height:1.22;
             color:#0f172a;
+            letter-spacing:-0.01em;
         }
 
         .sp-dash-hero-copy{
             color:rgba(15,23,42,.70);
-            font-size:.91rem;
-            line-height:1.48;
-            margin-top:5px;
-            max-width:72ch;
+            font-size:.94rem;
+            line-height:1.5;
+            margin-top:6px;
+            max-width:74ch;
         }
 
         .sp-dash-hero-meta{
             display:flex;
             gap:8px;
             flex-wrap:wrap;
-            margin-top:12px;
+            margin-top:14px;
         }
 
-        .sp-dash-toolbar{
+        .sp-dash-command{
             display:flex;
             align-items:center;
             justify-content:space-between;
-            gap:10px;
+            gap:12px;
             flex-wrap:wrap;
-            padding:10px 12px;
-            border:1px solid rgba(15,23,42,.07);
-            border-radius:16px;
-            background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.92) 100%);
+            padding:14px 16px;
+            border:1px solid rgba(15,23,42,.06);
+            border-radius:18px;
+            background:linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.95) 100%);
             box-shadow:0 1px 2px rgba(15,23,42,.03);
         }
 
-        .sp-dash-toolbar-copy{
-            color:rgba(15,23,42,.68);
-            font-size:.88rem;
-            line-height:1.38;
+        .sp-dash-command-title{
+            font-size:.98rem;
+            font-weight:800;
+            color:#0f172a;
+            line-height:1.3;
+        }
+
+        .sp-dash-command-sub{
+            font-size:.86rem;
+            line-height:1.42;
+            color:rgba(15,23,42,.64);
+            margin-top:4px;
+            max-width:70ch;
+        }
+
+        .sp-dash-band{
+            padding:16px 18px;
+            border:1px solid rgba(15,23,42,.07);
+            border-radius:20px;
+            background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(249,250,251,.96) 100%);
+            box-shadow:0 1px 3px rgba(15,23,42,.03), 0 10px 22px rgba(15,23,42,.04);
+        }
+
+        .sp-dash-band-title{
+            margin-top:4px;
+            font-size:1.06rem;
+            font-weight:820;
+            line-height:1.28;
+            color:#0f172a;
+        }
+
+        .sp-dash-band-copy{
+            margin-top:6px;
+            font-size:.90rem;
+            line-height:1.46;
+            color:rgba(15,23,42,.67);
+            max-width:72ch;
         }
 
         .sp-dash-alert-strip{
@@ -214,30 +232,14 @@ def _inject_dashboard_css() -> None:
             padding:18px;
             border:1px solid rgba(15,23,42,.08);
             border-radius:20px;
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(255,255,255,1) 0%,
-                    rgba(249,250,251,.95) 100%
-                );
-            box-shadow:
-                0 1px 3px rgba(15,23,42,.04),
-                0 14px 28px rgba(15,23,42,.04);
+            background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(249,250,251,.95) 100%);
+            box-shadow:0 1px 3px rgba(15,23,42,.04), 0 14px 28px rgba(15,23,42,.04);
         }
 
         .sp-dash-focus-danger{ border-left:4px solid #dc2626; }
         .sp-dash-focus-warning{ border-left:4px solid #f59e0b; }
         .sp-dash-focus-info{ border-left:4px solid #2563eb; }
         .sp-dash-focus-success{ border-left:4px solid #16a34a; }
-
-        .sp-dash-focus-kicker{
-            font-size:.72rem;
-            font-weight:800;
-            letter-spacing:.05em;
-            text-transform:uppercase;
-            color:rgba(15,23,42,.44);
-            margin-bottom:4px;
-        }
 
         .sp-dash-focus-title{
             font-size:1.05rem;
@@ -280,86 +282,17 @@ def _inject_dashboard_css() -> None:
             line-height:1.38;
         }
 
-        .sp-dash-list-card{
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
-            padding:12px 13px;
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(255,255,255,1) 0%,
-                    rgba(249,250,251,.95) 100%
-                );
-            box-shadow:0 1px 3px rgba(15,23,42,.03);
-            margin-bottom:10px;
-        }
-
-        .sp-dash-list-card-danger{ border-left:3px solid #dc2626; }
-        .sp-dash-list-card-warning{ border-left:3px solid #f59e0b; }
-        .sp-dash-list-card-info{ border-left:3px solid #2563eb; }
-        .sp-dash-list-card-success{ border-left:3px solid #16a34a; }
-
-        .sp-dash-list-card-title{
-            font-weight:800;
-            color:#0f172a;
-            line-height:1.34;
-            font-size:.94rem;
-        }
-
-        .sp-dash-list-card-sub{
-            color:rgba(15,23,42,.62);
-            font-size:.85rem;
-            line-height:1.42;
-            margin-top:4px;
-        }
-
-        .sp-dash-compact-list{
+        .sp-dash-compact-list,
+        .sp-dash-feed,
+        .sp-dash-suggest-list{
             display:flex;
             flex-direction:column;
             gap:10px;
         }
 
-        .sp-dash-compact-item{
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
-            padding:11px 12px;
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(255,255,255,1) 0%,
-                    rgba(249,250,251,.96) 100%
-                );
-            box-shadow:0 1px 2px rgba(15,23,42,.03);
-        }
-
-        .sp-dash-compact-top{
-            display:flex;
-            align-items:flex-start;
-            justify-content:space-between;
-            gap:10px;
-        }
-
-        .sp-dash-compact-title{
-            font-weight:790;
-            color:#0f172a;
-            line-height:1.32;
-            font-size:.92rem;
-        }
-
-        .sp-dash-compact-sub{
-            margin-top:4px;
-            color:rgba(15,23,42,.63);
-            font-size:.84rem;
-            line-height:1.40;
-        }
-
-        .sp-dash-feed{
-            display:flex;
-            flex-direction:column;
-            gap:10px;
-        }
-
-        .sp-dash-feed-item{
+        .sp-dash-compact-item,
+        .sp-dash-feed-item,
+        .sp-dash-suggest-item{
             border:1px solid rgba(15,23,42,.08);
             border-radius:16px;
             padding:12px 13px;
@@ -367,6 +300,7 @@ def _inject_dashboard_css() -> None:
             box-shadow:0 1px 2px rgba(15,23,42,.03);
         }
 
+        .sp-dash-compact-top,
         .sp-dash-feed-top{
             display:flex;
             align-items:flex-start;
@@ -374,33 +308,30 @@ def _inject_dashboard_css() -> None:
             gap:10px;
         }
 
-        .sp-dash-feed-title{
-            font-size:.92rem;
+        .sp-dash-compact-title,
+        .sp-dash-feed-title,
+        .sp-dash-suggest-title{
             font-weight:790;
-            line-height:1.32;
             color:#0f172a;
+            line-height:1.32;
+            font-size:.92rem;
         }
 
-        .sp-dash-feed-sub{
+        .sp-dash-compact-sub,
+        .sp-dash-feed-sub,
+        .sp-dash-suggest-sub{
             margin-top:4px;
+            color:rgba(15,23,42,.63);
             font-size:.84rem;
             line-height:1.40;
-            color:rgba(15,23,42,.64);
         }
 
         .sp-dash-module{
             border:1px solid rgba(15,23,42,.08);
             border-radius:20px;
             padding:15px;
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(255,255,255,1) 0%,
-                    rgba(249,250,251,.96) 100%
-                );
-            box-shadow:
-                0 1px 3px rgba(15,23,42,.03),
-                0 10px 24px rgba(15,23,42,.035);
+            background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(249,250,251,.96) 100%);
+            box-shadow:0 1px 3px rgba(15,23,42,.03), 0 10px 24px rgba(15,23,42,.035);
             height:100%;
         }
 
@@ -455,36 +386,9 @@ def _inject_dashboard_css() -> None:
             margin-top:3px;
         }
 
-        .sp-dash-suggest-list{
-            display:flex;
-            flex-direction:column;
-            gap:9px;
-        }
-
-        .sp-dash-suggest-item{
-            padding:11px 12px;
-            border:1px solid rgba(15,23,42,.07);
-            border-radius:14px;
-            background:rgba(248,250,252,.78);
-        }
-
-        .sp-dash-suggest-title{
-            font-size:.89rem;
-            font-weight:780;
-            line-height:1.32;
-            color:#0f172a;
-        }
-
-        .sp-dash-suggest-sub{
-            margin-top:4px;
-            font-size:.83rem;
-            line-height:1.40;
-            color:rgba(15,23,42,.63);
-        }
-
         .sp-dashboard-action-grid .stButton > button{
-            min-height:48px !important;
-            font-weight:730 !important;
+            min-height:50px !important;
+            font-weight:740 !important;
             white-space:normal !important;
             word-break:break-word !important;
             border-radius:14px !important;
@@ -521,11 +425,17 @@ def _inject_dashboard_css() -> None:
         @media (max-width:768px){
             .sp-dash-filter-surface,
             .sp-dash-hero,
+            .sp-dash-band,
             .sp-dash-focus,
             .sp-dash-module,
-            .sp-dash-alert-strip{
+            .sp-dash-alert-strip,
+            .sp-dash-command{
                 border-radius:16px;
                 padding:13px;
+            }
+
+            .sp-dash-hero-title{
+                font-size:1.08rem;
             }
         }
         </style>
@@ -1527,6 +1437,7 @@ def _render_header(kpis: dict[str, Any] | None = None) -> None:
                 type="secondary",
                 on_click=_go_prazos_lista,
                 icon="⏳",
+                emphasis="primary",
             ),
             HeaderAction(
                 "Trabalhos",
@@ -1534,6 +1445,7 @@ def _render_header(kpis: dict[str, Any] | None = None) -> None:
                 type="secondary",
                 on_click=_go_trabalhos_lista,
                 icon="📁",
+                emphasis="primary",
             ),
             HeaderAction(
                 "Financeiro",
@@ -1541,6 +1453,7 @@ def _render_header(kpis: dict[str, Any] | None = None) -> None:
                 type="secondary",
                 on_click=_go_financeiro_lancamentos,
                 icon="💰",
+                emphasis="primary",
             ),
         ],
         compact=False,
@@ -1581,38 +1494,101 @@ def _render_top_bar() -> str | None:
     return ATUACAO_UI[atuacao_label]
 
 
+def _render_command_bar(kpis: dict[str, Any], atuacao_label: str) -> None:
+    if kpis["prazos_atrasados"] > 0:
+        title = "Prioridade máxima: regularizar pendências vencidas."
+        sub = (
+            f"Há {kpis['prazos_atrasados']} prazo(s) atrasado(s). "
+            "Abra a fila de prazos e trate primeiro o que já venceu."
+        )
+        chip = f"<span class='sp-chip sp-chip-danger'>{kpis['prazos_atrasados']} atraso(s)</span>"
+    elif kpis["ag_24h"] > 0:
+        title = "Seu próximo compromisso já pede preparação."
+        sub = (
+            f"Há {kpis['ag_24h']} compromisso(s) nas próximas 24 horas. "
+            "Revise local, horário, deslocamento e documentos."
+        )
+        chip = f"<span class='sp-chip sp-chip-warning'>{kpis['ag_24h']} em 24h</span>"
+    elif kpis["prazos_7dias"] > 0:
+        title = "A semana está controlada, mas já exige antecipação."
+        sub = (
+            f"Você tem {kpis['prazos_7dias']} prazo(s) na janela de 7 dias. "
+            "Este é um bom momento para distribuir carga e evitar urgência."
+        )
+        chip = f"<span class='sp-chip sp-chip-info'>{kpis['prazos_7dias']} na semana</span>"
+    else:
+        title = "Tudo sob controle neste momento."
+        sub = (
+            "Sem sinais críticos agora. Aproveite para revisar cadastros, "
+            "organizar próximos trabalhos e manter a base atualizada."
+        )
+        chip = "<span class='sp-chip sp-chip-success'>Operação estável</span>"
+
+    with section(divider=False, compact=True):
+        _render_html(
+            f"""
+            <div class="sp-dash-command">
+              <div>
+                <div class="sp-dash-command-title">{escape(title)}</div>
+                <div class="sp-dash-command-sub">{escape(sub)}</div>
+              </div>
+              <div class="sp-dash-chip-row">
+                {chip}
+                <span class="sp-chip">{escape(atuacao_label)}</span>
+              </div>
+            </div>
+            """
+        )
+
+
 def _render_dashboard_hero(kpis: dict[str, Any], atuacao_label: str) -> None:
     if kpis["prazos_atrasados"] > 0:
-        title = "Há pendências vencidas exigindo ação imediata."
-        copy = "O melhor próximo passo é abrir a fila de prazos e atacar primeiro os itens já vencidos."
+        title = "Existem pendências vencidas exigindo ação imediata."
+        copy = (
+            "Seu melhor próximo passo é abrir a fila de prazos e começar pelos itens "
+            "já vencidos, reduzindo risco operacional e retrabalho."
+        )
         chips = [
             f"<span class='sp-chip sp-chip-danger'>Atrasados: {kpis['prazos_atrasados']}</span>",
-            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+            f"<span class='sp-chip'>Prazos abertos: {kpis['prazos_abertos']}</span>",
             f"<span class='sp-chip'>Agenda 24h: {kpis['ag_24h']}</span>",
+            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
         ]
     elif kpis["ag_24h"] > 0:
-        title = "Sua agenda imediata pede preparação."
-        copy = "Revise compromissos das próximas 24 horas para evitar atraso, retrabalho ou falta de documentos."
+        title = "Sua agenda imediata precisa de preparação."
+        copy = (
+            "Há compromissos próximos. Vale revisar local, horário, logística e documentos "
+            "antes da próxima movimentação."
+        )
         chips = [
             f"<span class='sp-chip sp-chip-warning'>Em 24h: {kpis['ag_24h']}</span>",
             f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
-            f"<span class='sp-chip'>Atuação: {escape(atuacao_label)}</span>",
+            f"<span class='sp-chip'>Prazos na semana: {kpis['prazos_7dias']}</span>",
+            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
         ]
     elif kpis["prazos_7dias"] > 0:
         title = "A semana está organizada, mas já merece antecipação."
-        copy = "Há itens próximos na janela de 7 dias. Este é um bom momento para distribuir carga e reduzir urgências."
+        copy = (
+            "Existem vencimentos próximos. Antecipar a preparação agora reduz urgência "
+            "e melhora a execução ao longo da semana."
+        )
         chips = [
             f"<span class='sp-chip sp-chip-info'>Em 7 dias: {kpis['prazos_7dias']}</span>",
+            f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
             f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-            f"<span class='sp-chip'>Agenda: {kpis['ag_7d']}</span>",
+            f"<span class='sp-chip'>Saldo: R$ {_fmt_money_br(kpis['saldo'])}</span>",
         ]
     else:
-        title = "Operação sem sinais críticos neste momento."
-        copy = "Aproveite para atualizar cadastros, revisar trabalhos e manter a base organizada."
+        title = "Operação estável e sem sinais críticos no momento."
+        copy = (
+            "Este é um bom momento para revisar base cadastral, atualizar registros, "
+            "abrir novos trabalhos e preparar a próxima semana com calma."
+        )
         chips = [
             "<span class='sp-chip sp-chip-success'>Sem urgência crítica</span>",
             f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-            f"<span class='sp-chip'>Atuação: {escape(atuacao_label)}</span>",
+            f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
+            f"<span class='sp-chip'>Saldo: R$ {_fmt_money_br(kpis['saldo'])}</span>",
         ]
 
     with section(divider=False, compact=True):
@@ -1621,7 +1597,7 @@ def _render_dashboard_hero(kpis: dict[str, Any], atuacao_label: str) -> None:
             <div class="sp-dash-hero">
               <div class="sp-dash-hero-top">
                 <div>
-                  <div class="sp-dash-hero-kicker">resumo operacional</div>
+                  <div class="sp-dash-hero-kicker">visão executiva do dia</div>
                   <div class="sp-dash-hero-title">{escape(title)}</div>
                   <div class="sp-dash-hero-copy">{escape(copy)}</div>
                 </div>
@@ -1690,16 +1666,16 @@ def _render_global_alert_strip(kpis: dict[str, Any]) -> None:
 def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
     with section(
         "Indicadores",
-        subtitle=f"{atuacao_label}",
+        subtitle=f"Resumo operacional • {atuacao_label}",
         divider=False,
     ):
         c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
         with c1:
             card(
-                "Trabalhos",
+                "Trabalhos ativos",
                 f"{kpis['ativos']}",
-                f"{kpis['total_trabalhos']} cadastrados",
+                f"{kpis['total_trabalhos']} no total",
                 tone="neutral",
                 emphasize=True,
             )
@@ -1713,7 +1689,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
             subtitle = (
                 f"{kpis['prazos_atrasados']} atrasados • {kpis['prazos_7dias']} em 7 dias"
                 if kpis["prazos_abertos"] > 0
-                else "nenhum em aberto"
+                else "sem pendências em aberto"
             )
             card(
                 "Prazos",
@@ -1728,7 +1704,7 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
                 kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]
             )
             card(
-                "Agenda",
+                "Agenda próxima",
                 f"{kpis['ag_7d']}",
                 _kpi_agenda_subtitle(kpis["ag_24h"], kpis["ag_72h"], kpis["ag_7d"]),
                 tone=agenda_tone,
@@ -1736,14 +1712,12 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
             )
 
         with c4:
+            saldo_tone = "success" if kpis["saldo"] >= 0 else "danger"
             card(
-                "Saldo",
+                "Resultado",
                 f"R$ {_fmt_money_br(kpis['saldo'])}",
-                (
-                    f"Receitas R$ {_fmt_money_br(kpis['receitas'])} • "
-                    f"Despesas R$ {_fmt_money_br(kpis['despesas'])}"
-                ),
-                tone=("success" if kpis["saldo"] >= 0 else "danger"),
+                f"Receitas R$ {_fmt_money_br(kpis['receitas'])} • Despesas R$ {_fmt_money_br(kpis['despesas'])}",
+                tone=saldo_tone,
                 emphasize=True,
             )
 
@@ -1751,39 +1725,43 @@ def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
 def _render_quick_actions() -> None:
     with section(
         "Ações rápidas",
-        subtitle="Atalhos para os fluxos mais usados",
+        subtitle="Criação e acesso direto aos fluxos principais",
         divider=False,
     ):
-        c1, c2, c3, c4 = grid(4, columns_mobile=2)
+        _render_html("<div class='sp-dashboard-action-grid'>")
+        try:
+            c1, c2, c3, c4 = grid(4, columns_mobile=2)
 
-        with c1:
-            _render_action_button(
-                "📁 Novo trabalho",
-                key="dash_quick_new_trabalho",
-                button_type="primary",
-                on_click=_go_trabalhos_cadastro,
-            )
+            with c1:
+                _render_action_button(
+                    "📁 Novo trabalho",
+                    key="dash_quick_new_trabalho",
+                    button_type="primary",
+                    on_click=_go_trabalhos_cadastro,
+                )
 
-        with c2:
-            _render_action_button(
-                "⏳ Novo prazo",
-                key="dash_quick_new_prazo",
-                on_click=_go_prazos_cadastro,
-            )
+            with c2:
+                _render_action_button(
+                    "⏳ Novo prazo",
+                    key="dash_quick_new_prazo",
+                    on_click=_go_prazos_cadastro,
+                )
 
-        with c3:
-            _render_action_button(
-                "📅 Novo agendamento",
-                key="dash_quick_agenda",
-                on_click=_go_agenda,
-            )
+            with c3:
+                _render_action_button(
+                    "📅 Abrir agenda",
+                    key="dash_quick_agenda",
+                    on_click=_go_agenda,
+                )
 
-        with c4:
-            _render_action_button(
-                "💰 Registrar financeiro",
-                key="dash_quick_financeiro",
-                on_click=_go_financeiro_lancamentos,
-            )
+            with c4:
+                _render_action_button(
+                    "💰 Abrir financeiro",
+                    key="dash_quick_financeiro",
+                    on_click=_go_financeiro_lancamentos,
+                )
+        finally:
+            _render_html("</div>")
 
 
 def _render_focus_panel(kpis: dict[str, Any]) -> None:
@@ -1798,7 +1776,7 @@ def _render_focus_panel(kpis: dict[str, Any]) -> None:
 
     with section(
         "Foco do dia",
-        subtitle="O melhor próximo passo para a operação",
+        subtitle="O melhor próximo passo para manter a operação fluindo",
         divider=False,
     ):
         _render_html(
@@ -1883,14 +1861,14 @@ def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
 
 def _render_activity_feed(items: list[dict[str, Any]]) -> None:
     with section(
-        "Activity feed",
-        subtitle="Leitura rápida do que está entrando no radar operacional",
+        "Radar operacional",
+        subtitle="Leitura rápida do que está entrando primeiro no seu campo de atenção",
         divider=False,
     ):
         if not items:
             empty_state(
-                title="Nenhuma atividade recente",
-                subtitle="Quando houver eventos relevantes, eles aparecerão aqui.",
+                title="Nenhum movimento relevante agora",
+                subtitle="Quando houver prazos ou agendas próximas, eles aparecerão aqui.",
                 icon="🧭",
             )
             return
@@ -2015,8 +1993,8 @@ def _render_smart_suggestions(kpis: dict[str, Any]) -> None:
     suggestions = _build_suggestions(kpis)
 
     with section(
-        "Sugestões inteligentes",
-        subtitle="Próximas ações recomendadas para manter o fluxo organizado",
+        "Sugestões do sistema",
+        subtitle="Ações recomendadas para manter previsibilidade e reduzir retrabalho",
         divider=False,
     ):
         _render_html("<div class='sp-dash-suggest-list'>")
@@ -2037,10 +2015,10 @@ def _render_smart_suggestions(kpis: dict[str, Any]) -> None:
 def _render_finance_strip(kpis: dict[str, Any]) -> None:
     with section(
         "Financeiro",
-        subtitle="Leitura rápida da posição atual",
+        subtitle="Posição consolidada do recorte atual",
         divider=False,
     ):
-        left, right = grid_weights((1.0, 0.40), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.0, 0.42), weights_mobile=(1, 1), gap="medium")
 
         with left:
             c1, c2, c3 = grid(3, columns_mobile=1)
@@ -2064,14 +2042,34 @@ def _render_finance_strip(kpis: dict[str, Any]) -> None:
             with c3:
                 saldo_tone = "success" if kpis["saldo"] >= 0 else "danger"
                 card(
-                    "Saldo",
+                    "Saldo atual",
                     f"R$ {_fmt_money_br(kpis['saldo'])}",
-                    "posição atual",
+                    "posição consolidada",
                     tone=saldo_tone,
                     emphasize=True,
                 )
 
         with right:
+            _render_html(
+                f"""
+                <div class="sp-dash-band">
+                  <div class="sp-dash-band-kicker">leitura financeira</div>
+                  <div class="sp-dash-band-title">
+                    {"Resultado positivo no recorte atual." if kpis["saldo"] >= 0 else "Atenção para o saldo negativo no recorte atual."}
+                  </div>
+                  <div class="sp-dash-band-copy">
+                    {"Há folga financeira para este recorte. Ainda assim, vale acompanhar recebimentos e novos lançamentos."
+                    if kpis["saldo"] >= 0 else
+                    "As despesas superam as receitas neste recorte. Vale revisar lançamentos e entradas previstas."}
+                  </div>
+                  <div class="sp-dash-chip-row">
+                    <span class="sp-chip">Receitas: R$ {_fmt_money_br(kpis['receitas'])}</span>
+                    <span class="sp-chip">Despesas: R$ {_fmt_money_br(kpis['despesas'])}</span>
+                  </div>
+                </div>
+                """
+            )
+            spacer(0.08)
             _render_nav_button(
                 "Abrir financeiro",
                 page="Financeiro",
@@ -2429,7 +2427,7 @@ def render(owner_user_id: int) -> None:
         _render_dashboard_hero(kpis, atuacao_label)
 
         spacer(0.10)
-        _render_global_alert_strip(kpis)
+        _render_command_bar(kpis, atuacao_label)
 
         spacer(0.10)
         _render_dashboard_summary(kpis, atuacao_label)
@@ -2437,8 +2435,8 @@ def render(owner_user_id: int) -> None:
         spacer(0.12)
         _render_quick_actions()
 
-        spacer(0.14)
-        left, right = grid_weights((1.0, 1.0), weights_mobile=(1, 1), gap="medium")
+        spacer(0.12)
+        _render_global_alert_strip(kpis)
 
         timeline_items = _build_timeline_items(
             rows_prazos_atrasados,
@@ -2446,6 +2444,9 @@ def render(owner_user_id: int) -> None:
             rows_ag_24h,
             rows_ag_7d,
         )
+
+        spacer(0.14)
+        left, right = grid_weights((1.05, 0.95), weights_mobile=(1, 1), gap="medium")
 
         with left:
             _render_focus_panel(kpis)
