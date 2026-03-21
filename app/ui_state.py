@@ -45,7 +45,6 @@ __all__ = [
 
 MENU_DEFAULT = "Painel"
 
-# Menus efetivos da UI
 VALID_MENUS = {
     "Painel",
     "Trabalhos",
@@ -56,11 +55,9 @@ VALID_MENUS = {
     "Andamentos",
     "Clientes",
     "Configurações",
-    # alias legado
-    "Agendamentos",
+    "Agendamentos",  # alias legado
 }
 
-# alias de compatibilidade
 _MENU_ALIASES: dict[str, str] = {
     "Agendamentos": "Agenda",
 }
@@ -84,7 +81,7 @@ STATE_DEFAULTS: dict[str, Any] = {
     "configuracoes_section": "Geral",
     # legado / compatibilidade
     "agendamentos_section": "Agenda",
-    # ação rápida / contexto de origem
+    # contexto de origem
     "last_action_source": None,
     "last_action_label": None,
     # refresh / invalidação visual
@@ -121,8 +118,7 @@ _MENU_TO_SECTION_KEY: dict[str, str] = {
     "Andamentos": "andamentos_section",
     "Clientes": "clientes_section",
     "Configurações": "configuracoes_section",
-    # alias legado
-    "Agendamentos": "agenda_section",
+    "Agendamentos": "agenda_section",  # alias legado
 }
 
 
@@ -196,12 +192,17 @@ def _normalize_legacy_state() -> None:
         }
     )
 
-    # migração suave de seção legado -> atual
-    if has_state("agendamentos_section") and not has_state("agenda_section"):
-        set_state("agenda_section", get_state("agendamentos_section", "Agenda"))
+    agenda_section = get_state("agenda_section")
+    agendamentos_section = get_state("agendamentos_section")
 
-    # espelha legado
-    set_state("agendamentos_section", get_state("agenda_section", "Agenda"))
+    if agenda_section is None and agendamentos_section is not None:
+        agenda_section = agendamentos_section
+
+    if agenda_section is None:
+        agenda_section = STATE_DEFAULTS["agenda_section"]
+
+    set_state("agenda_section", agenda_section)
+    set_state("agendamentos_section", agenda_section)
 
 
 # ==========================================================
@@ -212,7 +213,6 @@ def _normalize_legacy_state() -> None:
 def _as_clean_str(value: Any, default: str | None = None) -> str | None:
     if value is None:
         return default
-
     text = str(value).strip()
     return text if text else default
 
@@ -257,6 +257,21 @@ def _normalize_menu(menu: Any, default: str | None = None) -> str | None:
     if not menu_value:
         return default
     return _MENU_ALIASES.get(menu_value, menu_value)
+
+
+def _normalize_section_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Garante compatibilidade entre agenda_section e agendamentos_section.
+    """
+    normalized = dict(payload)
+
+    if "agendamentos_section" in normalized and "agenda_section" not in normalized:
+        normalized["agenda_section"] = normalized["agendamentos_section"]
+
+    if "agenda_section" in normalized:
+        normalized["agendamentos_section"] = normalized["agenda_section"]
+
+    return normalized
 
 
 # ==========================================================
@@ -368,7 +383,7 @@ def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> boo
         return False
 
     if allowed is None:
-        return menu_value in VALID_MENUS
+        return menu_value in {_normalize_menu(item) for item in VALID_MENUS}
 
     allowed_set = {
         _normalize_menu(item)
@@ -380,8 +395,7 @@ def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> boo
 
 def _sync_menu_controls(menu: str) -> None:
     """
-    Mantém todos os widgets e referências de navegação
-    alinhados com o menu efetivamente selecionado.
+    Mantém todos os widgets e referências de navegação alinhados.
     """
     menu_value = _normalize_menu(menu, default=MENU_DEFAULT) or MENU_DEFAULT
     set_states(
@@ -437,7 +451,6 @@ def set_current_section(menu: str, section: str, *, update_qp: bool = False) -> 
 
     set_state(section_key, section_value)
 
-    # compatibilidade com chave antiga
     if menu_value == "Agenda":
         set_state("agendamentos_section", section_value)
 
@@ -469,45 +482,15 @@ def navigate(
             _sync_menu_controls(menu_value)
         payload["menu"] = menu_value
 
-    normalized_state: dict[str, Any] = {}
-    if state:
-        normalized_state = dict(state)
+    normalized_state = _normalize_section_payload(state or {})
+    normalized_params = _normalize_section_payload(params or {})
 
-        # migração suave
-        if (
-            "agendamentos_section" in normalized_state
-            and "agenda_section" not in normalized_state
-        ):
-            normalized_state["agenda_section"] = normalized_state[
-                "agendamentos_section"
-            ]
-
-        if "agenda_section" in normalized_state:
-            normalized_state["agendamentos_section"] = normalized_state[
-                "agenda_section"
-            ]
-
+    if normalized_state:
         if update_session:
             set_states(normalized_state)
         payload.update(normalized_state)
 
-    normalized_params: dict[str, Any] = {}
-    if params:
-        normalized_params = dict(params)
-
-        if (
-            "agendamentos_section" in normalized_params
-            and "agenda_section" not in normalized_params
-        ):
-            normalized_params["agenda_section"] = normalized_params[
-                "agendamentos_section"
-            ]
-
-        if "agenda_section" in normalized_params:
-            normalized_params["agendamentos_section"] = normalized_params[
-                "agenda_section"
-            ]
-
+    if normalized_params:
         if update_session:
             set_states(normalized_params)
         payload.update(normalized_params)
@@ -529,7 +512,7 @@ def navigate_to_section(
     update_qp: bool = True,
 ) -> None:
     """
-    Navegação padronizada para ações rápidas e atalhos internos.
+    Navegação padronizada para atalhos internos e ações rápidas.
     """
     menu_value = _normalize_menu(menu)
     section_value = _as_clean_str(section)
@@ -554,6 +537,8 @@ def navigate_to_section(
 
     if action_label:
         payload_state["last_action_label"] = action_label
+
+    payload_state = _normalize_section_payload(payload_state)
 
     navigate(
         menu=menu_value,

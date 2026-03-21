@@ -14,7 +14,6 @@ __all__ = [
     "page_header",
 ]
 
-_PAGE_HEADER_CSS_KEY = "_sp_page_header_css_v60"
 _MAX_INLINE_ACTIONS = 3
 _ALLOWED_ACTION_TYPES = {"primary", "secondary"}
 _ALLOWED_BADGE_TONES = {"neutral", "success", "warning", "danger", "info"}
@@ -31,7 +30,7 @@ def _render_html(content: str) -> None:
 
 
 def _escape(text: str | None, *, quote: bool = False) -> str:
-    return html.escape(str(text or ""), quote=quote)
+    return html.escape("" if text is None else str(text), quote=quote)
 
 
 def _safe_key(text: str) -> str:
@@ -160,11 +159,6 @@ def _mobile_action(action: HeaderAction) -> HeaderAction:
 
 
 def _inject_page_header_css() -> None:
-    if st.session_state.get(_PAGE_HEADER_CSS_KEY, False):
-        return
-
-    st.session_state[_PAGE_HEADER_CSS_KEY] = True
-
     _render_html(
         """
         <style>
@@ -199,11 +193,14 @@ def _inject_page_header_css() -> None:
             pointer-events:none;
         }
 
+        .sp-page-header-shell > *{
+            position:relative;
+            z-index:1;
+        }
+
         .sp-page-header-title-block{
             min-width:0;
             width:100%;
-            position:relative;
-            z-index:1;
         }
 
         .sp-page-header-meta{
@@ -294,8 +291,6 @@ def _inject_page_header_css() -> None:
         }
 
         .sp-page-header-actions{
-            position:relative;
-            z-index:1;
             width:100%;
         }
 
@@ -330,10 +325,6 @@ def _inject_page_header_css() -> None:
         .sp-page-header-actions .stButton > button:hover{
             transform:translateY(-1px);
             box-shadow:0 10px 20px rgba(15,23,42,0.08);
-        }
-
-        .sp-page-header-actions .stButton > button[kind="primary"]{
-            font-weight:740 !important;
         }
 
         .sp-page-header-extra-actions{
@@ -521,14 +512,13 @@ def _render_actions(actions: Sequence[HeaderAction], *, base_key: str) -> bool:
     if not actions:
         return False
 
-    clicked = False
     _render_html('<div class="sp-page-header-actions">')
-    if is_mobile():
-        clicked = _render_actions_mobile(actions, base_key=base_key)
-    else:
-        clicked = _render_actions_desktop(actions, base_key=base_key)
-    _render_html("</div>")
-    return clicked
+    try:
+        if is_mobile():
+            return _render_actions_mobile(actions, base_key=base_key)
+        return _render_actions_desktop(actions, base_key=base_key)
+    finally:
+        _render_html("</div>")
 
 
 # ==========================================================
@@ -579,39 +569,8 @@ def page_header(
         if surface:
             _render_html('<div class="sp-page-header-shell">')
 
-        if is_mobile():
-            _render_title_block(
-                title=title,
-                subtitle=subtitle,
-                eyebrow=eyebrow,
-                badge=badge,
-                badge_tone=badge_tone,
-                compact=compact,
-            )
-            if normalized_actions:
-                clicked = _render_actions(normalized_actions, base_key=base_key)
-        else:
-            if normalized_actions:
-                left_ratio, right_ratio = actions_width_ratio
-                left, right = grid_weights(
-                    (left_ratio, right_ratio),
-                    weights_mobile=(1, 1),
-                    gap="medium",
-                )
-
-                with left:
-                    _render_title_block(
-                        title=title,
-                        subtitle=subtitle,
-                        eyebrow=eyebrow,
-                        badge=badge,
-                        badge_tone=badge_tone,
-                        compact=compact,
-                    )
-
-                with right:
-                    clicked = _render_actions(normalized_actions, base_key=base_key)
-            else:
+        try:
+            if is_mobile():
                 _render_title_block(
                     title=title,
                     subtitle=subtitle,
@@ -620,9 +579,41 @@ def page_header(
                     badge_tone=badge_tone,
                     compact=compact,
                 )
+                if normalized_actions:
+                    clicked = _render_actions(normalized_actions, base_key=base_key)
+            else:
+                if normalized_actions:
+                    left_ratio, right_ratio = actions_width_ratio
+                    left, right = grid_weights(
+                        (left_ratio, right_ratio),
+                        weights_mobile=(1, 1),
+                        gap="medium",
+                    )
 
-        if surface:
-            _render_html("</div>")
+                    with left:
+                        _render_title_block(
+                            title=title,
+                            subtitle=subtitle,
+                            eyebrow=eyebrow,
+                            badge=badge,
+                            badge_tone=badge_tone,
+                            compact=compact,
+                        )
+
+                    with right:
+                        clicked = _render_actions(normalized_actions, base_key=base_key)
+                else:
+                    _render_title_block(
+                        title=title,
+                        subtitle=subtitle,
+                        eyebrow=eyebrow,
+                        badge=badge,
+                        badge_tone=badge_tone,
+                        compact=compact,
+                    )
+        finally:
+            if surface:
+                _render_html("</div>")
 
     if divider:
         _render_html('<div class="sp-page-header-divider-space"></div>')

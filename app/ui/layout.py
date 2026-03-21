@@ -9,7 +9,6 @@ import streamlit as st
 
 from . import theme
 
-
 __all__ = [
     "MOBILE_FLAG_KEY",
     "PageMeta",
@@ -38,22 +37,7 @@ __all__ = [
     "page_header",
 ]
 
-
 MOBILE_FLAG_KEY = "force_mobile"
-
-
-def is_mobile() -> bool:
-    return bool(st.session_state.get(MOBILE_FLAG_KEY, False))
-
-
-def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
-    st.toggle(
-        label,
-        key=MOBILE_FLAG_KEY,
-        value=is_mobile(),
-        help="Simula layout mobile para validar empilhamento, densidade e ordem visual.",
-    )
-
 
 SPACE_2XS = 0.08
 SPACE_XS = 0.16
@@ -70,12 +54,26 @@ PAGE_PADDING_MOBILE = "10px"
 DEFAULT_GRID_GAP = "medium"
 
 
+def is_mobile() -> bool:
+    return bool(st.session_state.get(MOBILE_FLAG_KEY, False))
+
+
+def mobile_debug_toggle(label: str = "Forçar modo celular (teste)") -> None:
+    current = is_mobile()
+    toggled = st.toggle(
+        label,
+        value=current,
+        help="Simula layout mobile para validar empilhamento, densidade e ordem visual.",
+    )
+    st.session_state[MOBILE_FLAG_KEY] = toggled
+
+
 def _render_html(content: str) -> None:
     st.markdown(content, unsafe_allow_html=True)
 
 
 def _escape(text: str | None, *, quote: bool = False) -> str:
-    return html.escape(str(text or ""), quote=quote)
+    return html.escape("" if text is None else str(text), quote=quote)
 
 
 def _normalize_float(value: float | int | None, *, minimum: float = 0.0) -> float:
@@ -112,6 +110,17 @@ def _surface_container(*, bordered: bool = True):
         return st.container(border=bordered)
     except TypeError:
         return st.container()
+
+
+def _build_style_attr(style: str | None) -> str:
+    if not style or not style.strip():
+        return ""
+    return f' style="{_escape(style.strip(), quote=True)}"'
+
+
+def _build_class_attr(*classes: str | None) -> str:
+    parts = [part.strip() for part in classes if part and part.strip()]
+    return " ".join(parts)
 
 
 def _section_header_html(title: str, subtitle: str | None = None) -> None:
@@ -165,13 +174,13 @@ def content_shell(
     padding_inline: str | None = None,
     class_name: str | None = None,
 ) -> Iterator[None]:
-    _ = max_width
-    _ = padding_inline
-    wrapper_classes = "sp-content-shell"
-    if class_name:
-        wrapper_classes = f"{wrapper_classes} {class_name.strip()}"
+    classes = _build_class_attr("sp-content-shell", class_name)
+    padding = padding_inline or (
+        PAGE_PADDING_MOBILE if is_mobile() else PAGE_PADDING_DESKTOP
+    )
+    style = f"max-width:{max_width}; margin:0 auto; padding-inline:{padding};"
 
-    _render_html(f"<div class='{wrapper_classes}'>")
+    _render_html(f"<div class='{classes}'{_build_style_attr(style)}>")
     try:
         with st.container():
             yield
@@ -181,10 +190,7 @@ def content_shell(
 
 @contextmanager
 def page_stack(class_name: str | None = None) -> Iterator[None]:
-    classes = "sp-stack-lg"
-    if class_name:
-        classes = f"{classes} {class_name.strip()}"
-
+    classes = _build_class_attr("sp-stack-lg", class_name)
     _render_html(f"<div class='{classes}'>")
     try:
         with st.container():
@@ -195,10 +201,7 @@ def page_stack(class_name: str | None = None) -> Iterator[None]:
 
 @contextmanager
 def topbar_shell(class_name: str | None = None) -> Iterator[None]:
-    classes = "sp-stack-sm"
-    if class_name:
-        classes = f"{classes} {class_name.strip()}"
-
+    classes = _build_class_attr("sp-stack-sm", class_name)
     _render_html(f"<div class='{classes}'>")
     try:
         with st.container():
@@ -280,15 +283,21 @@ def plain_block(
     class_name: str | None = None,
     style: str | None = None,
 ) -> Iterator[None]:
-    _ = style
-    classes = class_name.strip() if class_name else ""
+    classes = _build_class_attr(class_name)
+    attrs = []
     if classes:
-        _render_html(f"<div class='{classes}'>")
+        attrs.append(f"class='{classes}'")
+    style_attr = _build_style_attr(style)
+    if style_attr:
+        attrs.append(style_attr.strip())
+
+    if attrs:
+        _render_html(f"<div {' '.join(attrs)}>")
     try:
         with st.container():
             yield
     finally:
-        if classes:
+        if attrs:
             _render_html("</div>")
 
 
@@ -298,14 +307,12 @@ def surface(
     style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
-    _ = style
-    classes = ["sp-surface"]
-    if not padded:
-        classes.append("sp-surface-no-pad")
-    if class_name:
-        classes.append(class_name.strip())
-
-    _render_html(f"<div class='{' '.join(classes)}'>")
+    classes = _build_class_attr(
+        "sp-surface",
+        None if padded else "sp-surface-no-pad",
+        class_name,
+    )
+    _render_html(f"<div class='{classes}'{_build_style_attr(style)}>")
     try:
         with _surface_container(bordered=False):
             yield
@@ -332,8 +339,6 @@ def section(
     surface_style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
-    _ = surface_style
-
     if title:
         if header_actions and not is_mobile():
             left, right = st.columns(
@@ -356,13 +361,13 @@ def section(
     elif title:
         spacer(SPACE_2XS if compact else SPACE_XS)
 
-    classes = ["sp-surface"]
-    if not padded:
-        classes.append("sp-surface-no-pad")
-    if surface_class:
-        classes.append(surface_class.strip())
+    classes = _build_class_attr(
+        "sp-surface",
+        None if padded else "sp-surface-no-pad",
+        surface_class,
+    )
 
-    _render_html(f"<div class='{' '.join(classes)}'>")
+    _render_html(f"<div class='{classes}'{_build_style_attr(surface_style)}>")
     try:
         with _surface_container(bordered=False):
             yield

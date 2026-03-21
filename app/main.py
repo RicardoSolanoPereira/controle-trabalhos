@@ -51,7 +51,6 @@ APP_ICON = "📐"
 
 NAV_MODE_KEY = "ui_nav_mode"
 
-# usar as chaves canônicas do ui_state
 SIDEBAR_MENU_KEY = "sidebar_menu"
 TOP_NAV_MENU_KEY = "top_nav_menu"
 
@@ -100,19 +99,23 @@ ROUTES: dict[str, Callable[[int], None]] = {
 # Estado base
 # ==========================================================
 
-init_state()
 
-st.session_state.setdefault(NAV_MODE_KEY, "sidebar")
-st.session_state.setdefault("force_mobile", False)
-st.session_state.setdefault("ui_mobile_cards", False)
-st.session_state.setdefault("ui_debug", False)
+def _init_app_state() -> None:
+    init_state()
 
-# garante que os widgets usem valores válidos
-if st.session_state.get(SIDEBAR_MENU_KEY) not in MENU_KEYS:
-    st.session_state[SIDEBAR_MENU_KEY] = MENU_DEFAULT
+    st.session_state.setdefault(NAV_MODE_KEY, "sidebar")
+    st.session_state.setdefault("force_mobile", False)
+    st.session_state.setdefault("ui_mobile_cards", False)
+    st.session_state.setdefault("ui_debug", False)
 
-if st.session_state.get(TOP_NAV_MENU_KEY) not in MENU_KEYS:
-    st.session_state[TOP_NAV_MENU_KEY] = MENU_DEFAULT
+    if st.session_state.get(SIDEBAR_MENU_KEY) not in MENU_KEYS:
+        st.session_state[SIDEBAR_MENU_KEY] = MENU_DEFAULT
+
+    if st.session_state.get(TOP_NAV_MENU_KEY) not in MENU_KEYS:
+        st.session_state[TOP_NAV_MENU_KEY] = MENU_DEFAULT
+
+
+_init_app_state()
 
 # ==========================================================
 # Bootstrap cache
@@ -125,14 +128,10 @@ def _bootstrap_db() -> bool:
     return True
 
 
-@st.cache_resource
-def _bootstrap_theme() -> bool:
-    inject_global_css()
-    return True
-
-
 _bootstrap_db()
-_bootstrap_theme()
+
+# CSS deve ser injetado por execução, não por cache de recurso.
+inject_global_css()
 
 # ==========================================================
 # Usuário padrão
@@ -179,11 +178,11 @@ owner_user_id = _get_owner_user_id_cached(DEFAULT_EMAIL, DEFAULT_NAME)
 
 def _apply_initial_route_sync() -> None:
     """
-    Prioridade de rota:
-    1. navegação interna por botão/atalho (nav_target)
-    2. query param da URL (deep link)
-    3. estado atual válido
-    4. fallback para default
+    Prioridade:
+    1. nav_target interno
+    2. query param
+    3. estado atual
+    4. fallback default
     """
     nav_target = consume_nav_target(default=None)
 
@@ -220,13 +219,6 @@ def _sync_hard() -> None:
 
 def _menu_format(menu_key: str) -> str:
     return MENU_LABELS.get(menu_key, menu_key)
-
-
-def _go_to_menu(menu_key: str) -> None:
-    if menu_key not in MENU_KEYS:
-        return
-    set_current_menu(menu_key)
-    _rerun_soft()
 
 
 def _clear_ui_cache() -> None:
@@ -499,15 +491,18 @@ def render_shell(menu: str, owner_user_id: int) -> None:
 # Execução
 # ==========================================================
 
-current_menu = get_current_menu(default=MENU_DEFAULT)
 
-if _show_sidebar():
-    current_menu = render_sidebar(current_menu)
+def _run_app() -> None:
+    current_menu = get_current_menu(default=MENU_DEFAULT)
 
-if _show_top_nav():
-    current_menu = _top_nav(current_menu)
+    if _show_sidebar():
+        current_menu = render_sidebar(current_menu)
 
-# sincroniza com o estado final depois de qualquer interação de UI
-current_menu = get_current_menu(default=MENU_DEFAULT)
+    if _show_top_nav():
+        current_menu = _top_nav(current_menu)
 
-render_shell(current_menu, owner_user_id)
+    current_menu = get_current_menu(default=MENU_DEFAULT)
+    render_shell(current_menu, owner_user_id)
+
+
+_run_app()

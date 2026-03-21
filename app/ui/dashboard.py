@@ -27,6 +27,14 @@ ATUACAO_UI = {
     "Particular / Outros serviços": "Trabalho Particular",
 }
 
+TONE_LABELS = {
+    "danger": "Crítico",
+    "warning": "Atenção",
+    "info": "Em breve",
+    "success": "Estável",
+    "neutral": "Neutro",
+}
+
 
 # ==========================================================
 # Base helpers
@@ -44,8 +52,70 @@ def _esc(value: Any, fallback: str = "—") -> str:
     return escape(text) if text else fallback
 
 
+def _safe_text(value: Any, fallback: str = "—") -> str:
+    text = str(value).strip() if value is not None else ""
+    return text if text else fallback
+
+
+def _naive(dt: datetime) -> datetime:
+    try:
+        if getattr(dt, "tzinfo", None) is not None:
+            return dt.replace(tzinfo=None)
+    except Exception:
+        pass
+    return dt
+
+
+def _fmt_money_br(value: float) -> str:
+    try:
+        parsed = float(value or 0)
+    except Exception:
+        parsed = 0.0
+    return f"{parsed:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _apply_tipo_filter(stmt, tipo_val: str | None):
+    return stmt if not tipo_val else stmt.where(Processo.papel == tipo_val)
+
+
+def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
+    ate_7_dias = hoje + timedelta(days=7)
+    start_today = datetime.combine(hoje, time.min)
+    end_7d = datetime.combine(ate_7_dias, time.max)
+    now_n = _naive(now_br())
+    return start_today, end_7d, now_n
+
+
+def _greeting() -> str:
+    hour = now_br().hour
+    if hour < 12:
+        return "Bom dia"
+    if hour < 18:
+        return "Boa tarde"
+    return "Boa noite"
+
+
+def _today_label() -> str:
+    dias = [
+        "segunda-feira",
+        "terça-feira",
+        "quarta-feira",
+        "quinta-feira",
+        "sexta-feira",
+        "sábado",
+        "domingo",
+    ]
+    agora = now_br()
+    return f"{dias[agora.weekday()]}, {agora.strftime('%d/%m/%Y')}"
+
+
+def _human_plural(value: int, singular: str, plural: str | None = None) -> str:
+    plural = plural or f"{singular}s"
+    return f"{value} {singular if value == 1 else plural}"
+
+
 def _inject_dashboard_css() -> None:
-    css_key = "_sp_dashboard_css_v70"
+    css_key = "_sp_dashboard_css_v90"
     if st.session_state.get(css_key):
         return
     st.session_state[css_key] = True
@@ -53,7 +123,13 @@ def _inject_dashboard_css() -> None:
     _render_html(
         """
         <style>
-        .sp-dash-filter-surface{
+        .sp-dash-panel{
+            display:flex;
+            flex-direction:column;
+            gap:16px;
+        }
+
+        .sp-dash-toolbar{
             display:flex;
             align-items:center;
             justify-content:space-between;
@@ -66,16 +142,13 @@ def _inject_dashboard_css() -> None:
             box-shadow:0 1px 2px rgba(15,23,42,.03), 0 10px 24px rgba(15,23,42,.04);
         }
 
-        .sp-dash-filter-copy{
+        .sp-dash-toolbar-copy{
             display:flex;
             flex-direction:column;
             gap:4px;
         }
 
-        .sp-dash-filter-kicker,
-        .sp-dash-hero-kicker,
-        .sp-dash-focus-kicker,
-        .sp-dash-band-kicker{
+        .sp-dash-kicker{
             font-size:.72rem;
             font-weight:800;
             letter-spacing:.08em;
@@ -83,25 +156,23 @@ def _inject_dashboard_css() -> None:
             color:rgba(15,23,42,.45);
         }
 
-        .sp-dash-filter-text{
+        .sp-dash-toolbar-text{
             color:rgba(15,23,42,.72);
             font-size:.90rem;
             line-height:1.45;
-            max-width:62ch;
+            max-width:66ch;
         }
 
         .sp-dash-hero{
             position:relative;
             overflow:hidden;
-            padding:22px 24px;
+            padding:24px;
             border:1px solid rgba(15,23,42,.06);
-            border-radius:22px;
+            border-radius:24px;
             background:
                 radial-gradient(circle at top right, rgba(53,94,87,.10), transparent 28%),
                 linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(247,250,249,.96) 100%);
-            box-shadow:
-                0 1px 2px rgba(15,23,42,.03),
-                0 16px 34px rgba(15,23,42,.05);
+            box-shadow:0 1px 2px rgba(15,23,42,.03), 0 16px 34px rgba(15,23,42,.05);
         }
 
         .sp-dash-hero::after{
@@ -109,8 +180,8 @@ def _inject_dashboard_css() -> None:
             position:absolute;
             top:-36px;
             right:-16px;
-            width:160px;
-            height:160px;
+            width:180px;
+            height:180px;
             border-radius:999px;
             background:radial-gradient(circle, rgba(53,94,87,.10), transparent 70%);
             pointer-events:none;
@@ -127,9 +198,9 @@ def _inject_dashboard_css() -> None:
         }
 
         .sp-dash-hero-title{
-            font-size:1.26rem;
-            font-weight:840;
-            line-height:1.18;
+            font-size:1.34rem;
+            font-weight:850;
+            line-height:1.16;
             color:#0f172a;
             letter-spacing:-0.02em;
             max-width:38ch;
@@ -137,22 +208,20 @@ def _inject_dashboard_css() -> None:
 
         .sp-dash-hero-copy{
             color:rgba(15,23,42,.70);
-            font-size:.94rem;
-            line-height:1.54;
+            font-size:.95rem;
+            line-height:1.55;
             margin-top:7px;
-            max-width:76ch;
+            max-width:78ch;
         }
 
-        .sp-dash-hero-meta{
-            position:relative;
-            z-index:1;
+        .sp-dash-chip-row{
             display:flex;
             gap:8px;
             flex-wrap:wrap;
-            margin-top:15px;
+            margin-top:12px;
         }
 
-        .sp-dash-command{
+        .sp-dash-center{
             display:flex;
             align-items:center;
             justify-content:space-between;
@@ -165,14 +234,14 @@ def _inject_dashboard_css() -> None:
             box-shadow:0 1px 2px rgba(15,23,42,.03);
         }
 
-        .sp-dash-command-title{
+        .sp-dash-center-title{
             font-size:1rem;
             font-weight:810;
             color:#0f172a;
             line-height:1.3;
         }
 
-        .sp-dash-command-sub{
+        .sp-dash-center-sub{
             font-size:.87rem;
             line-height:1.44;
             color:rgba(15,23,42,.64);
@@ -180,31 +249,7 @@ def _inject_dashboard_css() -> None:
             max-width:72ch;
         }
 
-        .sp-dash-band{
-            padding:16px 18px;
-            border:1px solid rgba(15,23,42,.07);
-            border-radius:20px;
-            background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(249,250,251,.96) 100%);
-            box-shadow:0 1px 3px rgba(15,23,42,.03), 0 10px 22px rgba(15,23,42,.04);
-        }
-
-        .sp-dash-band-title{
-            margin-top:4px;
-            font-size:1.06rem;
-            font-weight:820;
-            line-height:1.28;
-            color:#0f172a;
-        }
-
-        .sp-dash-band-copy{
-            margin-top:6px;
-            font-size:.90rem;
-            line-height:1.48;
-            color:rgba(15,23,42,.67);
-            max-width:72ch;
-        }
-
-        .sp-dash-alert-strip{
+        .sp-dash-strip{
             display:flex;
             align-items:center;
             justify-content:space-between;
@@ -217,34 +262,34 @@ def _inject_dashboard_css() -> None:
             box-shadow:0 1px 2px rgba(15,23,42,.03);
         }
 
-        .sp-dash-alert-strip-danger{
+        .sp-dash-strip-danger{
             border-left:4px solid #dc2626;
             background:linear-gradient(180deg, rgba(254,242,242,.95) 0%, rgba(255,255,255,1) 100%);
         }
 
-        .sp-dash-alert-strip-warning{
+        .sp-dash-strip-warning{
             border-left:4px solid #f59e0b;
             background:linear-gradient(180deg, rgba(255,251,235,.95) 0%, rgba(255,255,255,1) 100%);
         }
 
-        .sp-dash-alert-strip-info{
+        .sp-dash-strip-info{
             border-left:4px solid #2563eb;
             background:linear-gradient(180deg, rgba(239,246,255,.95) 0%, rgba(255,255,255,1) 100%);
         }
 
-        .sp-dash-alert-strip-success{
+        .sp-dash-strip-success{
             border-left:4px solid #16a34a;
             background:linear-gradient(180deg, rgba(240,253,244,.95) 0%, rgba(255,255,255,1) 100%);
         }
 
-        .sp-dash-alert-title{
+        .sp-dash-strip-title{
             font-size:.92rem;
             font-weight:800;
             color:#0f172a;
             line-height:1.32;
         }
 
-        .sp-dash-alert-sub{
+        .sp-dash-strip-sub{
             margin-top:4px;
             font-size:.85rem;
             line-height:1.42;
@@ -252,7 +297,7 @@ def _inject_dashboard_css() -> None:
             max-width:72ch;
         }
 
-        .sp-dash-focus{
+        .sp-dash-priority{
             padding:18px;
             border:1px solid rgba(15,23,42,.08);
             border-radius:20px;
@@ -260,40 +305,33 @@ def _inject_dashboard_css() -> None:
             box-shadow:0 1px 3px rgba(15,23,42,.04), 0 14px 28px rgba(15,23,42,.04);
         }
 
-        .sp-dash-focus-danger{ border-left:4px solid #dc2626; }
-        .sp-dash-focus-warning{ border-left:4px solid #f59e0b; }
-        .sp-dash-focus-info{ border-left:4px solid #2563eb; }
-        .sp-dash-focus-success{ border-left:4px solid #16a34a; }
+        .sp-dash-priority-danger{ border-left:4px solid #dc2626; }
+        .sp-dash-priority-warning{ border-left:4px solid #f59e0b; }
+        .sp-dash-priority-info{ border-left:4px solid #2563eb; }
+        .sp-dash-priority-success{ border-left:4px solid #16a34a; }
 
-        .sp-dash-focus-title{
-            font-size:1.05rem;
-            font-weight:810;
+        .sp-dash-priority-title{
+            font-size:1.08rem;
+            font-weight:820;
             line-height:1.30;
             color:#0f172a;
         }
 
-        .sp-dash-focus-copy{
+        .sp-dash-priority-copy{
             margin-top:6px;
             color:rgba(15,23,42,.70);
             line-height:1.50;
             font-size:.91rem;
         }
 
-        .sp-dash-chip-row{
-            display:flex;
-            gap:8px;
-            flex-wrap:wrap;
-            margin-top:10px;
-        }
-
-        .sp-dash-focus-list{
+        .sp-dash-priority-list{
             margin-top:12px;
             display:flex;
             flex-direction:column;
             gap:8px;
         }
 
-        .sp-dash-focus-item{
+        .sp-dash-priority-item{
             display:flex;
             gap:8px;
             align-items:flex-start;
@@ -306,7 +344,7 @@ def _inject_dashboard_css() -> None:
             line-height:1.38;
         }
 
-        .sp-dash-compact-list,
+        .sp-dash-queue,
         .sp-dash-feed,
         .sp-dash-suggest-list{
             display:flex;
@@ -314,7 +352,7 @@ def _inject_dashboard_css() -> None:
             gap:10px;
         }
 
-        .sp-dash-compact-item,
+        .sp-dash-queue-item,
         .sp-dash-feed-item,
         .sp-dash-suggest-item{
             border:1px solid rgba(15,23,42,.08);
@@ -324,7 +362,12 @@ def _inject_dashboard_css() -> None:
             box-shadow:0 1px 2px rgba(15,23,42,.03);
         }
 
-        .sp-dash-compact-top,
+        .sp-dash-queue-item-danger{ border-left:4px solid #dc2626; }
+        .sp-dash-queue-item-warning{ border-left:4px solid #f59e0b; }
+        .sp-dash-queue-item-info{ border-left:4px solid #2563eb; }
+        .sp-dash-queue-item-success{ border-left:4px solid #16a34a; }
+
+        .sp-dash-queue-top,
         .sp-dash-feed-top{
             display:flex;
             align-items:flex-start;
@@ -332,7 +375,7 @@ def _inject_dashboard_css() -> None:
             gap:10px;
         }
 
-        .sp-dash-compact-title,
+        .sp-dash-queue-title,
         .sp-dash-feed-title,
         .sp-dash-suggest-title{
             font-weight:790;
@@ -341,7 +384,7 @@ def _inject_dashboard_css() -> None:
             font-size:.92rem;
         }
 
-        .sp-dash-compact-sub,
+        .sp-dash-queue-sub,
         .sp-dash-feed-sub,
         .sp-dash-suggest-sub{
             margin-top:4px;
@@ -410,31 +453,28 @@ def _inject_dashboard_css() -> None:
             margin-top:3px;
         }
 
-        .sp-dash-list-card{
-            border:1px solid rgba(15,23,42,.08);
-            border-radius:16px;
-            padding:13px 14px;
+        .sp-dash-summary-band{
+            padding:16px 18px;
+            border:1px solid rgba(15,23,42,.07);
+            border-radius:20px;
             background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(249,250,251,.96) 100%);
-            box-shadow:0 1px 2px rgba(15,23,42,.03);
+            box-shadow:0 1px 3px rgba(15,23,42,.03), 0 10px 22px rgba(15,23,42,.04);
         }
 
-        .sp-dash-list-card-danger{ border-left:4px solid #dc2626; }
-        .sp-dash-list-card-warning{ border-left:4px solid #f59e0b; }
-        .sp-dash-list-card-info{ border-left:4px solid #2563eb; }
-        .sp-dash-list-card-success{ border-left:4px solid #16a34a; }
-
-        .sp-dash-list-card-title{
-            font-size:.92rem;
-            font-weight:800;
-            line-height:1.34;
+        .sp-dash-summary-band-title{
+            margin-top:4px;
+            font-size:1.06rem;
+            font-weight:820;
+            line-height:1.28;
             color:#0f172a;
         }
 
-        .sp-dash-list-card-sub{
-            margin-top:5px;
-            font-size:.84rem;
-            line-height:1.42;
-            color:rgba(15,23,42,.66);
+        .sp-dash-summary-band-copy{
+            margin-top:6px;
+            font-size:.90rem;
+            line-height:1.48;
+            color:rgba(15,23,42,.67);
+            max-width:72ch;
         }
 
         .sp-dashboard-action-grid .stButton > button{
@@ -474,20 +514,19 @@ def _inject_dashboard_css() -> None:
         }
 
         @media (max-width:768px){
-            .sp-dash-filter-surface,
+            .sp-dash-toolbar,
             .sp-dash-hero,
-            .sp-dash-band,
-            .sp-dash-focus,
+            .sp-dash-center,
+            .sp-dash-strip,
+            .sp-dash-priority,
             .sp-dash-module,
-            .sp-dash-alert-strip,
-            .sp-dash-command,
-            .sp-dash-list-card{
+            .sp-dash-summary-band{
                 border-radius:16px;
                 padding:13px;
             }
 
             .sp-dash-hero-title{
-                font-size:1.08rem;
+                font-size:1.10rem;
             }
         }
         </style>
@@ -495,65 +534,8 @@ def _inject_dashboard_css() -> None:
     )
 
 
-def _naive(dt: datetime) -> datetime:
-    try:
-        if getattr(dt, "tzinfo", None) is not None:
-            return dt.replace(tzinfo=None)
-    except Exception:
-        pass
-    return dt
-
-
-def _fmt_money_br(value: float) -> str:
-    try:
-        parsed = float(value or 0)
-    except Exception:
-        parsed = 0.0
-    return f"{parsed:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def _safe_text(value: Any, fallback: str = "—") -> str:
-    text = str(value).strip() if value is not None else ""
-    return text if text else fallback
-
-
-def _apply_tipo_filter(stmt, tipo_val: str | None):
-    return stmt if not tipo_val else stmt.where(Processo.papel == tipo_val)
-
-
-def _dt_bounds(hoje: date) -> tuple[datetime, datetime, datetime]:
-    ate_7_dias = hoje + timedelta(days=7)
-    start_today = datetime.combine(hoje, time.min)
-    end_7d = datetime.combine(ate_7_dias, time.max)
-    now_n = _naive(now_br())
-    return start_today, end_7d, now_n
-
-
-def _greeting() -> str:
-    hour = now_br().hour
-    if hour < 12:
-        return "Bom dia"
-    if hour < 18:
-        return "Boa tarde"
-    return "Boa noite"
-
-
-def _today_label() -> str:
-    dias = [
-        "segunda-feira",
-        "terça-feira",
-        "quarta-feira",
-        "quinta-feira",
-        "sexta-feira",
-        "sábado",
-        "domingo",
-    ]
-    agora = now_br()
-    return f"{dias[agora.weekday()]}, {agora.strftime('%d/%m/%Y')}"
-
-
 # ==========================================================
-# Navegação SaaS
+# Navegação
 # ==========================================================
 
 
@@ -602,14 +584,14 @@ def _render_nav_button(
     key: str,
     type: str = "secondary",
 ) -> None:
-    section = _nav_map(page, state)
+    section_name = _nav_map(page, state)
     st.button(
         label,
         key=key,
         type=type,
         use_container_width=True,
         on_click=_go_to,
-        args=(page, section),
+        args=(page, section_name),
     )
 
 
@@ -629,34 +611,8 @@ def _render_action_button(
     )
 
 
-def _render_dataframe_or_caption(
-    df: pd.DataFrame,
-    *,
-    empty_title: str = "Nada por aqui",
-    empty_subtitle: str = "Não há registros para exibir neste recorte.",
-    empty_icon: str = "📭",
-    height: int | None = None,
-) -> None:
-    if df.empty:
-        empty_state(
-            title=empty_title,
-            subtitle=empty_subtitle,
-            icon=empty_icon,
-        )
-        return
-
-    dataframe_kwargs = {
-        "use_container_width": True,
-        "hide_index": True,
-    }
-    if height is not None:
-        dataframe_kwargs["height"] = height
-
-    st.dataframe(df, **dataframe_kwargs)
-
-
 # ==========================================================
-# Regras de prazo
+# Regras de prazo / agenda
 # ==========================================================
 
 
@@ -695,11 +651,6 @@ def _prior_badge(prioridade: str | None) -> str:
     return "Média"
 
 
-# ==========================================================
-# Regras de agenda
-# ==========================================================
-
-
 def _agenda_status(hours_left: float) -> tuple[str, str]:
     if hours_left < 0:
         return "Atrasado", "danger"
@@ -710,26 +661,14 @@ def _agenda_status(hours_left: float) -> tuple[str, str]:
     return "Programado", "success"
 
 
-def _agenda_rest_chip(hours_left: float) -> str:
-    if hours_left < 0:
-        return "<span class='sp-chip sp-chip-danger'>⏳ vencido</span>"
-
-    if hours_left < 24:
-        rest_txt = f"{max(0, int(round(hours_left)))}h"
-    else:
-        rest_txt = f"{max(0, int(round(hours_left / 24)))}d"
-
-    return f"<span class='sp-chip'>⏳ em {rest_txt}</span>"
-
-
 def _kpi_agenda_subtitle(ag_24h: int, ag_72h: int, ag_7d: int) -> str:
     if ag_7d <= 0:
-        return "nenhum compromisso"
+        return "nenhum compromisso próximo"
     if ag_24h > 0:
-        return f"{ag_24h} em 24h • {ag_7d} em 7d"
+        return f"{ag_24h} em 24h • {ag_7d} em 7 dias"
     if ag_72h > 0:
-        return f"{ag_72h} em 72h • {ag_7d} em 7d"
-    return f"{ag_7d} em 7d"
+        return f"{ag_72h} em 72h • {ag_7d} em 7 dias"
+    return f"{ag_7d} em 7 dias"
 
 
 def _kpi_agenda_tone(ag_24h: int, ag_72h: int, ag_7d: int) -> tuple[str, bool]:
@@ -829,7 +768,7 @@ def _build_trabalhos_df(rows: list[tuple]) -> pd.DataFrame:
 
 
 # ==========================================================
-# Navegação específica do dashboard
+# Navegação específica
 # ==========================================================
 
 
@@ -855,185 +794,6 @@ def _go_prazos_cadastro() -> None:
 
 def _go_trabalhos_cadastro() -> None:
     _go_to("Trabalhos", "Cadastro")
-
-
-# ==========================================================
-# Estado visual simplificado
-# ==========================================================
-
-
-def _build_focus_state(kpis: dict[str, Any]) -> dict[str, Any]:
-    if kpis["prazos_atrasados"] > 0:
-        return {
-            "tone": "danger",
-            "kicker": "atenção imediata",
-            "title": f"{kpis['prazos_atrasados']} prazo(s) vencido(s)",
-            "copy": "Comece regularizando os itens atrasados antes de abrir novas frentes.",
-            "chips": [
-                f"<span class='sp-chip sp-chip-danger'>Atrasados: {kpis['prazos_atrasados']}</span>",
-                f"<span class='sp-chip'>Em 7 dias: {kpis['prazos_7dias']}</span>",
-            ],
-            "items": [
-                "Abrir a lista de pendências vencidas",
-                "Tratar primeiro os itens com maior urgência",
-                "Registrar a atualização logo após cada avanço",
-            ],
-            "primary": ("Ver prazos", _go_prazos_lista),
-            "secondary": ("Novo prazo", _go_prazos_cadastro),
-        }
-
-    if kpis["ag_24h"] > 0:
-        return {
-            "tone": "warning",
-            "kicker": "próxima ação",
-            "title": f"{kpis['ag_24h']} compromisso(s) em 24h",
-            "copy": "Revise horário, local, deslocamento e documentos antes do próximo compromisso.",
-            "chips": [
-                f"<span class='sp-chip sp-chip-warning'>Agenda 24h: {kpis['ag_24h']}</span>",
-                f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
-            ],
-            "items": [
-                "Conferir horário e local",
-                "Separar documentos e anexos",
-                "Confirmar logística da visita ou audiência",
-            ],
-            "primary": ("Ver agenda", _go_agenda),
-            "secondary": ("Ver trabalhos", _go_trabalhos_lista),
-        }
-
-    if kpis["prazos_7dias"] > 0:
-        return {
-            "tone": "info",
-            "kicker": "janela da semana",
-            "title": f"{kpis['prazos_7dias']} prazo(s) em até 7 dias",
-            "copy": "Antecipar a organização desta semana reduz urgências e retrabalho.",
-            "chips": [
-                f"<span class='sp-chip sp-chip-info'>Em 7 dias: {kpis['prazos_7dias']}</span>",
-                f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-            ],
-            "items": [
-                "Revisar o calendário da semana",
-                "Separar as peças por trabalho",
-                "Distribuir a carga antes do vencimento",
-            ],
-            "primary": ("Ver prazos", _go_prazos_lista),
-            "secondary": ("Novo trabalho", _go_trabalhos_cadastro),
-        }
-
-    return {
-        "tone": "success",
-        "kicker": "painel estável",
-        "title": "Sem pendências críticas agora",
-        "copy": "Bom momento para atualizar cadastros, revisar trabalhos e manter a operação em dia.",
-        "chips": [
-            "<span class='sp-chip sp-chip-success'>Sem urgência crítica</span>",
-            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-        ],
-        "items": [
-            "Atualizar trabalhos em andamento",
-            "Cadastrar novos prazos ou compromissos",
-            "Revisar agenda e financeiro",
-        ],
-        "primary": ("Novo trabalho", _go_trabalhos_cadastro),
-        "secondary": ("Abrir financeiro", _go_financeiro_lancamentos),
-    }
-
-
-# ==========================================================
-# Timeline
-# ==========================================================
-
-
-def _build_timeline_items(
-    rows_prazos_atrasados: list,
-    rows_prazos_7d: list,
-    rows_ag_24h: list,
-    rows_ag_7d: list,
-) -> list[dict[str, Any]]:
-    items: list[dict[str, Any]] = []
-
-    for (
-        _id,
-        evento,
-        data_limite,
-        prioridade,
-        numero_trabalho,
-        descricao_trabalho,
-    ) in rows_prazos_atrasados:
-        dias = int(_dias_restantes(data_limite))
-        items.append(
-            {
-                "sort_dt": ensure_br(data_limite),
-                "tone": "danger",
-                "kind": "Prazo",
-                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
-                "meta": f"vencido há {abs(dias)} dia(s)",
-                "detail": _safe_text(descricao_trabalho, "Sem descrição"),
-            }
-        )
-
-    for (
-        _id,
-        evento,
-        data_limite,
-        prioridade,
-        numero_trabalho,
-        descricao_trabalho,
-    ) in rows_prazos_7d:
-        dias = int(_dias_restantes(data_limite))
-        items.append(
-            {
-                "sort_dt": ensure_br(data_limite),
-                "tone": _tone_from_prazo_status(dias),
-                "kind": "Prazo",
-                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
-                "meta": f"vence em {dias} dia(s)",
-                "detail": _safe_text(descricao_trabalho, "Sem descrição"),
-            }
-        )
-
-    for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows_ag_24h:
-        inicio_br = ensure_br(inicio)
-        hours_left = (_naive(inicio_br) - _naive(now_br())).total_seconds() / 3600.0
-        _label, tone = _agenda_status(hours_left)
-        items.append(
-            {
-                "sort_dt": inicio_br,
-                "tone": tone,
-                "kind": "Agenda",
-                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(tipo, 'Sem tipo')}",
-                "meta": inicio_br.strftime("%d/%m %H:%M"),
-                "detail": _safe_text(
-                    local, _safe_text(descricao_trabalho, "Sem local")
-                ),
-            }
-        )
-
-    seen_agenda_keys: set[str] = set()
-    for _id, *_rest in rows_ag_24h:
-        seen_agenda_keys.add(f"{_id}")
-
-    for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows_ag_7d:
-        if f"{_id}" in seen_agenda_keys:
-            continue
-        inicio_br = ensure_br(inicio)
-        hours_left = (_naive(inicio_br) - _naive(now_br())).total_seconds() / 3600.0
-        _label, tone = _agenda_status(hours_left)
-        items.append(
-            {
-                "sort_dt": inicio_br,
-                "tone": tone,
-                "kind": "Agenda",
-                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(tipo, 'Sem tipo')}",
-                "meta": inicio_br.strftime("%d/%m %H:%M"),
-                "detail": _safe_text(
-                    local, _safe_text(descricao_trabalho, "Sem local")
-                ),
-            }
-        )
-
-    items.sort(key=lambda x: x["sort_dt"])
-    return items[:4]
 
 
 # ==========================================================
@@ -1226,7 +986,7 @@ def _fetch_prazos_tables_cached(
                 Prazo.concluido.is_(False),
             )
             .order_by(Prazo.data_limite.asc())
-            .limit(10)
+            .limit(12)
         )
         stmt_base = _apply_tipo_filter(stmt_base, tipo_val)
 
@@ -1272,7 +1032,7 @@ def _fetch_agendamentos_cached(
                 Agendamento.inicio >= now_n,
             )
             .order_by(Agendamento.inicio.asc())
-            .limit(10)
+            .limit(12)
         )
         stmt_base = _apply_tipo_filter(stmt_base, tipo_val)
 
@@ -1315,35 +1075,525 @@ def _fetch_ultimos_trabalhos_cached(
 
 
 # ==========================================================
-# Blocos visuais
+# Builders SaaS
 # ==========================================================
+
+
+def _build_header_subtitle(kpis: dict[str, Any]) -> str:
+    return (
+        f"{_greeting()}. {_today_label()}. "
+        f"{_human_plural(kpis['ativos'], 'ativo')} • "
+        f"{_human_plural(kpis['prazos_atrasados'], 'prazo atrasado')} • "
+        f"{_human_plural(kpis['ag_24h'], 'compromisso em 24h', 'compromissos em 24h')}."
+    )
 
 
 def _header_badge(kpis: dict[str, Any]) -> tuple[str, str]:
     if kpis["prazos_atrasados"] > 0:
-        return f"{kpis['prazos_atrasados']} atraso(s)", "danger"
+        return f"{kpis['prazos_atrasados']} prazo(s) atrasado(s)", "danger"
     if kpis["ag_24h"] > 0:
         return f"{kpis['ag_24h']} em 24h", "warning"
     if kpis["prazos_7dias"] > 0:
         return f"{kpis['prazos_7dias']} na semana", "info"
-    return "operação estável", "success"
+    return "Operação estável", "success"
 
 
-def _render_header(kpis: dict[str, Any] | None = None) -> None:
-    atrasados = (kpis or {}).get("prazos_atrasados", 0)
-    agenda_24h = (kpis or {}).get("ag_24h", 0)
-    ativos = (kpis or {}).get("ativos", 0)
+def _build_hero_state(kpis: dict[str, Any]) -> dict[str, Any]:
+    if kpis["prazos_atrasados"] > 0:
+        return {
+            "title": "Existem pendências vencidas exigindo ação imediata.",
+            "copy": (
+                "Seu melhor próximo passo é abrir a fila de prazos e começar pelos itens já vencidos, "
+                "reduzindo risco operacional, pressão de última hora e retrabalho."
+            ),
+            "chips": [
+                f"<span class='sp-chip sp-chip-danger'>Atrasados: {kpis['prazos_atrasados']}</span>",
+                f"<span class='sp-chip'>Prazos abertos: {kpis['prazos_abertos']}</span>",
+                f"<span class='sp-chip'>Agenda 24h: {kpis['ag_24h']}</span>",
+                f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+            ],
+        }
 
-    subtitle = (
-        f"{_greeting()}. {_today_label()}. "
-        f"{ativos} ativo(s), {atrasados} atraso(s), {agenda_24h} compromisso(s) em 24h."
+    if kpis["ag_24h"] > 0:
+        return {
+            "title": "Sua agenda imediata pede preparação.",
+            "copy": (
+                "Há compromissos muito próximos. Revise local, horário, deslocamento e documentos "
+                "antes da próxima movimentação."
+            ),
+            "chips": [
+                f"<span class='sp-chip sp-chip-warning'>Em 24h: {kpis['ag_24h']}</span>",
+                f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
+                f"<span class='sp-chip'>Prazos na semana: {kpis['prazos_7dias']}</span>",
+                f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+            ],
+        }
+
+    if kpis["prazos_7dias"] > 0:
+        return {
+            "title": "A semana está sob controle, mas já pede antecipação.",
+            "copy": (
+                "Existem vencimentos próximos. Antecipar a preparação agora reduz urgência e melhora a execução ao longo da semana."
+            ),
+            "chips": [
+                f"<span class='sp-chip sp-chip-info'>Em 7 dias: {kpis['prazos_7dias']}</span>",
+                f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
+                f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+                f"<span class='sp-chip'>Saldo: R$ {_fmt_money_br(kpis['saldo'])}</span>",
+            ],
+        }
+
+    return {
+        "title": "Operação estável e sem sinais críticos no momento.",
+        "copy": (
+            "Este é um bom momento para revisar base cadastral, abrir novos trabalhos, "
+            "atualizar informações e preparar a próxima semana com calma."
+        ),
+        "chips": [
+            "<span class='sp-chip sp-chip-success'>Sem urgência crítica</span>",
+            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+            f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
+            f"<span class='sp-chip'>Saldo: R$ {_fmt_money_br(kpis['saldo'])}</span>",
+        ],
+    }
+
+
+def _build_action_center(kpis: dict[str, Any], atuacao_label: str) -> dict[str, str]:
+    if kpis["prazos_atrasados"] > 0:
+        return {
+            "title": "Prioridade máxima: regularizar pendências vencidas.",
+            "subtitle": (
+                f"Há {kpis['prazos_atrasados']} prazo(s) atrasado(s). "
+                "Abra a fila de prazos e trate primeiro o que já venceu."
+            ),
+            "chip": f"<span class='sp-chip sp-chip-danger'>{kpis['prazos_atrasados']} atraso(s)</span><span class='sp-chip'>{escape(atuacao_label)}</span>",
+        }
+
+    if kpis["ag_24h"] > 0:
+        return {
+            "title": "Seu próximo compromisso já exige preparação.",
+            "subtitle": (
+                f"Há {kpis['ag_24h']} compromisso(s) nas próximas 24 horas. "
+                "Revise local, horário, deslocamento e documentos."
+            ),
+            "chip": f"<span class='sp-chip sp-chip-warning'>{kpis['ag_24h']} em 24h</span><span class='sp-chip'>{escape(atuacao_label)}</span>",
+        }
+
+    if kpis["prazos_7dias"] > 0:
+        return {
+            "title": "A semana merece organização antecipada.",
+            "subtitle": (
+                f"Você tem {kpis['prazos_7dias']} prazo(s) na janela de 7 dias. "
+                "Distribuir carga agora evita pressão no fechamento da semana."
+            ),
+            "chip": f"<span class='sp-chip sp-chip-info'>{kpis['prazos_7dias']} na semana</span><span class='sp-chip'>{escape(atuacao_label)}</span>",
+        }
+
+    return {
+        "title": "Tudo sob controle neste momento.",
+        "subtitle": (
+            "Sem sinais críticos agora. Aproveite para revisar cadastros, organizar próximos trabalhos e manter a base atualizada."
+        ),
+        "chip": f"<span class='sp-chip sp-chip-success'>Operação estável</span><span class='sp-chip'>{escape(atuacao_label)}</span>",
+    }
+
+
+def _build_global_alert(kpis: dict[str, Any]) -> dict[str, str]:
+    if kpis["prazos_atrasados"] > 0:
+        return {
+            "tone": "danger",
+            "title": f"{kpis['prazos_atrasados']} prazo(s) vencido(s) exigem ação imediata",
+            "subtitle": "Abra a lista de prazos e trate primeiro os itens já vencidos para reduzir risco operacional.",
+        }
+
+    if kpis["ag_24h"] > 0:
+        return {
+            "tone": "warning",
+            "title": f"{kpis['ag_24h']} compromisso(s) nas próximas 24 horas",
+            "subtitle": "Revise horário, local, deslocamento e documentos antes da próxima agenda.",
+        }
+
+    if kpis["prazos_7dias"] > 0:
+        return {
+            "tone": "info",
+            "title": f"{kpis['prazos_7dias']} prazo(s) vencem em até 7 dias",
+            "subtitle": "A semana pede organização antecipada para evitar urgências desnecessárias.",
+        }
+
+    return {
+        "tone": "success",
+        "title": "Operação estável neste momento",
+        "subtitle": "Sem sinais críticos no painel. Bom momento para atualização de cadastros e revisão geral.",
+    }
+
+
+def _build_priority_panel(kpis: dict[str, Any]) -> dict[str, Any]:
+    if kpis["prazos_atrasados"] > 0:
+        return {
+            "tone": "danger",
+            "kicker": "ação imediata",
+            "title": f"{_human_plural(kpis['prazos_atrasados'], 'prazo vencido')}",
+            "copy": "Comece regularizando os itens atrasados antes de abrir novas frentes.",
+            "chips": [
+                f"<span class='sp-chip sp-chip-danger'>Atrasados: {kpis['prazos_atrasados']}</span>",
+                f"<span class='sp-chip'>Em 7 dias: {kpis['prazos_7dias']}</span>",
+            ],
+            "items": [
+                "Abrir a lista de pendências vencidas",
+                "Tratar primeiro os itens com maior urgência",
+                "Registrar a atualização logo após cada avanço",
+            ],
+            "primary": ("Ver prazos", _go_prazos_lista),
+            "secondary": ("Novo prazo", _go_prazos_cadastro),
+        }
+
+    if kpis["ag_24h"] > 0:
+        return {
+            "tone": "warning",
+            "kicker": "próxima movimentação",
+            "title": f"{_human_plural(kpis['ag_24h'], 'compromisso em 24h', 'compromissos em 24h')}",
+            "copy": "Revise horário, local, deslocamento e documentos antes do próximo compromisso.",
+            "chips": [
+                f"<span class='sp-chip sp-chip-warning'>Agenda 24h: {kpis['ag_24h']}</span>",
+                f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
+            ],
+            "items": [
+                "Conferir horário e local",
+                "Separar documentos e anexos",
+                "Confirmar logística da visita, audiência ou reunião",
+            ],
+            "primary": ("Ver agenda", _go_agenda),
+            "secondary": ("Ver trabalhos", _go_trabalhos_lista),
+        }
+
+    if kpis["prazos_7dias"] > 0:
+        return {
+            "tone": "info",
+            "kicker": "janela da semana",
+            "title": f"{_human_plural(kpis['prazos_7dias'], 'prazo na semana')}",
+            "copy": "Antecipar a organização desta semana reduz urgências e melhora previsibilidade.",
+            "chips": [
+                f"<span class='sp-chip sp-chip-info'>Em 7 dias: {kpis['prazos_7dias']}</span>",
+                f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+            ],
+            "items": [
+                "Revisar o calendário da semana",
+                "Separar peças por trabalho",
+                "Distribuir a carga antes do vencimento",
+            ],
+            "primary": ("Ver prazos", _go_prazos_lista),
+            "secondary": ("Novo trabalho", _go_trabalhos_cadastro),
+        }
+
+    return {
+        "tone": "success",
+        "kicker": "painel estável",
+        "title": "Sem pendências críticas agora",
+        "copy": "Bom momento para atualizar cadastros, revisar trabalhos e preparar novas entradas.",
+        "chips": [
+            "<span class='sp-chip sp-chip-success'>Sem urgência crítica</span>",
+            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
+        ],
+        "items": [
+            "Atualizar trabalhos em andamento",
+            "Cadastrar novos prazos ou compromissos",
+            "Revisar agenda e financeiro",
+        ],
+        "primary": ("Novo trabalho", _go_trabalhos_cadastro),
+        "secondary": ("Abrir financeiro", _go_financeiro_lancamentos),
+    }
+
+
+def _build_timeline_items(
+    rows_prazos_atrasados: list,
+    rows_prazos_7d: list,
+    rows_ag_24h: list,
+    rows_ag_7d: list,
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+
+    for (
+        _id,
+        evento,
+        data_limite,
+        prioridade,
+        numero_trabalho,
+        descricao_trabalho,
+    ) in rows_prazos_atrasados:
+        dias = int(_dias_restantes(data_limite))
+        items.append(
+            {
+                "sort_dt": ensure_br(data_limite),
+                "tone": "danger",
+                "kind": "Prazo",
+                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
+                "meta": f"vencido há {abs(dias)} dia(s)",
+                "detail": _safe_text(descricao_trabalho, "Sem descrição"),
+            }
+        )
+
+    for (
+        _id,
+        evento,
+        data_limite,
+        prioridade,
+        numero_trabalho,
+        descricao_trabalho,
+    ) in rows_prazos_7d:
+        dias = int(_dias_restantes(data_limite))
+        items.append(
+            {
+                "sort_dt": ensure_br(data_limite),
+                "tone": _tone_from_prazo_status(dias),
+                "kind": "Prazo",
+                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
+                "meta": f"vence em {dias} dia(s)",
+                "detail": _safe_text(descricao_trabalho, "Sem descrição"),
+            }
+        )
+
+    for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows_ag_24h:
+        inicio_br = ensure_br(inicio)
+        hours_left = (_naive(inicio_br) - _naive(now_br())).total_seconds() / 3600.0
+        _label, tone = _agenda_status(hours_left)
+        items.append(
+            {
+                "sort_dt": inicio_br,
+                "tone": tone,
+                "kind": "Agenda",
+                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(tipo, 'Sem tipo')}",
+                "meta": inicio_br.strftime("%d/%m %H:%M"),
+                "detail": _safe_text(
+                    local, _safe_text(descricao_trabalho, "Sem local")
+                ),
+            }
+        )
+
+    seen_agenda_keys: set[str] = set()
+    for _id, *_rest in rows_ag_24h:
+        seen_agenda_keys.add(f"{_id}")
+
+    for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows_ag_7d:
+        if f"{_id}" in seen_agenda_keys:
+            continue
+        inicio_br = ensure_br(inicio)
+        hours_left = (_naive(inicio_br) - _naive(now_br())).total_seconds() / 3600.0
+        _label, tone = _agenda_status(hours_left)
+        items.append(
+            {
+                "sort_dt": inicio_br,
+                "tone": tone,
+                "kind": "Agenda",
+                "headline": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(tipo, 'Sem tipo')}",
+                "meta": inicio_br.strftime("%d/%m %H:%M"),
+                "detail": _safe_text(
+                    local, _safe_text(descricao_trabalho, "Sem local")
+                ),
+            }
+        )
+
+    items.sort(key=lambda x: x["sort_dt"])
+    return items[:6]
+
+
+def _build_operational_queue(
+    rows_prazos_atrasados: list,
+    rows_prazos_7d: list,
+    rows_ag_24h: list,
+    rows_ag_7d: list,
+) -> list[dict[str, Any]]:
+    queue: list[dict[str, Any]] = []
+
+    for (
+        _id,
+        evento,
+        data_limite,
+        prioridade,
+        numero_trabalho,
+        descricao_trabalho,
+    ) in rows_prazos_atrasados[:4]:
+        dias = int(_dias_restantes(data_limite))
+        queue.append(
+            {
+                "tone": "danger",
+                "tag": "Atrasado",
+                "title": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
+                "subtitle": f"{_safe_text(descricao_trabalho, 'Sem descrição')} • vencido há {abs(dias)} dia(s)",
+            }
+        )
+
+    for _id, tipo, inicio, local, numero_trabalho, descricao_trabalho in rows_ag_24h[
+        :3
+    ]:
+        inicio_br = ensure_br(inicio)
+        queue.append(
+            {
+                "tone": "warning",
+                "tag": "24h",
+                "title": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(tipo, 'Sem tipo')}",
+                "subtitle": f"{inicio_br.strftime('%d/%m/%Y %H:%M')} • {_safe_text(local, _safe_text(descricao_trabalho, 'Sem local'))}",
+            }
+        )
+
+    for (
+        _id,
+        evento,
+        data_limite,
+        prioridade,
+        numero_trabalho,
+        descricao_trabalho,
+    ) in rows_prazos_7d[:3]:
+        dias = int(_dias_restantes(data_limite))
+        queue.append(
+            {
+                "tone": _tone_from_prazo_status(dias),
+                "tag": "Semana",
+                "title": f"{_safe_text(numero_trabalho, 'Sem referência')} – {_safe_text(evento, 'Sem evento')}",
+                "subtitle": f"{_safe_text(descricao_trabalho, 'Sem descrição')} • vence em {dias} dia(s)",
+            }
+        )
+
+    if not queue:
+        queue.append(
+            {
+                "tone": "success",
+                "tag": "Estável",
+                "title": "Nenhuma fila crítica no momento",
+                "subtitle": "Quando surgirem prazos ou compromissos prioritários, eles aparecerão aqui.",
+            }
+        )
+
+    return queue[:6]
+
+
+def _build_suggestions(kpis: dict[str, Any]) -> list[dict[str, str]]:
+    suggestions: list[dict[str, str]] = []
+
+    if kpis["prazos_atrasados"] > 0:
+        suggestions.append(
+            {
+                "title": "Tratar prazos vencidos primeiro",
+                "subtitle": "Reduz risco operacional e limpa a fila mais crítica do painel.",
+            }
+        )
+
+    if kpis["ag_24h"] > 0:
+        suggestions.append(
+            {
+                "title": "Preparar compromissos das próximas 24h",
+                "subtitle": "Conferir local, horário e anexos evita atraso e retrabalho.",
+            }
+        )
+
+    if kpis["prazos_7dias"] > 0:
+        suggestions.append(
+            {
+                "title": "Distribuir a carga da semana",
+                "subtitle": "Antecipar vencimentos melhora previsibilidade e reduz pressão.",
+            }
+        )
+
+    if kpis["saldo"] < 0:
+        suggestions.append(
+            {
+                "title": "Revisar posição financeira",
+                "subtitle": "As despesas superam as receitas no recorte atual.",
+            }
+        )
+
+    if not suggestions:
+        suggestions.extend(
+            [
+                {
+                    "title": "Atualizar base cadastral",
+                    "subtitle": "Com o painel estável, vale revisar trabalhos, agenda e lançamentos.",
+                },
+                {
+                    "title": "Cadastrar novos itens com antecedência",
+                    "subtitle": "Manter dados completos melhora previsão e acompanhamento.",
+                },
+            ]
+        )
+
+    return suggestions[:3]
+
+
+# ==========================================================
+# Helpers de render
+# ==========================================================
+
+
+def _render_dataframe_or_caption(
+    df: pd.DataFrame,
+    *,
+    empty_title: str = "Nada por aqui",
+    empty_subtitle: str = "Não há registros para exibir neste recorte.",
+    empty_icon: str = "📭",
+    height: int | None = None,
+) -> None:
+    if df.empty:
+        empty_state(
+            title=empty_title,
+            subtitle=empty_subtitle,
+            icon=empty_icon,
+        )
+        return
+
+    dataframe_kwargs = {
+        "use_container_width": True,
+        "hide_index": True,
+    }
+    if height is not None:
+        dataframe_kwargs["height"] = height
+
+    st.dataframe(df, **dataframe_kwargs)
+
+
+def _module_row_html(title: str, subtitle: str) -> str:
+    return (
+        f"<div class='sp-dash-module-row'>"
+        f"<div class='sp-dash-module-row-title'>{title}</div>"
+        f"<div class='sp-dash-module-row-sub'>{subtitle}</div>"
+        f"</div>"
     )
 
-    badge, badge_tone = _header_badge(kpis or {})
+
+def _render_module_preview_box(
+    *,
+    title: str,
+    subtitle: str,
+    badge: str,
+    rows_html: list[str],
+) -> None:
+    rows_rendered = "".join(row.strip() for row in rows_html)
+
+    _render_html(
+        f"""
+        <div class="sp-dash-module">
+          <div class="sp-dash-module-head">
+            <div>
+              <div class="sp-dash-module-title">{escape(title)}</div>
+              <div class="sp-dash-module-copy">{escape(subtitle)}</div>
+            </div>
+            <span class="sp-chip">{escape(badge)}</span>
+          </div>
+          <div class="sp-dash-module-list">{rows_rendered}</div>
+        </div>
+        """
+    )
+
+
+# ==========================================================
+# Blocos visuais
+# ==========================================================
+
+
+def _render_header(kpis: dict[str, Any]) -> None:
+    badge, badge_tone = _header_badge(kpis)
 
     page_header(
         "Painel",
-        subtitle,
+        _build_header_subtitle(kpis),
         eyebrow="Operação",
         badge=badge,
         badge_tone=badge_tone,
@@ -1395,12 +1645,12 @@ def _render_top_bar() -> str | None:
         with right:
             _render_html(
                 """
-                <div class="sp-dash-filter-surface">
-                  <div class="sp-dash-filter-copy">
-                    <div class="sp-dash-filter-kicker">contexto do painel</div>
-                    <div class="sp-dash-filter-text">
+                <div class="sp-dash-toolbar">
+                  <div class="sp-dash-toolbar-copy">
+                    <div class="sp-dash-kicker">contexto do painel</div>
+                    <div class="sp-dash-toolbar-text">
                       Painel operacional filtrado por atuação, com foco em prioridades,
-                      próximos itens e leitura rápida do dia.
+                      fila de execução e leitura rápida do dia.
                     </div>
                   </div>
                   <span class="sp-chip">tempo real</span>
@@ -1411,102 +1661,8 @@ def _render_top_bar() -> str | None:
     return ATUACAO_UI[atuacao_label]
 
 
-def _render_command_bar(kpis: dict[str, Any], atuacao_label: str) -> None:
-    if kpis["prazos_atrasados"] > 0:
-        title = "Prioridade máxima: regularizar pendências vencidas."
-        sub = (
-            f"Há {kpis['prazos_atrasados']} prazo(s) atrasado(s). "
-            "Abra a fila de prazos e trate primeiro o que já venceu."
-        )
-        chip = f"<span class='sp-chip sp-chip-danger'>{kpis['prazos_atrasados']} atraso(s)</span>"
-    elif kpis["ag_24h"] > 0:
-        title = "Seu próximo compromisso já pede preparação."
-        sub = (
-            f"Há {kpis['ag_24h']} compromisso(s) nas próximas 24 horas. "
-            "Revise local, horário, deslocamento e documentos."
-        )
-        chip = f"<span class='sp-chip sp-chip-warning'>{kpis['ag_24h']} em 24h</span>"
-    elif kpis["prazos_7dias"] > 0:
-        title = "A semana está controlada, mas já exige antecipação."
-        sub = (
-            f"Você tem {kpis['prazos_7dias']} prazo(s) na janela de 7 dias. "
-            "Este é um bom momento para distribuir carga e evitar urgência."
-        )
-        chip = f"<span class='sp-chip sp-chip-info'>{kpis['prazos_7dias']} na semana</span>"
-    else:
-        title = "Tudo sob controle neste momento."
-        sub = (
-            "Sem sinais críticos agora. Aproveite para revisar cadastros, "
-            "organizar próximos trabalhos e manter a base atualizada."
-        )
-        chip = "<span class='sp-chip sp-chip-success'>Operação estável</span>"
-
-    with section(divider=False, compact=True):
-        _render_html(
-            f"""
-            <div class="sp-dash-command">
-              <div>
-                <div class="sp-dash-command-title">{escape(title)}</div>
-                <div class="sp-dash-command-sub">{escape(sub)}</div>
-              </div>
-              <div class="sp-dash-chip-row">
-                {chip}
-                <span class="sp-chip">{escape(atuacao_label)}</span>
-              </div>
-            </div>
-            """
-        )
-
-
-def _render_dashboard_hero(kpis: dict[str, Any], atuacao_label: str) -> None:
-    if kpis["prazos_atrasados"] > 0:
-        title = "Existem pendências vencidas exigindo ação imediata."
-        copy = (
-            "Seu melhor próximo passo é abrir a fila de prazos e começar pelos itens "
-            "já vencidos, reduzindo risco operacional e retrabalho."
-        )
-        chips = [
-            f"<span class='sp-chip sp-chip-danger'>Atrasados: {kpis['prazos_atrasados']}</span>",
-            f"<span class='sp-chip'>Prazos abertos: {kpis['prazos_abertos']}</span>",
-            f"<span class='sp-chip'>Agenda 24h: {kpis['ag_24h']}</span>",
-            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-        ]
-    elif kpis["ag_24h"] > 0:
-        title = "Sua agenda imediata precisa de preparação."
-        copy = (
-            "Há compromissos próximos. Vale revisar local, horário, logística e documentos "
-            "antes da próxima movimentação."
-        )
-        chips = [
-            f"<span class='sp-chip sp-chip-warning'>Em 24h: {kpis['ag_24h']}</span>",
-            f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
-            f"<span class='sp-chip'>Prazos na semana: {kpis['prazos_7dias']}</span>",
-            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-        ]
-    elif kpis["prazos_7dias"] > 0:
-        title = "A semana está organizada, mas já merece antecipação."
-        copy = (
-            "Existem vencimentos próximos. Antecipar a preparação agora reduz urgência "
-            "e melhora a execução ao longo da semana."
-        )
-        chips = [
-            f"<span class='sp-chip sp-chip-info'>Em 7 dias: {kpis['prazos_7dias']}</span>",
-            f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
-            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-            f"<span class='sp-chip'>Saldo: R$ {_fmt_money_br(kpis['saldo'])}</span>",
-        ]
-    else:
-        title = "Operação estável e sem sinais críticos no momento."
-        copy = (
-            "Este é um bom momento para revisar base cadastral, atualizar registros, "
-            "abrir novos trabalhos e preparar a próxima semana com calma."
-        )
-        chips = [
-            "<span class='sp-chip sp-chip-success'>Sem urgência crítica</span>",
-            f"<span class='sp-chip'>Ativos: {kpis['ativos']}</span>",
-            f"<span class='sp-chip'>Agenda 7 dias: {kpis['ag_7d']}</span>",
-            f"<span class='sp-chip'>Saldo: R$ {_fmt_money_br(kpis['saldo'])}</span>",
-        ]
+def _render_hero(kpis: dict[str, Any], atuacao_label: str) -> None:
+    state = _build_hero_state(kpis)
 
     with section(divider=False, compact=True):
         _render_html(
@@ -1514,73 +1670,63 @@ def _render_dashboard_hero(kpis: dict[str, Any], atuacao_label: str) -> None:
             <div class="sp-dash-hero">
               <div class="sp-dash-hero-top">
                 <div>
-                  <div class="sp-dash-hero-kicker">visão executiva do dia</div>
-                  <div class="sp-dash-hero-title">{escape(title)}</div>
-                  <div class="sp-dash-hero-copy">{escape(copy)}</div>
+                  <div class="sp-dash-kicker">visão executiva do dia</div>
+                  <div class="sp-dash-hero-title">{escape(state['title'])}</div>
+                  <div class="sp-dash-hero-copy">{escape(state['copy'])}</div>
                 </div>
                 <span class="sp-chip">{escape(atuacao_label)}</span>
               </div>
-              <div class="sp-dash-hero-meta">
-                {''.join(chips)}
+              <div class="sp-dash-chip-row">
+                {''.join(state['chips'])}
               </div>
             </div>
             """
         )
 
 
-def _build_global_alert(kpis: dict[str, Any]) -> dict[str, str]:
-    if kpis["prazos_atrasados"] > 0:
-        return {
-            "tone": "danger",
-            "title": f"{kpis['prazos_atrasados']} prazo(s) vencido(s) exigem ação imediata",
-            "subtitle": "Abra a lista de prazos e trate primeiro os itens já vencidos para reduzir risco operacional.",
-        }
+def _render_action_center(kpis: dict[str, Any], atuacao_label: str) -> None:
+    state = _build_action_center(kpis, atuacao_label)
 
-    if kpis["ag_24h"] > 0:
-        return {
-            "tone": "warning",
-            "title": f"{kpis['ag_24h']} compromisso(s) nas próximas 24 horas",
-            "subtitle": "Revise horário, local, deslocamento e documentos antes da próxima agenda.",
-        }
-
-    if kpis["prazos_7dias"] > 0:
-        return {
-            "tone": "info",
-            "title": f"{kpis['prazos_7dias']} prazo(s) vencem em até 7 dias",
-            "subtitle": "A semana pede organização antecipada para evitar urgências desnecessárias.",
-        }
-
-    return {
-        "tone": "success",
-        "title": "Operação estável neste momento",
-        "subtitle": "Sem sinais críticos no painel. Bom momento para atualização de cadastros e revisão geral.",
-    }
+    with section(divider=False, compact=True):
+        _render_html(
+            f"""
+            <div class="sp-dash-center">
+              <div>
+                <div class="sp-dash-center-title">{escape(state['title'])}</div>
+                <div class="sp-dash-center-sub">{escape(state['subtitle'])}</div>
+              </div>
+              <div class="sp-dash-chip-row">
+                {state['chip']}
+              </div>
+            </div>
+            """
+        )
 
 
 def _render_global_alert_strip(kpis: dict[str, Any]) -> None:
     alert = _build_global_alert(kpis)
     tone_cls = {
-        "danger": "sp-dash-alert-strip-danger",
-        "warning": "sp-dash-alert-strip-warning",
-        "info": "sp-dash-alert-strip-info",
-        "success": "sp-dash-alert-strip-success",
+        "danger": "sp-dash-strip-danger",
+        "warning": "sp-dash-strip-warning",
+        "info": "sp-dash-strip-info",
+        "success": "sp-dash-strip-success",
     }.get(alert["tone"], "")
 
     with section(divider=False, compact=True):
         _render_html(
             f"""
-            <div class="sp-dash-alert-strip {tone_cls}">
+            <div class="sp-dash-strip {tone_cls}">
               <div>
-                <div class="sp-dash-alert-title">{escape(alert['title'])}</div>
-                <div class="sp-dash-alert-sub">{escape(alert['subtitle'])}</div>
+                <div class="sp-dash-strip-title">{escape(alert['title'])}</div>
+                <div class="sp-dash-strip-sub">{escape(alert['subtitle'])}</div>
               </div>
-              <span class="sp-chip">{escape(alert['tone'])}</span>
+              <span class="sp-chip">{escape(TONE_LABELS.get(alert['tone'], alert['tone']))}</span>
             </div>
             """
         )
 
 
-def _render_dashboard_summary(kpis: dict[str, Any], atuacao_label: str) -> None:
+def _render_kpis(kpis: dict[str, Any], atuacao_label: str) -> None:
     with section(
         "Indicadores",
         subtitle=f"Resumo operacional • {atuacao_label}",
@@ -1681,30 +1827,30 @@ def _render_quick_actions() -> None:
             _render_html("</div>")
 
 
-def _render_focus_panel(kpis: dict[str, Any]) -> None:
-    focus = _build_focus_state(kpis)
+def _render_priority_panel(kpis: dict[str, Any]) -> None:
+    state = _build_priority_panel(kpis)
 
     tone_cls = {
-        "danger": "sp-dash-focus-danger",
-        "warning": "sp-dash-focus-warning",
-        "info": "sp-dash-focus-info",
-        "success": "sp-dash-focus-success",
-    }.get(focus["tone"], "")
+        "danger": "sp-dash-priority-danger",
+        "warning": "sp-dash-priority-warning",
+        "info": "sp-dash-priority-info",
+        "success": "sp-dash-priority-success",
+    }.get(state["tone"], "")
 
     with section(
-        "Foco do dia",
+        "Prioridade operacional",
         subtitle="O melhor próximo passo para manter a operação fluindo",
         divider=False,
     ):
         _render_html(
             f"""
-            <div class="sp-dash-focus {tone_cls}">
-              <div class="sp-dash-focus-kicker">{escape(focus['kicker'])}</div>
-              <div class="sp-dash-focus-title">{escape(focus['title'])}</div>
-              <div class="sp-dash-focus-copy">{escape(focus['copy'])}</div>
-              <div class="sp-dash-chip-row">{''.join(focus['chips'])}</div>
-              <div class="sp-dash-focus-list">
-                {''.join(f"<div class='sp-dash-focus-item'><span>•</span><span>{escape(item)}</span></div>" for item in focus['items'])}
+            <div class="sp-dash-priority {tone_cls}">
+              <div class="sp-dash-kicker">{escape(state['kicker'])}</div>
+              <div class="sp-dash-priority-title">{escape(state['title'])}</div>
+              <div class="sp-dash-priority-copy">{escape(state['copy'])}</div>
+              <div class="sp-dash-chip-row">{''.join(state['chips'])}</div>
+              <div class="sp-dash-priority-list">
+                {''.join(f"<div class='sp-dash-priority-item'><span>•</span><span>{escape(item)}</span></div>" for item in state['items'])}
               </div>
             </div>
             """
@@ -1713,13 +1859,13 @@ def _render_focus_panel(kpis: dict[str, Any]) -> None:
         spacer(0.08)
         c1, c2 = grid(2, columns_mobile=1)
 
-        primary_label, primary_callback = focus["primary"]
-        secondary_label, secondary_callback = focus["secondary"]
+        primary_label, primary_callback = state["primary"]
+        secondary_label, secondary_callback = state["secondary"]
 
         with c1:
             _render_action_button(
                 primary_label,
-                key="dash_focus_primary",
+                key="dash_priority_primary",
                 button_type="primary",
                 on_click=primary_callback,
             )
@@ -1727,29 +1873,36 @@ def _render_focus_panel(kpis: dict[str, Any]) -> None:
         with c2:
             _render_action_button(
                 secondary_label,
-                key="dash_focus_secondary",
+                key="dash_priority_secondary",
                 on_click=secondary_callback,
             )
 
 
-def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
+def _render_operational_queue(queue_items: list[dict[str, Any]]) -> None:
     with section(
-        "Próximos itens",
-        subtitle="O que entra primeiro no radar",
+        "Fila operacional",
+        subtitle="Itens priorizados automaticamente pelo painel",
         divider=False,
     ):
-        if not items:
+        if not queue_items:
             empty_state(
-                title="Nenhum item próximo",
-                subtitle="Quando houver prazos ou compromissos, eles aparecerão aqui.",
-                icon="🗓️",
+                title="Fila vazia",
+                subtitle="Quando houver itens relevantes, eles aparecerão aqui.",
+                icon="📌",
             )
             return
 
-        _render_html("<div class='sp-dash-compact-list'>")
+        _render_html("<div class='sp-dash-queue'>")
         try:
-            for item in items:
-                pill_class = {
+            for item in queue_items:
+                tone_cls = {
+                    "danger": "sp-dash-queue-item-danger",
+                    "warning": "sp-dash-queue-item-warning",
+                    "info": "sp-dash-queue-item-info",
+                    "success": "sp-dash-queue-item-success",
+                }.get(item["tone"], "")
+
+                pill_cls = {
                     "danger": "sp-chip-danger",
                     "warning": "sp-chip-warning",
                     "info": "sp-chip-info",
@@ -1758,16 +1911,13 @@ def _render_timeline_preview(items: list[dict[str, Any]]) -> None:
 
                 _render_html(
                     f"""
-                    <div class="sp-dash-compact-item">
-                        <div class="sp-dash-compact-top">
+                    <div class="sp-dash-queue-item {tone_cls}">
+                        <div class="sp-dash-queue-top">
                             <div>
-                                <div class="sp-dash-compact-title">{_esc(item['headline'])}</div>
-                                <div class="sp-dash-compact-sub">{_esc(item['detail'])}</div>
+                                <div class="sp-dash-queue-title">{_esc(item['title'])}</div>
+                                <div class="sp-dash-queue-sub">{_esc(item['subtitle'])}</div>
                             </div>
-                            <span class="sp-chip {pill_class}">{_esc(item['kind'])}</span>
-                        </div>
-                        <div class="sp-dash-chip-row">
-                            <span class="sp-chip {pill_class}">{_esc(item['meta'])}</span>
+                            <span class="sp-chip {pill_cls}">{_esc(item['tag'])}</span>
                         </div>
                     </div>
                     """
@@ -1818,92 +1968,6 @@ def _render_activity_feed(items: list[dict[str, Any]]) -> None:
                 )
         finally:
             _render_html("</div>")
-
-
-def _module_row_html(title: str, subtitle: str) -> str:
-    return (
-        f"<div class='sp-dash-module-row'>"
-        f"<div class='sp-dash-module-row-title'>{title}</div>"
-        f"<div class='sp-dash-module-row-sub'>{subtitle}</div>"
-        f"</div>"
-    )
-
-
-def _render_module_preview_box(
-    *,
-    title: str,
-    subtitle: str,
-    badge: str,
-    rows_html: list[str],
-) -> None:
-    rows_rendered = "".join(row.strip() for row in rows_html)
-
-    _render_html(
-        f"""
-        <div class="sp-dash-module">
-          <div class="sp-dash-module-head">
-            <div>
-              <div class="sp-dash-module-title">{escape(title)}</div>
-              <div class="sp-dash-module-copy">{escape(subtitle)}</div>
-            </div>
-            <span class="sp-chip">{escape(badge)}</span>
-          </div>
-          <div class="sp-dash-module-list">{rows_rendered}</div>
-        </div>
-        """
-    )
-
-
-def _build_suggestions(kpis: dict[str, Any]) -> list[dict[str, str]]:
-    suggestions: list[dict[str, str]] = []
-
-    if kpis["prazos_atrasados"] > 0:
-        suggestions.append(
-            {
-                "title": "Tratar prazos vencidos primeiro",
-                "subtitle": "Reduz o risco operacional e limpa a fila mais crítica do painel.",
-            }
-        )
-
-    if kpis["ag_24h"] > 0:
-        suggestions.append(
-            {
-                "title": "Preparar compromissos das próximas 24h",
-                "subtitle": "Conferir local, horário e anexos evita atraso ou retrabalho.",
-            }
-        )
-
-    if kpis["prazos_7dias"] > 0:
-        suggestions.append(
-            {
-                "title": "Distribuir a carga da semana",
-                "subtitle": "Antecipar os próximos vencimentos ajuda a manter a operação estável.",
-            }
-        )
-
-    if kpis["saldo"] < 0:
-        suggestions.append(
-            {
-                "title": "Revisar posição financeira",
-                "subtitle": "Há mais despesas do que receitas no recorte atual.",
-            }
-        )
-
-    if not suggestions:
-        suggestions.append(
-            {
-                "title": "Atualizar base cadastral",
-                "subtitle": "Com o painel estável, vale revisar trabalhos, agenda e lançamentos.",
-            }
-        )
-        suggestions.append(
-            {
-                "title": "Cadastrar novos itens com antecedência",
-                "subtitle": "Manter dados completos melhora previsibilidade e acompanhamento.",
-            }
-        )
-
-    return suggestions[:3]
 
 
 def _render_smart_suggestions(kpis: dict[str, Any]) -> None:
@@ -1969,13 +2033,13 @@ def _render_finance_strip(kpis: dict[str, Any]) -> None:
         with right:
             _render_html(
                 f"""
-                <div class="sp-dash-band">
-                  <div class="sp-dash-band-kicker">leitura financeira</div>
-                  <div class="sp-dash-band-title">
-                    {"Resultado positivo no recorte atual." if kpis["saldo"] >= 0 else "Atenção para o saldo negativo no recorte atual."}
+                <div class="sp-dash-summary-band">
+                  <div class="sp-dash-kicker">leitura financeira</div>
+                  <div class="sp-dash-summary-band-title">
+                    {"Resultado positivo no recorte atual." if kpis["saldo"] >= 0 else "Atenção para saldo negativo no recorte atual."}
                   </div>
-                  <div class="sp-dash-band-copy">
-                    {"Há folga financeira para este recorte. Ainda assim, vale acompanhar recebimentos e novos lançamentos."
+                  <div class="sp-dash-summary-band-copy">
+                    {"Há folga financeira neste recorte. Ainda assim, vale acompanhar recebimentos e novos lançamentos."
                     if kpis["saldo"] >= 0 else
                     "As despesas superam as receitas neste recorte. Vale revisar lançamentos e entradas previstas."}
                   </div>
@@ -2340,21 +2404,6 @@ def render(owner_user_id: int) -> None:
             version,
         )
 
-        _render_header(kpis)
-        _render_dashboard_hero(kpis, atuacao_label)
-
-        spacer(0.10)
-        _render_command_bar(kpis, atuacao_label)
-
-        spacer(0.10)
-        _render_dashboard_summary(kpis, atuacao_label)
-
-        spacer(0.12)
-        _render_quick_actions()
-
-        spacer(0.12)
-        _render_global_alert_strip(kpis)
-
         timeline_items = _build_timeline_items(
             rows_prazos_atrasados,
             rows_prazos_7d,
@@ -2362,20 +2411,42 @@ def render(owner_user_id: int) -> None:
             rows_ag_7d,
         )
 
+        queue_items = _build_operational_queue(
+            rows_prazos_atrasados,
+            rows_prazos_7d,
+            rows_ag_24h,
+            rows_ag_7d,
+        )
+
+        _render_header(kpis)
+        _render_hero(kpis, atuacao_label)
+
+        spacer(0.10)
+        _render_action_center(kpis, atuacao_label)
+
+        spacer(0.10)
+        _render_kpis(kpis, atuacao_label)
+
+        spacer(0.12)
+        _render_quick_actions()
+
+        spacer(0.12)
+        _render_global_alert_strip(kpis)
+
         spacer(0.14)
-        left, right = grid_weights((1.05, 0.95), weights_mobile=(1, 1), gap="medium")
+        left, right = grid_weights((1.00, 1.00), weights_mobile=(1, 1), gap="medium")
 
         with left:
-            _render_focus_panel(kpis)
+            _render_priority_panel(kpis)
 
         with right:
-            _render_activity_feed(timeline_items)
+            _render_operational_queue(queue_items)
 
         spacer(0.14)
         left2, right2 = grid_weights((1.0, 1.0), weights_mobile=(1, 1), gap="medium")
 
         with left2:
-            _render_timeline_preview(timeline_items)
+            _render_activity_feed(timeline_items)
 
         with right2:
             _render_smart_suggestions(kpis)
