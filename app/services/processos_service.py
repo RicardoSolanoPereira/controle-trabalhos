@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any, Optional
 
 from sqlalchemy import case, func, or_, select
@@ -158,23 +158,38 @@ def _status_rank_expr():
 
 
 def _build_q_filter(qv: str):
-    like = _like(qv)
+    tokens = [t.strip() for t in qv.split() if t.strip()]
 
     def c(col):
         return func.coalesce(col, "")
 
-    return or_(
-        c(Processo.numero_processo).ilike(like),
-        c(Processo.comarca).ilike(like),
-        c(Processo.vara).ilike(like),
-        c(Processo.contratante).ilike(like),
-        c(Processo.tipo_acao).ilike(like),
-        c(Processo.categoria_servico).ilike(like),
-        c(Processo.papel).ilike(like),
-        c(Processo.status).ilike(like),
-        c(Processo.observacoes).ilike(like),
-        c(Processo.pasta_local).ilike(like),
-    )
+    searchable = [
+        Processo.numero_processo,
+        Processo.comarca,
+        Processo.vara,
+        Processo.contratante,
+        Processo.tipo_acao,
+        Processo.categoria_servico,
+        Processo.papel,
+        Processo.status,
+        Processo.observacoes,
+        Processo.pasta_local,
+    ]
+
+    if not tokens:
+        return None
+
+    token_clauses = []
+    for token in tokens:
+        like = _like(token)
+        token_clauses.append(or_(*[c(col).ilike(like) for col in searchable]))
+
+    if len(token_clauses) == 1:
+        return token_clauses[0]
+
+    from sqlalchemy import and_
+
+    return and_(*token_clauses)
 
 
 def _apply_list_filters(
@@ -197,7 +212,9 @@ def _apply_list_filters(
     if categoria_v:
         stmt = stmt.where(Processo.categoria_servico == categoria_v)
     if qv:
-        stmt = stmt.where(_build_q_filter(qv))
+        q_filter = _build_q_filter(qv)
+        if q_filter is not None:
+            stmt = stmt.where(q_filter)
 
     return stmt
 
@@ -220,7 +237,7 @@ def _to_datetime(value: Any) -> Optional[datetime]:
     if isinstance(value, datetime):
         return value
     if isinstance(value, date):
-        return datetime.combine(value, datetime.min.time())
+        return datetime.combine(value, time.min)
     return None
 
 
@@ -308,7 +325,7 @@ def _payload_to_update_data(payload: ProcessoUpdate) -> dict[str, Any]:
 
 
 # ==================================================
-# HELPERS DE DASHBOARD / LISTA OPERACIONAL
+# HELPERS DE MÉTRICAS / OPERAÇÃO
 # ==================================================
 
 
@@ -321,12 +338,26 @@ def _processo_metrics_map(
         return {}
 
     owner_clause = _owner_stmt(owner_user_id)
+    hoje = date.today()
+    agora = datetime.now()
 
     prazos_rows = session.execute(
         select(
             Prazo.processo_id,
             func.count(Prazo.id).label("prazos_abertos"),
             func.min(Prazo.data_limite).label("proximo_prazo"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            Prazo.data_limite < hoje,
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("prazos_vencidos"),
         )
         .select_from(Prazo)
         .join(Processo, Processo.id == Prazo.processo_id)
@@ -349,6 +380,7 @@ def _processo_metrics_map(
         .where(
             owner_clause,
             Agendamento.status == "Agendado",
+            Agendamento.inicio >= agora,
             Agendamento.processo_id.in_(processo_ids),
         )
         .group_by(Agendamento.processo_id)
@@ -393,11 +425,12 @@ def _processo_metrics_map(
 
     metrics: dict[int, dict[str, Any]] = {}
 
-    for processo_id, prazos_abertos, proximo_prazo in prazos_rows:
+    for processo_id, prazos_abertos, proximo_prazo, prazos_vencidos in prazos_rows:
         pid = int(processo_id)
         metrics.setdefault(pid, {})
         metrics[pid]["prazos_abertos"] = int(prazos_abertos or 0)
         metrics[pid]["proximo_prazo"] = _to_datetime(proximo_prazo)
+        metrics[pid]["prazos_vencidos"] = int(prazos_vencidos or 0)
 
     for processo_id, agendamentos_futuros, proximo_agendamento in agenda_rows:
         pid = int(processo_id)
@@ -415,6 +448,177 @@ def _processo_metrics_map(
         metrics[pid]["saldo"] = rec - desp
 
     return metrics
+
+
+def _status_operacional(
+    *,
+    status: str,
+    prazos_vencidos: int,
+    prazos_abertos: int,
+    agendamentos_futuros: int,
+) -> str:
+    status_norm = _normalize_status(status)
+
+    if status_norm == "Concluído":
+        return "finalizado"
+    if status_norm == "Suspenso":
+        return "pausado"
+    if prazos_vencidos > 0:
+        return "crítico"
+    if prazos_abertos > 0:
+        return "atenção"
+    if agendamentos_futuros > 0:
+        return "em andamento"
+    return "estável"
+
+
+def _proxima_acao(
+    *,
+    status: str,
+    prazos_vencidos: int,
+    prazos_abertos: int,
+    agendamentos_futuros: int,
+    tem_pasta: bool,
+    contratante: str,
+    observacoes: str,
+) -> str:
+    status_norm = _normalize_status(status)
+
+    if status_norm == "Concluído":
+        return "Conferir encerramento financeiro e documental"
+    if status_norm == "Suspenso":
+        return "Manter contexto organizado para futura retomada"
+    if prazos_vencidos > 0:
+        return "Tratar imediatamente os prazos vencidos"
+    if prazos_abertos > 0:
+        return "Revisar os prazos pendentes"
+    if agendamentos_futuros == 0:
+        return "Agendar a próxima ação do trabalho"
+    if not tem_pasta:
+        return "Vincular a pasta local do trabalho"
+    if not contratante.strip():
+        return "Completar o cliente/contratante"
+    if not observacoes.strip():
+        return "Registrar observações resumidas do caso"
+    return "Acompanhar andamento e manter dados atualizados"
+
+
+def _score_prioridade(
+    *,
+    status: str,
+    prazos_vencidos: int,
+    prazos_abertos: int,
+    agendamentos_futuros: int,
+    tem_pasta: bool,
+    contratante: str,
+    observacoes: str,
+) -> int:
+    score = 0
+    status_norm = _normalize_status(status)
+
+    if status_norm == "Ativo":
+        score += 1
+    if prazos_vencidos > 0:
+        score += 10
+    if prazos_abertos > 0:
+        score += 5
+    if agendamentos_futuros == 0 and status_norm == "Ativo":
+        score += 2
+    if not tem_pasta:
+        score += 1
+    if not contratante.strip():
+        score += 1
+    if not observacoes.strip():
+        score += 1
+
+    return score
+
+
+def _operational_snapshot(row: dict[str, Any]) -> dict[str, Any]:
+    status = row.get("status", "") or ""
+    prazos_abertos = int(row.get("prazos_abertos", 0) or 0)
+    prazos_vencidos = int(row.get("prazos_vencidos", 0) or 0)
+    agendamentos_futuros = int(row.get("agendamentos_futuros", 0) or 0)
+    tem_pasta = bool(row.get("tem_pasta"))
+    contratante = str(row.get("contratante", "") or "")
+    observacoes = str(row.get("observacoes", "") or "")
+
+    status_op = _status_operacional(
+        status=status,
+        prazos_vencidos=prazos_vencidos,
+        prazos_abertos=prazos_abertos,
+        agendamentos_futuros=agendamentos_futuros,
+    )
+
+    proxima_acao = _proxima_acao(
+        status=status,
+        prazos_vencidos=prazos_vencidos,
+        prazos_abertos=prazos_abertos,
+        agendamentos_futuros=agendamentos_futuros,
+        tem_pasta=tem_pasta,
+        contratante=contratante,
+        observacoes=observacoes,
+    )
+
+    score = _score_prioridade(
+        status=status,
+        prazos_vencidos=prazos_vencidos,
+        prazos_abertos=prazos_abertos,
+        agendamentos_futuros=agendamentos_futuros,
+        tem_pasta=tem_pasta,
+        contratante=contratante,
+        observacoes=observacoes,
+    )
+
+    return {
+        "status_operacional": status_op,
+        "proxima_acao": proxima_acao,
+        "score_prioridade": score,
+    }
+
+
+def _sort_rows(
+    rows: list[dict[str, Any]], sort_mode: str, order_desc: bool
+) -> list[dict[str, Any]]:
+    mode = (sort_mode or "").strip().lower()
+
+    if mode == "prioridade":
+        return sorted(
+            rows,
+            key=lambda r: (
+                int(r.get("score_prioridade", 0) or 0),
+                int(r.get("prazos_vencidos", 0) or 0),
+                int(r.get("prazos_abertos", 0) or 0),
+                int(r.get("id", 0) or 0),
+            ),
+            reverse=True,
+        )
+
+    if mode == "vencidos":
+        return sorted(
+            rows,
+            key=lambda r: (
+                int(r.get("prazos_vencidos", 0) or 0),
+                int(r.get("score_prioridade", 0) or 0),
+                int(r.get("id", 0) or 0),
+            ),
+            reverse=True,
+        )
+
+    if mode == "proximo_prazo":
+
+        def prazo_key(r: dict[str, Any]):
+            prazo = r.get("proximo_prazo")
+            if prazo is None:
+                return (1, datetime.max)
+            return (0, prazo)
+
+        return sorted(rows, key=prazo_key, reverse=False)
+
+    if mode == "antigos":
+        return sorted(rows, key=lambda r: int(r.get("id", 0) or 0), reverse=False)
+
+    return sorted(rows, key=lambda r: int(r.get("id", 0) or 0), reverse=order_desc)
 
 
 # ==================================================
@@ -482,6 +686,7 @@ class ProcessosService:
         q: Optional[str] = None,
         order_desc: bool = True,
         limit: Optional[int] = None,
+        sort_mode: str = "recentes",
     ) -> list[dict[str, Any]]:
         processos = ProcessosService.list(
             session,
@@ -504,32 +709,35 @@ class ProcessosService:
             metrics = metrics_map.get(pid, {})
             pasta_local = getattr(p, "pasta_local", None) or ""
 
-            rows.append(
-                {
-                    "id": pid,
-                    "numero_processo": getattr(p, "numero_processo", "") or "",
-                    "vara": getattr(p, "vara", "") or "",
-                    "comarca": getattr(p, "comarca", "") or "",
-                    "tipo_acao": getattr(p, "tipo_acao", "") or "",
-                    "contratante": getattr(p, "contratante", "") or "",
-                    "categoria_servico": getattr(p, "categoria_servico", "") or "",
-                    "papel": getattr(p, "papel", "") or "",
-                    "status": getattr(p, "status", "") or "",
-                    "pasta_local": pasta_local,
-                    "observacoes": getattr(p, "observacoes", "") or "",
-                    "tem_pasta": bool(str(pasta_local).strip()),
-                    "prazos_abertos": int(metrics.get("prazos_abertos", 0) or 0),
-                    "proximo_prazo": metrics.get("proximo_prazo"),
-                    "agendamentos_futuros": int(
-                        metrics.get("agendamentos_futuros", 0) or 0
-                    ),
-                    "proximo_agendamento": metrics.get("proximo_agendamento"),
-                    "receitas": _safe_float(metrics.get("receitas", 0)),
-                    "despesas": _safe_float(metrics.get("despesas", 0)),
-                    "saldo": _safe_float(metrics.get("saldo", 0)),
-                }
-            )
+            row: dict[str, Any] = {
+                "id": pid,
+                "numero_processo": getattr(p, "numero_processo", "") or "",
+                "vara": getattr(p, "vara", "") or "",
+                "comarca": getattr(p, "comarca", "") or "",
+                "tipo_acao": getattr(p, "tipo_acao", "") or "",
+                "contratante": getattr(p, "contratante", "") or "",
+                "categoria_servico": getattr(p, "categoria_servico", "") or "",
+                "papel": getattr(p, "papel", "") or "",
+                "status": getattr(p, "status", "") or "",
+                "pasta_local": pasta_local,
+                "observacoes": getattr(p, "observacoes", "") or "",
+                "tem_pasta": bool(str(pasta_local).strip()),
+                "prazos_abertos": int(metrics.get("prazos_abertos", 0) or 0),
+                "prazos_vencidos": int(metrics.get("prazos_vencidos", 0) or 0),
+                "proximo_prazo": metrics.get("proximo_prazo"),
+                "agendamentos_futuros": int(
+                    metrics.get("agendamentos_futuros", 0) or 0
+                ),
+                "proximo_agendamento": metrics.get("proximo_agendamento"),
+                "receitas": _safe_float(metrics.get("receitas", 0)),
+                "despesas": _safe_float(metrics.get("despesas", 0)),
+                "saldo": _safe_float(metrics.get("saldo", 0)),
+            }
 
+            row.update(_operational_snapshot(row))
+            rows.append(row)
+
+        rows = _sort_rows(rows, sort_mode=sort_mode, order_desc=order_desc)
         return rows
 
     @staticmethod
@@ -554,7 +762,7 @@ class ProcessosService:
         metrics = _processo_metrics_map(session, owner_user_id, [pid]).get(pid, {})
         pasta_local = getattr(proc, "pasta_local", None) or ""
 
-        return {
+        row: dict[str, Any] = {
             "id": pid,
             "numero_processo": getattr(proc, "numero_processo", "") or "",
             "vara": getattr(proc, "vara", "") or "",
@@ -568,6 +776,7 @@ class ProcessosService:
             "observacoes": getattr(proc, "observacoes", "") or "",
             "tem_pasta": bool(str(pasta_local).strip()),
             "prazos_abertos": int(metrics.get("prazos_abertos", 0) or 0),
+            "prazos_vencidos": int(metrics.get("prazos_vencidos", 0) or 0),
             "proximo_prazo": metrics.get("proximo_prazo"),
             "agendamentos_futuros": int(metrics.get("agendamentos_futuros", 0) or 0),
             "proximo_agendamento": metrics.get("proximo_agendamento"),
@@ -575,6 +784,9 @@ class ProcessosService:
             "despesas": _safe_float(metrics.get("despesas", 0)),
             "saldo": _safe_float(metrics.get("saldo", 0)),
         }
+
+        row.update(_operational_snapshot(row))
+        return row
 
     @staticmethod
     def update(
@@ -709,12 +921,59 @@ class ProcessosService:
             or 0
         )
 
+        com_prazo = (
+            session.scalar(
+                select(func.count(func.distinct(Prazo.processo_id)))
+                .select_from(Prazo)
+                .join(Processo, Processo.id == Prazo.processo_id)
+                .where(
+                    _owner_stmt(owner_user_id),
+                    Prazo.concluido.is_(False),
+                )
+            )
+            or 0
+        )
+
+        atrasados = (
+            session.scalar(
+                select(func.count(func.distinct(Prazo.processo_id)))
+                .select_from(Prazo)
+                .join(Processo, Processo.id == Prazo.processo_id)
+                .where(
+                    _owner_stmt(owner_user_id),
+                    Prazo.concluido.is_(False),
+                    Prazo.data_limite < date.today(),
+                )
+            )
+            or 0
+        )
+
+        agenda_futura = (
+            session.scalar(
+                select(func.count(func.distinct(Agendamento.processo_id)))
+                .select_from(Agendamento)
+                .join(Processo, Processo.id == Agendamento.processo_id)
+                .where(
+                    _owner_stmt(owner_user_id),
+                    Agendamento.status == "Agendado",
+                    Agendamento.inicio >= datetime.now(),
+                )
+            )
+            or 0
+        )
+
+        sem_pasta = max(0, int(total) - int(com_pasta))
+
         return {
             "total": int(total),
             "ativos": int(ativos),
             "concluidos": int(concluidos),
             "suspensos": int(suspensos),
             "com_pasta": int(com_pasta),
+            "sem_pasta": int(sem_pasta),
+            "com_prazo": int(com_prazo),
+            "atrasados": int(atrasados),
+            "agenda_futura": int(agenda_futura),
         }
 
     @staticmethod
