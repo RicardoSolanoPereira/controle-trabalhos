@@ -487,7 +487,6 @@ def _set_section(sec: str) -> None:
     sec = _legacy_section_to_new(sec)
 
     st.session_state[K_SECTION] = sec
-    st.session_state[K_SECTION_SELECTOR] = sec
 
     legacy_map = {
         SECTION_CARTEIRA: "Lista",
@@ -500,6 +499,21 @@ def _set_section(sec: str) -> None:
 
     st.query_params["processos_section"] = sec
     navigate("Trabalhos", state={"processos_section": sec})
+
+
+def _on_section_change() -> None:
+    sec = _legacy_section_to_new(st.session_state.get(K_SECTION_SELECTOR))
+    st.session_state[K_SECTION] = sec
+
+    legacy_map = {
+        SECTION_CARTEIRA: "Lista",
+        SECTION_NOVO: "Cadastro",
+        SECTION_PAINEL: "Painel",
+    }
+    legacy_value = legacy_map.get(sec, "Lista")
+    st.session_state[K_SECTION_LEGACY] = legacy_value
+    st.session_state[K_SECTION_SELECTOR_LEGACY] = legacy_value
+    st.query_params["processos_section"] = sec
 
 
 def _go_new() -> None:
@@ -1990,9 +2004,7 @@ def render(owner_user_id: int):
     )
 
     if st.session_state.pop("tb_new", False):
-        st.session_state[K_SECTION] = SECTION_NOVO
-        st.session_state[K_SECTION_SELECTOR] = SECTION_NOVO
-        st.query_params["processos_section"] = SECTION_NOVO
+        _set_section(SECTION_NOVO)
         st.rerun()
 
     if st.session_state.pop("tb_clear", False):
@@ -2007,11 +2019,12 @@ def render(owner_user_id: int):
     label_vis = "collapsed" if _use_cards() else "visible"
 
     current_qp_section = _legacy_section_to_new(get_qp_str("processos_section", ""))
+    target_section = (
+        current_qp_section or st.session_state.get(K_SECTION) or SECTION_CARTEIRA
+    )
 
-    if K_SECTION_SELECTOR not in st.session_state:
-        st.session_state[K_SECTION_SELECTOR] = (
-            current_qp_section or st.session_state.get(K_SECTION, SECTION_CARTEIRA)
-        )
+    if st.session_state.get(K_SECTION_SELECTOR) != target_section:
+        st.session_state[K_SECTION_SELECTOR] = target_section
 
     with section(
         "Modo da tela",
@@ -2025,6 +2038,7 @@ def render(owner_user_id: int):
                 options=list(SECTIONS),
                 key=K_SECTION_SELECTOR,
                 label_visibility=label_vis,
+                on_change=_on_section_change,
             )
         else:
             sec = st.radio(
@@ -2033,6 +2047,7 @@ def render(owner_user_id: int):
                 horizontal=True,
                 key=K_SECTION_SELECTOR,
                 label_visibility=label_vis,
+                on_change=_on_section_change,
             )
 
     sec = _legacy_section_to_new(sec)
