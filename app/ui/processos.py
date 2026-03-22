@@ -485,7 +485,9 @@ def _sync_from_dashboard_and_qp() -> None:
 
 def _set_section(sec: str) -> None:
     sec = _legacy_section_to_new(sec)
+
     st.session_state[K_SECTION] = sec
+    st.session_state[K_SECTION_SELECTOR] = sec
 
     legacy_map = {
         SECTION_CARTEIRA: "Lista",
@@ -496,6 +498,7 @@ def _set_section(sec: str) -> None:
     st.session_state[K_SECTION_LEGACY] = legacy_value
     st.session_state[K_SECTION_SELECTOR_LEGACY] = legacy_value
 
+    st.query_params["processos_section"] = sec
     navigate("Trabalhos", state={"processos_section": sec})
 
 
@@ -1456,20 +1459,14 @@ def _render_carteira(owner_user_id: int, stats: dict[str, int], version: int) ->
         subtitle="Filtre, localize e opere rapidamente sobre os registros cadastrados.",
         divider=False,
     ):
-        cta1, cta2, cta3 = grid(3, columns_mobile=1)
+        cta1, cta2 = grid(2, columns_mobile=1)
         with cta1:
-            _button(
-                "➕ Novo trabalho",
-                key="proc_list_new",
-                type="primary",
-                on_click=_go_new,
-            )
-        with cta2:
             _button("🧹 Limpar filtros", key="proc_list_clear", on_click=_clear_filters)
-        with cta3:
+        with cta2:
             if _button("↻ Recarregar", key="proc_list_reload"):
                 _clear_data_cache()
                 _toast("↻ Dados recarregados")
+                st.rerun()
 
         spacer(0.10)
         _render_overview_cards(stats)
@@ -1981,13 +1978,11 @@ def render(owner_user_id: int):
     _render_header(stats)
 
     page_header(
-        "",
-        "",
+        "Ações rápidas",
+        "Atalhos para cadastro, limpeza de filtros e recarga da tela.",
         actions=[
             HeaderAction("➕ Novo", key="tb_new", type="primary", disabled=False),
-            HeaderAction(
-                "🧹 Limpar", key="tb_clear", type="secondary", on_click=_clear_filters
-            ),
+            HeaderAction("🧹 Limpar", key="tb_clear", type="secondary"),
             HeaderAction("↻ Recarregar", key="tb_reload", type="secondary"),
         ],
         divider=False,
@@ -2000,9 +1995,14 @@ def render(owner_user_id: int):
         st.query_params["processos_section"] = SECTION_NOVO
         st.rerun()
 
+    if st.session_state.pop("tb_clear", False):
+        _clear_filters()
+        st.rerun()
+
     if st.session_state.pop("tb_reload", False):
         _clear_data_cache()
         _toast("↻ Dados recarregados")
+        st.rerun()
 
     label_vis = "collapsed" if _use_cards() else "visible"
 

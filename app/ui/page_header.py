@@ -121,7 +121,7 @@ def _normalize_actions(
         return normalized
 
     if right_button_label and right_button_label.strip():
-        base_key = f"ph_{_safe_key(title)}"
+        base_key = f"ph_{_safe_key(title or 'header')}"
         normalized.append(
             HeaderAction(
                 label=right_button_label.strip(),
@@ -405,6 +405,9 @@ def _render_title_block(
     badge_tone: str = "neutral",
     compact: bool = False,
 ) -> None:
+    if not (title or "").strip() and not (subtitle or "").strip():
+        return
+
     title_html = _escape(title)
     subtitle_html = _escape(subtitle) if subtitle else ""
 
@@ -431,21 +434,26 @@ def _render_title_block(
 
     _render_html('<div class="sp-page-header-title-block">')
     _render_meta_row(eyebrow=eyebrow, badge=badge, badge_tone=badge_tone)
-    _render_html(
-        f"""
-        <div
-            class="sp-page-header-title-text"
-            style="
-                font-size:{title_size};
-                font-weight:{title_weight};
-                line-height:{title_line_height};
-            "
-        >
-            {title_html}
-        </div>
-        {subtitle_block}
-        """
-    )
+
+    if title_html:
+        _render_html(
+            f"""
+            <div
+                class="sp-page-header-title-text"
+                style="
+                    font-size:{title_size};
+                    font-weight:{title_weight};
+                    line-height:{title_line_height};
+                "
+            >
+                {title_html}
+            </div>
+            {subtitle_block}
+            """
+        )
+    else:
+        _render_html(subtitle_block)
+
     _render_html("</div>")
 
 
@@ -547,10 +555,6 @@ def page_header(
 ) -> bool:
     _inject_page_header_css()
 
-    if not (title or "").strip():
-        return False
-
-    base_key = f"ph_{_safe_key(title)}"
     normalized_actions = _normalize_actions(
         title=title,
         actions=actions,
@@ -559,6 +563,15 @@ def page_header(
         right_button_help=right_button_help,
         right_button_on_click=right_button_on_click,
     )
+
+    if (
+        not (title or "").strip()
+        and not (subtitle or "").strip()
+        and not normalized_actions
+    ):
+        return False
+
+    base_key = f"ph_{_safe_key(title or 'header')}"
 
     if top_spacing_rem > 0:
         spacer(top_spacing_rem)
