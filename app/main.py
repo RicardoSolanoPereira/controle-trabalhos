@@ -96,6 +96,69 @@ ROUTES: dict[str, Callable[[int], None]] = {
 }
 
 # ==========================================================
+# Navegação - helpers
+# ==========================================================
+
+
+def _normalize_nav_mode(value: str | None) -> str:
+    mode = str(value or "sidebar").strip().lower()
+    return mode if mode in {"sidebar", "topbar"} else "sidebar"
+
+
+def _nav_mode_label(mode: str) -> str:
+    return "Topo" if _normalize_nav_mode(mode) == "topbar" else "Sidebar"
+
+
+def _nav_mode_from_label(label: str | None) -> str:
+    value = str(label or "").strip().lower()
+    return "topbar" if value in {"topo", "topbar"} else "sidebar"
+
+
+def _nav_mode() -> str:
+    return _normalize_nav_mode(st.session_state.get(NAV_MODE_KEY, "sidebar"))
+
+
+def _set_nav_mode(mode: str) -> None:
+    normalized = _normalize_nav_mode(mode)
+    st.session_state[NAV_MODE_KEY] = normalized
+
+    label = _nav_mode_label(normalized)
+
+    # Só sincroniza as chaves de widget antes de os widgets serem renderizados
+    st.session_state[SIDEBAR_NAV_MODE_WIDGET_KEY] = label
+    st.session_state[TOP_NAV_MODE_WIDGET_KEY] = label
+
+
+def _show_sidebar() -> bool:
+    return _nav_mode() == "sidebar"
+
+
+def _show_top_nav() -> bool:
+    return _nav_mode() == "topbar"
+
+
+def _safe_menu(menu: str | None) -> str:
+    return menu if menu in MENU_KEYS else MENU_DEFAULT
+
+
+def _prime_menu_widget_state(current_menu: str) -> str:
+    """
+    Sincroniza as chaves dos widgets ANTES da renderização.
+    Não deve ser chamada depois que os widgets com essas keys existirem no run atual.
+    """
+    current = _safe_menu(current_menu)
+    st.session_state[SIDEBAR_MENU_KEY] = current
+    st.session_state[TOP_NAV_MENU_KEY] = current
+    return current
+
+
+def _prime_nav_mode_widget_state() -> None:
+    label = _nav_mode_label(_nav_mode())
+    st.session_state[SIDEBAR_NAV_MODE_WIDGET_KEY] = label
+    st.session_state[TOP_NAV_MODE_WIDGET_KEY] = label
+
+
+# ==========================================================
 # Estado base
 # ==========================================================
 
@@ -114,6 +177,17 @@ def _init_app_state() -> None:
     if st.session_state.get(TOP_NAV_MENU_KEY) not in MENU_KEYS:
         st.session_state[TOP_NAV_MENU_KEY] = MENU_DEFAULT
 
+    current_nav_mode_label = _nav_mode_label(st.session_state[NAV_MODE_KEY])
+
+    st.session_state.setdefault(
+        SIDEBAR_NAV_MODE_WIDGET_KEY,
+        current_nav_mode_label,
+    )
+    st.session_state.setdefault(
+        TOP_NAV_MODE_WIDGET_KEY,
+        current_nav_mode_label,
+    )
+
 
 _init_app_state()
 
@@ -130,7 +204,6 @@ def _bootstrap_db() -> bool:
 
 _bootstrap_db()
 
-# CSS deve ser injetado por execução, não por cache de recurso.
 inject_global_css()
 
 # ==========================================================
@@ -227,41 +300,6 @@ def _clear_ui_cache() -> None:
 
 
 # ==========================================================
-# Navegação
-# ==========================================================
-
-
-def _normalize_nav_mode(value: str | None) -> str:
-    mode = str(value or "sidebar").strip().lower()
-    return mode if mode in {"sidebar", "topbar"} else "sidebar"
-
-
-def _nav_mode() -> str:
-    return _normalize_nav_mode(st.session_state.get(NAV_MODE_KEY, "sidebar"))
-
-
-def _set_nav_mode(mode: str) -> None:
-    st.session_state[NAV_MODE_KEY] = _normalize_nav_mode(mode)
-
-
-def _show_sidebar() -> bool:
-    return _nav_mode() == "sidebar"
-
-
-def _show_top_nav() -> bool:
-    return _nav_mode() == "topbar"
-
-
-def _nav_mode_label(mode: str) -> str:
-    return "Topo" if _normalize_nav_mode(mode) == "topbar" else "Sidebar"
-
-
-def _nav_mode_from_label(label: str | None) -> str:
-    value = str(label or "").strip().lower()
-    return "topbar" if value in {"topo", "topbar"} else "sidebar"
-
-
-# ==========================================================
 # Callbacks
 # ==========================================================
 
@@ -285,11 +323,8 @@ def _top_nav(current_menu: str) -> str:
     if not _show_top_nav():
         return current_menu
 
-    current_value = get_current_menu(default=current_menu)
+    current_value = _safe_menu(get_current_menu(default=current_menu))
     current_section = get_current_section(current_value, default=None)
-
-    st.session_state[TOP_NAV_MENU_KEY] = current_value
-    st.session_state[TOP_NAV_MODE_WIDGET_KEY] = _nav_mode_label(_nav_mode())
 
     with content_shell():
         col_menu, col_mode, col_action = st.columns(
@@ -302,7 +337,6 @@ def _top_nav(current_menu: str) -> str:
             st.selectbox(
                 "Ir para",
                 MENU_KEYS,
-                index=MENU_KEYS.index(current_value),
                 format_func=_menu_format,
                 key=TOP_NAV_MENU_KEY,
                 on_change=on_top_nav_change,
@@ -329,12 +363,15 @@ def _top_nav(current_menu: str) -> str:
 
         st.divider()
 
-        if current_section:
-            st.caption(f"📍 {current_value} • {current_section}")
-        else:
-            st.caption(f"📍 {current_value}")
+        current_after = _safe_menu(get_current_menu(default=current_value))
+        current_section_after = get_current_section(current_after, default=None)
 
-    return get_current_menu(default=current_menu)
+        if current_section_after:
+            st.caption(f"📍 {current_after} • {current_section_after}")
+        else:
+            st.caption(f"📍 {current_after}")
+
+    return _safe_menu(get_current_menu(default=current_menu))
 
 
 # ==========================================================
@@ -349,18 +386,15 @@ def _render_sidebar_brand() -> None:
     )
 
 
-def _render_sidebar_navigation(current_menu: str) -> None:
+def _render_sidebar_navigation() -> None:
     st.sidebar.markdown(
         "<div class='sidebar-section'>Navegação</div>",
         unsafe_allow_html=True,
     )
 
-    st.session_state[SIDEBAR_MENU_KEY] = current_menu
-
     st.sidebar.radio(
         "Menu principal",
         MENU_KEYS,
-        index=MENU_KEYS.index(current_menu) if current_menu in MENU_KEYS else 0,
         format_func=_menu_format,
         label_visibility="collapsed",
         key=SIDEBAR_MENU_KEY,
@@ -395,8 +429,6 @@ def _render_sidebar_quick_actions() -> None:
 
 
 def _render_sidebar_config() -> None:
-    st.session_state[SIDEBAR_NAV_MODE_WIDGET_KEY] = _nav_mode_label(_nav_mode())
-
     with st.sidebar.expander("Configurações", expanded=False):
         st.radio(
             "Modo de navegação",
@@ -434,7 +466,7 @@ def render_sidebar(current_menu: str) -> str:
         return current_menu
 
     _render_sidebar_brand()
-    _render_sidebar_navigation(current_menu)
+    _render_sidebar_navigation()
 
     st.sidebar.divider()
 
@@ -445,7 +477,7 @@ def render_sidebar(current_menu: str) -> str:
     _render_sidebar_config()
     _render_sidebar_build()
 
-    return get_current_menu(default=current_menu)
+    return _safe_menu(get_current_menu(default=current_menu))
 
 
 # ==========================================================
@@ -493,7 +525,12 @@ def render_shell(menu: str, owner_user_id: int) -> None:
 
 
 def _run_app() -> None:
-    current_menu = get_current_menu(default=MENU_DEFAULT)
+    current_menu = _safe_menu(get_current_menu(default=MENU_DEFAULT))
+
+    # Importante:
+    # sincroniza chaves dos widgets antes da criação dos widgets no run atual
+    _prime_menu_widget_state(current_menu)
+    _prime_nav_mode_widget_state()
 
     if _show_sidebar():
         current_menu = render_sidebar(current_menu)
@@ -501,7 +538,8 @@ def _run_app() -> None:
     if _show_top_nav():
         current_menu = _top_nav(current_menu)
 
-    current_menu = get_current_menu(default=MENU_DEFAULT)
+    current_menu = _safe_menu(get_current_menu(default=current_menu))
+
     render_shell(current_menu, owner_user_id)
 
 
