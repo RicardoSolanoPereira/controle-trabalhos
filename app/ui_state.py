@@ -55,7 +55,7 @@ VALID_MENUS = {
     "Andamentos",
     "Clientes",
     "Configurações",
-    "Agendamentos",  # alias legado
+    "Agendamentos",
 }
 
 _MENU_ALIASES: dict[str, str] = {
@@ -63,13 +63,11 @@ _MENU_ALIASES: dict[str, str] = {
 }
 
 STATE_DEFAULTS: dict[str, Any] = {
-    # navegação principal
     "sidebar_menu": MENU_DEFAULT,
     "top_nav_menu": MENU_DEFAULT,
     "_last_menu": MENU_DEFAULT,
     "nav_target": None,
     "ui_nav_mode": "sidebar",
-    # subseções por módulo
     "dashboard_section": "Visão geral",
     "trabalhos_section": "Lista",
     "processos_section": "Lista",
@@ -79,20 +77,15 @@ STATE_DEFAULTS: dict[str, Any] = {
     "andamentos_section": "Lista",
     "clientes_section": "Lista",
     "configuracoes_section": "Geral",
-    # legado / compatibilidade
     "agendamentos_section": "Agenda",
-    # contexto de origem
     "last_action_source": None,
     "last_action_label": None,
-    # refresh / invalidação visual
     "data_version": 0,
-    # preferências visuais
     "ui_show_top_nav": True,
     "ui_mobile_cards": False,
     "force_mobile": False,
     "ui_dense_mode": False,
     "ui_show_secondary_info": True,
-    # suporte / diagnóstico
     "ui_debug": False,
 }
 
@@ -118,7 +111,7 @@ _MENU_TO_SECTION_KEY: dict[str, str] = {
     "Andamentos": "andamentos_section",
     "Clientes": "clientes_section",
     "Configurações": "configuracoes_section",
-    "Agendamentos": "agenda_section",  # alias legado
+    "Agendamentos": "agenda_section",
 }
 
 
@@ -177,6 +170,7 @@ def init_state() -> None:
 def _normalize_legacy_state() -> None:
     """
     Compatibilidade com nomenclaturas antigas.
+    Esta função roda no início do script, antes da renderização dos widgets.
     """
     current_menu = _normalize_menu(get_state("_last_menu"), default=MENU_DEFAULT)
     sidebar_menu = _normalize_menu(get_state("sidebar_menu"), default=MENU_DEFAULT)
@@ -395,16 +389,10 @@ def is_valid_menu(menu: str | None, allowed: Iterable[str] | None = None) -> boo
 
 def _sync_menu_controls(menu: str) -> None:
     """
-    Mantém todos os widgets e referências de navegação alinhados.
+    Mantém o estado lógico da navegação alinhado sem alterar widgets já instanciados.
     """
     menu_value = _normalize_menu(menu, default=MENU_DEFAULT) or MENU_DEFAULT
-    set_states(
-        {
-            "_last_menu": menu_value,
-            "sidebar_menu": menu_value,
-            "top_nav_menu": menu_value,
-        }
-    )
+    set_state("_last_menu", menu_value)
 
 
 def get_current_menu(default: str = MENU_DEFAULT) -> str:
@@ -467,11 +455,6 @@ def navigate(
 ) -> None:
     """
     Solicita navegação e sincroniza parâmetros opcionais via URL.
-
-    Exemplos:
-        navigate("Prazos")
-        navigate("Prazos", state={"prazos_section": "Lista"})
-        navigate(menu="Financeiro", financeiro_section="Lançamentos")
     """
     payload: dict[str, Any] = {}
 
@@ -673,10 +656,6 @@ def _resolve_data_version_key(owner_user_id: int | None = None) -> str:
 def bump_data_version(owner_user_id: int | None = None) -> int:
     """
     Incrementa a versão de dados.
-
-    Compatibilidade:
-    - bump_data_version() -> global
-    - bump_data_version(owner_user_id) -> por usuário
     """
     key = _resolve_data_version_key(owner_user_id)
     current = _as_int(get_state(key, 0), default=0) + 1

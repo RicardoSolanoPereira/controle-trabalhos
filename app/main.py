@@ -124,9 +124,11 @@ def _set_nav_mode(mode: str) -> None:
 
     label = _nav_mode_label(normalized)
 
-    # Só sincroniza as chaves de widget antes de os widgets serem renderizados
-    st.session_state[SIDEBAR_NAV_MODE_WIDGET_KEY] = label
-    st.session_state[TOP_NAV_MODE_WIDGET_KEY] = label
+    # Somente sincroniza essas keys antes dos widgets serem renderizados.
+    # Como esta função é chamada por callback de widget já existente,
+    # atualizamos apenas o estado lógico de navegação.
+    # As keys dos widgets serão re-hidratadas no começo do próximo run.
+    st.session_state["_pending_nav_mode_label"] = label
 
 
 def _show_sidebar() -> bool:
@@ -306,12 +308,14 @@ def _clear_ui_cache() -> None:
 
 def _on_sidebar_nav_mode_change() -> None:
     selected_label = st.session_state.get(SIDEBAR_NAV_MODE_WIDGET_KEY, "Sidebar")
-    _set_nav_mode(_nav_mode_from_label(selected_label))
+    mode = _nav_mode_from_label(selected_label)
+    st.session_state[NAV_MODE_KEY] = mode
 
 
 def _on_top_nav_mode_change() -> None:
     selected_label = st.session_state.get(TOP_NAV_MODE_WIDGET_KEY, "Topo")
-    _set_nav_mode(_nav_mode_from_label(selected_label))
+    mode = _nav_mode_from_label(selected_label)
+    st.session_state[NAV_MODE_KEY] = mode
 
 
 # ==========================================================
@@ -527,8 +531,7 @@ def render_shell(menu: str, owner_user_id: int) -> None:
 def _run_app() -> None:
     current_menu = _safe_menu(get_current_menu(default=MENU_DEFAULT))
 
-    # Importante:
-    # sincroniza chaves dos widgets antes da criação dos widgets no run atual
+    # Sincroniza widgets apenas antes da criação dos widgets no run atual
     _prime_menu_widget_state(current_menu)
     _prime_nav_mode_widget_state()
 
