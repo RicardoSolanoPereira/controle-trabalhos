@@ -16,7 +16,7 @@ from ui.prazos_components.helpers import (
     safe_str,
     status_label,
 )
-from app.ui.components.sections import section_card
+from ui.components.sections import section_card
 
 
 def editar_excluir_prazo(items, owner_user_id: int) -> None:

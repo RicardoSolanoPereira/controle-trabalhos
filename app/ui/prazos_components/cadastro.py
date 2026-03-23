@@ -29,7 +29,7 @@ from ui.prazos_components.constants import (
     PRIORIDADES,
 )
 from ui.prazos_components.helpers import merge_obs_with_audit, norm, safe_str
-from app.ui.components.sections import section_card
+from ui.components.sections import section_card
 from ui.prazos_components.state import request_list_tab, request_tab
 
 

@@ -5,17 +5,17 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from app.services.utils import ensure_br, format_date_br
-from app.ui.theme import card
-from app.ui.layout import section_surface
-from app.ui.prazos_components.constants import KEY_LIST_ACTIVE, KEY_LIST_SELECTOR
-from app.ui.prazos_components.helpers import (
+from services.utils import ensure_br, format_date_br
+from ui.theme import card
+from ui.layout import section_surface
+from ui.prazos_components.constants import KEY_LIST_ACTIVE, KEY_LIST_SELECTOR
+from ui.prazos_components.helpers import (
     dias_restantes,
     priority_rank,
     safe_str,
     status_label,
 )
-from app.ui.prazos_components.types import PrazoRow
+from ui.prazos_components.types import PrazoRow
 
 
 def render_html(html: str) -> None:

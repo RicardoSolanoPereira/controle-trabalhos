@@ -4,13 +4,13 @@ from datetime import timedelta
 
 import streamlit as st
 
-from app.db.connection import get_session
-from app.services.prazos_service import PrazoUpdate, PrazosService
-from app.services.utils import date_to_br_datetime, ensure_br, format_date_br
-from app.ui.theme import card, subtle_divider
-from app.ui_state import bump_data_version
-from app.ui.prazos_components.cache import cached_prazos_list_all
-from app.ui.prazos_components.constants import (
+from db.connection import get_session
+from services.prazos_service import PrazoUpdate, PrazosService
+from services.utils import date_to_br_datetime, ensure_br, format_date_br
+from ui.theme import card, subtle_divider
+from ui_state import bump_data_version
+from ui.prazos_components.cache import cached_prazos_list_all
+from ui.prazos_components.constants import (
     KEY_FILTER_BUSCA,
     KEY_FILTER_ORIGEM,
     KEY_FILTER_PRIO,
@@ -25,7 +25,7 @@ from app.ui.prazos_components.constants import (
     PRIORIDADES,
     TIPOS_TRABALHO,
 )
-from app.ui.prazos_components.helpers import (
+from ui.prazos_components.helpers import (
     apply_lista_filters,
     build_df,
     dias_restantes,
@@ -36,15 +36,15 @@ from app.ui.prazos_components.helpers import (
     split_status_groups,
     status_label,
 )
-from app.ui.components.sections import section_card
-from app.ui.prazos_components.sections import (
+from ui.components.sections import section_card
+from ui.prazos_components.sections import (
     list_tabs_selector,
     render_df,
     render_priority_queue,
     render_summary_kpis,
 )
 
-from app.ui.prazos_components.state import apply_requested_list_tab, request_tab
+from ui.prazos_components.state import apply_requested_list_tab, request_tab
 
 
 def render_filtros_lista(proc_labels: list[str]) -> tuple[str, str, str, str, str]:

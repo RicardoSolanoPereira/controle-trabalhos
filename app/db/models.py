@@ -16,8 +16,7 @@ from sqlalchemy import (
 )
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from .connection import Base
+from db.connection import Base
 
 
 # =========================================================

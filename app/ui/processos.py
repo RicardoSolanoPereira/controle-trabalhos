@@ -23,6 +23,39 @@ from ui_state import (
     get_qp_str,
     navigate,
 )
+from ui.processos_helpers import (
+    atuacao_badge as _atuacao_badge,
+    atuacao_chip_class as _atuacao_chip_class,
+    atuacao_db_from_label as _atuacao_db_from_label,
+    atuacao_label_from_db as _atuacao_label_from_db,
+    compact_text as _compact_text,
+    escape_text as _escape_text,
+    fmt_date as _fmt_date,
+    fmt_datetime as _fmt_datetime,
+    fmt_money as _fmt_money,
+    guess_pasta_local as _guess_pasta_local,
+    norm_tipo_trabalho as _norm_tipo_trabalho,
+    safe_strip as _safe_strip,
+    status_badge as _status_badge,
+    status_chip_class as _status_chip_class,
+    status_tone as _status_tone,
+    strip_html as _strip_html,
+)
+from ui.processos_view_model import (
+    processo_view_model as _processo_view_model,
+    row_label as _row_label,
+)
+from ui.processos_insights import (
+    summarize_filters as _summarize_filters_ui,
+    results_metrics as _results_metrics_ui,
+    render_header as _render_header_ui,
+    render_filter_summary as _render_filter_summary_ui,
+    render_priority_banners as _render_priority_banners_ui,
+    render_overview_cards as _render_overview_cards_ui,
+    render_list_insights as _render_list_insights_ui,
+    render_empty_list as _render_empty_list_ui,
+)
+
 
 # ============================================================
 # CONSTANTES / CONFIG
@@ -350,59 +383,6 @@ def _open_folder(path_str: str | None) -> tuple[bool, str]:
 
 
 # ============================================================
-# VIEW MODEL
-# ============================================================
-
-
-def _processo_view_model(r: dict) -> dict[str, Any]:
-    ref = _strip_html(r.get("numero_processo")) or "Sem referência"
-    cliente = _strip_html(r.get("contratante"))
-    comarca = _strip_html(r.get("comarca"))
-    vara = _strip_html(r.get("vara"))
-    categoria = _strip_html(r.get("categoria_servico"))
-    descricao = _strip_html(r.get("tipo_acao"))
-    obs = _compact_text(r.get("observacoes"), 180)
-    pasta = _safe_strip(r.get("pasta_local"))
-    status = r.get("status")
-    papel = r.get("papel")
-
-    return {
-        "id": int(r.get("id") or 0),
-        "ref": ref,
-        "cliente": cliente,
-        "comarca": comarca,
-        "vara": vara,
-        "categoria": categoria,
-        "descricao": descricao,
-        "obs": obs,
-        "pasta": pasta,
-        "tem_pasta": bool(r.get("tem_pasta")),
-        "status_raw": status,
-        "status_label": _status_badge(status),
-        "status_class": _status_chip_class(status),
-        "status_tone": _status_tone(status),
-        "atuacao_label": _atuacao_badge(papel),
-        "atuacao_class": _atuacao_chip_class(papel),
-        "papel": papel,
-        "prazos": int(r.get("prazos_abertos", 0) or 0),
-        "proximo_prazo": _fmt_date(r.get("proximo_prazo")),
-        "agenda": int(r.get("agendamentos_futuros", 0) or 0),
-        "proximo_agendamento": _fmt_datetime(r.get("proximo_agendamento")),
-        "saldo": _fmt_money(r.get("saldo", 0)),
-    }
-
-
-def _row_label(r: dict) -> str:
-    vm = _processo_view_model(r)
-    parts = [vm["ref"], vm["atuacao_label"]]
-    if vm["categoria"]:
-        parts.append(vm["categoria"])
-    if vm["cliente"]:
-        parts.append(vm["cliente"])
-    return " — ".join(parts)
-
-
-# ============================================================
 # SESSION / NAVEGAÇÃO
 # ============================================================
 
@@ -703,201 +683,56 @@ def _banner_html(tone: str, title: str, text: str) -> str:
 
 
 def _summarize_filters() -> list[str]:
-    chips: list[str] = []
-    status = st.session_state.get(K_FILTER_STATUS, "(Todos)")
-    atuacao = st.session_state.get(K_FILTER_ATUACAO, "(Todas)")
-    categoria = st.session_state.get(K_FILTER_CATEGORIA, "(Todas)")
-    q = (st.session_state.get(K_FILTER_Q, "") or "").strip()
-    ordem = st.session_state.get(K_FILTER_ORDEM, "Mais recentes")
-    so_pasta = bool(st.session_state.get(K_FILTER_SOMENTE_COM_PASTA, False))
-
-    if status != "(Todos)":
-        chips.append(f"Status: {status}")
-    if atuacao != "(Todas)":
-        chips.append(f"Atuação: {atuacao}")
-    if categoria != "(Todas)":
-        chips.append(f"Categoria: {categoria}")
-    if q:
-        chips.append(f"Busca: {q}")
-    if ordem != "Mais recentes":
-        chips.append(f"Ordem: {ordem}")
-    if so_pasta:
-        chips.append("Somente com pasta")
-    return chips
+    return _summarize_filters_ui(
+        filter_status=st.session_state.get(K_FILTER_STATUS, "(Todos)"),
+        filter_atuacao=st.session_state.get(K_FILTER_ATUACAO, "(Todas)"),
+        filter_categoria=st.session_state.get(K_FILTER_CATEGORIA, "(Todas)"),
+        filter_q=(st.session_state.get(K_FILTER_Q, "") or "").strip(),
+        filter_ordem=st.session_state.get(K_FILTER_ORDEM, "Mais recentes"),
+        somente_com_pasta=bool(st.session_state.get(K_FILTER_SOMENTE_COM_PASTA, False)),
+    )
 
 
 def _results_metrics(rows: list[dict]) -> dict[str, int]:
-    ativos = sum(1 for r in rows if _safe_strip(r.get("status")).lower() == "ativo")
-    concluidos = sum(
-        1 for r in rows if _safe_strip(r.get("status")).lower().startswith("concl")
-    )
-    suspensos = sum(
-        1 for r in rows if _safe_strip(r.get("status")).lower() == "suspenso"
-    )
-    com_pasta = sum(1 for r in rows if bool(r.get("tem_pasta")))
-    com_prazo = sum(1 for r in rows if int(r.get("prazos_abertos", 0) or 0) > 0)
-    return {
-        "resultado": len(rows),
-        "ativos": ativos,
-        "concluidos": concluidos,
-        "suspensos": suspensos,
-        "com_pasta": com_pasta,
-        "com_prazo": com_prazo,
-    }
+    return _results_metrics_ui(rows, safe_strip=_safe_strip)
 
 
 def _render_header(stats: dict[str, int]) -> None:
-    _render_html(
-        f"""
-        <div class="sp-page-hero">
-          <div class="sp-page-hero-grid">
-            <div>
-              <div class="sp-page-kicker">gestão operacional</div>
-              <div class="sp-page-title">Trabalhos</div>
-              <div class="sp-page-subtitle">
-                Carteira central de processos, perícias e serviços técnicos, com acesso rápido
-                a prazo, agenda, financeiro e contexto operacional.
-              </div>
-              <div class="sp-chip-row" style="margin-top:12px;">
-                <span class="sp-chip">Hub operacional</span>
-                <span class="sp-chip">Filtros rápidos</span>
-                <span class="sp-chip">Ações por registro</span>
-              </div>
-            </div>
-            <div class="sp-inline-metrics">
-              <div class="sp-mini-stat"><div class="sp-mini-stat-label">total</div><div class="sp-mini-stat-value">{stats.get('total', 0)}</div><div class="sp-mini-stat-sub">registros</div></div>
-              <div class="sp-mini-stat"><div class="sp-mini-stat-label">ativos</div><div class="sp-mini-stat-value">{stats.get('ativos', 0)}</div><div class="sp-mini-stat-sub">em andamento</div></div>
-              <div class="sp-mini-stat"><div class="sp-mini-stat-label">concluídos</div><div class="sp-mini-stat-value">{stats.get('concluidos', 0)}</div><div class="sp-mini-stat-sub">finalizados</div></div>
-              <div class="sp-mini-stat"><div class="sp-mini-stat-label">com pasta</div><div class="sp-mini-stat-value">{stats.get('com_pasta', 0)}</div><div class="sp-mini-stat-sub">organizados</div></div>
-            </div>
-          </div>
-        </div>
-        """
-    )
+    _render_header_ui(stats, render_html=_render_html)
 
 
 def _render_filter_summary() -> None:
-    chips = _summarize_filters()
-    if not chips:
-        st.caption("Visualização geral sem filtros específicos.")
-        return
-    st.caption(f"Filtros aplicados: {'  •  '.join(chips)}")
+    _render_filter_summary_ui(_summarize_filters())
 
 
 def _render_priority_banners(stats: dict[str, int], rows: list[dict]) -> None:
-    metrics = _results_metrics(rows)
-    banners: list[str] = []
-
-    if stats.get("ativos", 0) > 0:
-        banners.append(
-            _banner_html(
-                "success",
-                "Carteira ativa",
-                f"{stats.get('ativos', 0)} trabalho(s) ativo(s) na base.",
-            )
-        )
-    if metrics["resultado"] > 0:
-        banners.append(
-            _banner_html(
-                "info",
-                "Resultado atual",
-                f"{metrics['resultado']} registro(s) retornado(s) com os filtros aplicados.",
-            )
-        )
-    if stats.get("suspensos", 0) > 0:
-        banners.append(
-            _banner_html(
-                "warning",
-                "Atenção de carteira",
-                f"{stats.get('suspensos', 0)} trabalho(s) suspenso(s) aguardando retomada.",
-            )
-        )
-    if stats.get("com_pasta", 0) < stats.get("total", 0):
-        faltantes = max(0, stats.get("total", 0) - stats.get("com_pasta", 0))
-        banners.append(
-            _banner_html(
-                "warning",
-                "Organização de arquivos",
-                f"{faltantes} registro(s) ainda sem pasta local vinculada.",
-            )
-        )
-    if not banners:
-        banners.append(
-            _banner_html(
-                "success", "Base organizada", "Sem alertas relevantes no momento."
-            )
-        )
-
-    cols = st.columns(min(len(banners), 4))
-    for col, banner in zip(cols, banners[:4]):
-        with col:
-            _render_html(banner)
+    _render_priority_banners_ui(
+        stats,
+        rows,
+        results_metrics_fn=_results_metrics,
+        banner_html_fn=_banner_html,
+        render_html=_render_html,
+    )
 
 
 def _render_overview_cards(stats: dict[str, int]) -> None:
-    a, b, c, d, e = grid(5, columns_mobile=2)
-    with a:
-        card("Total", f"{stats.get('total', 0)}", "todos os registros", tone="info")
-    with b:
-        card("Ativos", f"{stats.get('ativos', 0)}", "em andamento", tone="success")
-    with c:
-        card(
-            "Concluídos", f"{stats.get('concluidos', 0)}", "finalizados", tone="neutral"
-        )
-    with d:
-        card("Suspensos", f"{stats.get('suspensos', 0)}", "pausados", tone="warning")
-    with e:
-        card("Com pasta", f"{stats.get('com_pasta', 0)}", "vínculo local", tone="info")
+    _render_overview_cards_ui(stats, grid=grid, card=card)
 
 
 def _render_list_insights(rows: list[dict]) -> None:
-    metrics = _results_metrics(rows)
-    a, b, c, d, e = grid(5, columns_mobile=2)
-    with a:
-        card("Resultado", f"{metrics['resultado']}", "nos filtros", tone="info")
-    with b:
-        card(
-            "Ativos",
-            f"{metrics['ativos']}",
-            "na visualização",
-            tone="success" if metrics["ativos"] else "neutral",
-        )
-    with c:
-        card(
-            "Concluídos", f"{metrics['concluidos']}", "na visualização", tone="neutral"
-        )
-    with d:
-        card(
-            "Suspensos",
-            f"{metrics['suspensos']}",
-            "na visualização",
-            tone="warning" if metrics["suspensos"] else "neutral",
-        )
-    with e:
-        card(
-            "Com prazo",
-            f"{metrics['com_prazo']}",
-            "aberto(s)",
-            tone="info" if metrics["com_prazo"] else "neutral",
-        )
+    _render_list_insights_ui(
+        rows, results_metrics_fn=_results_metrics, grid=grid, card=card
+    )
 
 
 def _render_empty_list() -> None:
-    empty_state(
-        title="Nenhum trabalho encontrado",
-        subtitle="Ajuste os filtros ou cadastre um novo registro.",
-        icon="📁",
+    _render_empty_list_ui(
+        empty_state=empty_state,
+        grid=grid,
+        button=_button,
+        go_new=_go_new,
+        clear_filters=_clear_filters,
     )
-    a, b = grid(2, columns_mobile=1)
-    with a:
-        _button(
-            "➕ Cadastrar novo trabalho",
-            key="proc_empty_new",
-            type="primary",
-            on_click=_go_new,
-        )
-    with b:
-        _button("🧹 Limpar filtros", key="proc_empty_clear", on_click=_clear_filters)
 
 
 # ============================================================
