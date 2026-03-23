@@ -35,6 +35,11 @@ __all__ = [
     "actions_row",
     "empty_state",
     "page_header",
+    "page_frame",
+    "header_actions",
+    "form_panel",
+    "list_panel",
+    "filters_bar",
 ]
 
 MOBILE_FLAG_KEY = "force_mobile"
@@ -464,3 +469,87 @@ def page_header(
             right_actions()
 
     spacer(SPACE_MD)
+
+
+@contextmanager
+def page_frame(
+    meta: PageMeta,
+    *,
+    right_actions: Callable[[], None] | None = None,
+    max_width: str = PAGE_MAX_WIDTH,
+    class_name: str | None = None,
+) -> Iterator[None]:
+    with content_shell(max_width=max_width, class_name=class_name):
+        with page_stack():
+            page_header(meta, right_actions=right_actions)
+            yield
+
+
+def header_actions(
+    actions: Sequence[Callable[[], None]],
+    *,
+    gap: str = "small",
+) -> None:
+    valid_actions = [action for action in actions if action is not None]
+    if not valid_actions:
+        return
+
+    if is_mobile() or len(valid_actions) == 1:
+        for action in valid_actions:
+            action()
+            compact_gap()
+        return
+
+    cols = st.columns(len(valid_actions), gap=gap, vertical_alignment="center")
+    for col, action in zip(cols, valid_actions):
+        with col:
+            action()
+
+
+@contextmanager
+def form_panel(
+    title: str,
+    *,
+    subtitle: str | None = None,
+    compact: bool = False,
+    header_actions: Callable[[], None] | None = None,
+) -> Iterator[None]:
+    with section_surface(
+        title,
+        subtitle=subtitle,
+        compact=compact,
+        header_actions=header_actions,
+    ):
+        yield
+
+
+@contextmanager
+def list_panel(
+    title: str,
+    *,
+    subtitle: str | None = None,
+    compact: bool = False,
+    header_actions: Callable[[], None] | None = None,
+) -> Iterator[None]:
+    with section_surface(
+        title,
+        subtitle=subtitle,
+        compact=compact,
+        header_actions=header_actions,
+    ):
+        yield
+
+
+@contextmanager
+def filters_bar(
+    title: str | None = "Filtros",
+    *,
+    subtitle: str | None = None,
+    compact: bool = True,
+) -> Iterator[None]:
+    with section_surface(
+        title,
+        subtitle=subtitle,
+        compact=compact,
+    ):
+        yield

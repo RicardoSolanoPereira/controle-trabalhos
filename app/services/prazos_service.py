@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import List, Literal, Optional, Tuple
+from typing import Any, Literal
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from db.models import Prazo, Processo
@@ -13,36 +13,26 @@ from db.models import Prazo, Processo
 PrazoStatusFilter = Literal["all", "open", "closed"]
 
 
-# ============================================================
-# DTOs
-# ============================================================
-
-
 @dataclass(frozen=True)
 class PrazoCreate:
     processo_id: int
     evento: str
     data_limite: datetime
     prioridade: str = "Média"
-    origem: Optional[str] = None
-    referencia: Optional[str] = None
-    observacoes: Optional[str] = None
+    origem: str | None = None
+    referencia: str | None = None
+    observacoes: str | None = None
 
 
 @dataclass(frozen=True)
 class PrazoUpdate:
-    evento: Optional[str] = None
-    data_limite: Optional[datetime] = None
-    prioridade: Optional[str] = None
-    concluido: Optional[bool] = None
-    origem: Optional[str] = None
-    referencia: Optional[str] = None
-    observacoes: Optional[str] = None
-
-
-# ============================================================
-# SERVICE
-# ============================================================
+    evento: str | None = None
+    data_limite: datetime | None = None
+    prioridade: str | None = None
+    concluido: bool | None = None
+    origem: str | None = None
+    referencia: str | None = None
+    observacoes: str | None = None
 
 
 class PrazosService:
@@ -58,20 +48,38 @@ class PrazosService:
 
     _PRIORIDADES_VALIDAS = {"Baixa", "Média", "Alta"}
 
-    # ----------------------------
-    # NORMALIZAÇÃO / VALIDAÇÃO
-    # ----------------------------
     @staticmethod
-    def _clean_str(val: Optional[str]) -> Optional[str]:
+    def _clean_str(val: str | None) -> str | None:
         if val is None:
             return None
         cleaned = val.strip()
         return cleaned or None
 
     @staticmethod
-    def _normalize_prioridade(val: Optional[str]) -> str:
-        cleaned = PrazosService._clean_str(val) or "Média"
+    def _normalize_prioridade_create(val: str | None) -> str:
+        cleaned = PrazosService._clean_str(val)
+        if cleaned is None:
+            return "Média"
         return cleaned if cleaned in PrazosService._PRIORIDADES_VALIDAS else "Média"
+
+    @staticmethod
+    def _normalize_prioridade_update(val: str) -> str:
+        cleaned = PrazosService._clean_str(val)
+        if cleaned is None or cleaned not in PrazosService._PRIORIDADES_VALIDAS:
+            raise ValueError("Prioridade inválida.")
+        return cleaned
+
+    @staticmethod
+    def _validate_datetime(value: datetime | None, field_name: str) -> None:
+        if value is None:
+            raise ValueError(f"{field_name} é obrigatória.")
+        if not isinstance(value, datetime):
+            raise ValueError(f"{field_name} deve ser datetime.")
+
+    @staticmethod
+    def _validate_bool(value: Any, field_name: str) -> None:
+        if not isinstance(value, bool):
+            raise ValueError(f"{field_name} deve ser booleano.")
 
     @staticmethod
     def _owned_processo(session: Session, owner_user_id: int, processo_id: int) -> bool:
@@ -82,7 +90,21 @@ class PrazosService:
         return session.execute(stmt).first() is not None
 
     @staticmethod
-    def _base_join_stmt(owner_user_id: int):
+    def _ensure_owned_processo(
+        session: Session, owner_user_id: int, processo_id: int
+    ) -> None:
+        if not PrazosService._owned_processo(session, owner_user_id, processo_id):
+            raise ValueError("Processo inválido para este usuário.")
+
+    @staticmethod
+    def _get_or_raise(session: Session, owner_user_id: int, prazo_id: int) -> Prazo:
+        prazo = PrazosService.get(session, owner_user_id, prazo_id)
+        if not prazo:
+            raise ValueError("Prazo não encontrado.")
+        return prazo
+
+    @staticmethod
+    def _base_join_stmt(owner_user_id: int) -> Select:
         return (
             select(Prazo, Processo)
             .join(Processo, Processo.id == Prazo.processo_id)
@@ -90,7 +112,7 @@ class PrazosService:
         )
 
     @staticmethod
-    def _apply_status_filter(stmt, status: PrazoStatusFilter):
+    def _apply_status_filter(stmt: Select, status: PrazoStatusFilter) -> Select:
         if status == "open":
             return stmt.where(Prazo.concluido.is_(False))
         if status == "closed":
@@ -98,56 +120,100 @@ class PrazosService:
         return stmt
 
     @staticmethod
-    def _default_order(stmt):
+    def _default_order(stmt: Select) -> Select:
         return stmt.order_by(
             Prazo.concluido.asc(),
             Prazo.data_limite.asc(),
             Prazo.id.desc(),
         )
 
-    # ----------------------------
-    # CREATE
-    # ----------------------------
+    @staticmethod
+    def _normalize_update_payload(payload: PrazoUpdate) -> dict[str, Any]:
+        raw = asdict(payload)
+        data: dict[str, Any] = {}
+
+        for field, val in raw.items():
+            if field not in PrazosService._UPDATABLE_FIELDS:
+                continue
+
+            if field == "evento":
+                if val is None:
+                    continue
+                cleaned = PrazosService._clean_str(val)
+                if cleaned is None:
+                    raise ValueError("Evento não pode ficar vazio.")
+                data[field] = cleaned
+                continue
+
+            if field == "prioridade":
+                if val is None:
+                    continue
+                data[field] = PrazosService._normalize_prioridade_update(val)
+                continue
+
+            if field == "data_limite":
+                if val is None:
+                    continue
+                PrazosService._validate_datetime(val, "Data limite")
+                data[field] = val
+                continue
+
+            if field == "concluido":
+                if val is None:
+                    continue
+                PrazosService._validate_bool(val, "Concluído")
+                data[field] = val
+                continue
+
+            if field in {"origem", "referencia", "observacoes"}:
+                data[field] = PrazosService._clean_str(val)
+                continue
+
+            if val is not None:
+                data[field] = val
+
+        return data
+
     @staticmethod
     def create(session: Session, owner_user_id: int, payload: PrazoCreate) -> Prazo:
         evento = PrazosService._clean_str(payload.evento)
         if not evento:
-            raise ValueError("evento é obrigatório")
+            raise ValueError("Evento é obrigatório.")
 
-        if payload.data_limite is None:
-            raise ValueError("data_limite é obrigatória")
-
-        if not PrazosService._owned_processo(
+        PrazosService._validate_datetime(payload.data_limite, "Data limite")
+        PrazosService._ensure_owned_processo(
             session, owner_user_id, payload.processo_id
-        ):
-            raise ValueError("processo_id inválido (não pertence ao usuário)")
+        )
 
         prazo = Prazo(
             processo_id=payload.processo_id,
             evento=evento,
             data_limite=payload.data_limite,
-            prioridade=PrazosService._normalize_prioridade(payload.prioridade),
+            prioridade=PrazosService._normalize_prioridade_create(payload.prioridade),
             concluido=False,
             origem=PrazosService._clean_str(payload.origem),
             referencia=PrazosService._clean_str(payload.referencia),
             observacoes=PrazosService._clean_str(payload.observacoes),
         )
 
-        session.add(prazo)
-        session.commit()
-        session.refresh(prazo)
-        return prazo
+        try:
+            session.add(prazo)
+            session.commit()
+            session.refresh(prazo)
+            return prazo
+        except Exception:
+            session.rollback()
+            raise
 
-    # ----------------------------
-    # LIST BY PROCESSO
-    # ----------------------------
     @staticmethod
     def list_by_processo(
         session: Session,
         owner_user_id: int,
         processo_id: int,
         status: PrazoStatusFilter = "open",
-    ) -> List[Prazo]:
+    ) -> list[Prazo]:
+        PrazosService._ensure_owned_processo(session, owner_user_id, processo_id)
+
         stmt = (
             select(Prazo)
             .join(Processo, Processo.id == Prazo.processo_id)
@@ -156,32 +222,23 @@ class PrazosService:
                 Prazo.processo_id == processo_id,
             )
         )
-
         stmt = PrazosService._apply_status_filter(stmt, status)
-        stmt = stmt.order_by(
-            Prazo.concluido.asc(), Prazo.data_limite.asc(), Prazo.id.desc()
-        )
+        stmt = PrazosService._default_order(stmt)
         return list(session.execute(stmt).scalars().all())
 
-    # ----------------------------
-    # LIST ALL
-    # ----------------------------
     @staticmethod
     def list_all(
         session: Session,
         owner_user_id: int,
         status: PrazoStatusFilter = "open",
-    ) -> List[Tuple[Prazo, Processo]]:
+    ) -> list[tuple[Prazo, Processo]]:
         stmt = PrazosService._base_join_stmt(owner_user_id)
         stmt = PrazosService._apply_status_filter(stmt, status)
         stmt = PrazosService._default_order(stmt)
         return list(session.execute(stmt).all())
 
-    # ----------------------------
-    # GET
-    # ----------------------------
     @staticmethod
-    def get(session: Session, owner_user_id: int, prazo_id: int) -> Optional[Prazo]:
+    def get(session: Session, owner_user_id: int, prazo_id: int) -> Prazo | None:
         stmt = (
             select(Prazo)
             .join(Processo, Processo.id == Prazo.processo_id)
@@ -192,65 +249,50 @@ class PrazosService:
         )
         return session.execute(stmt).scalars().first()
 
-    # ----------------------------
-    # UPDATE
-    # ----------------------------
     @staticmethod
     def update(
         session: Session,
         owner_user_id: int,
         prazo_id: int,
         payload: PrazoUpdate,
-    ) -> None:
-        prazo = PrazosService.get(session, owner_user_id, prazo_id)
-        if not prazo:
-            raise ValueError("Prazo não encontrado")
+    ) -> Prazo:
+        prazo = PrazosService._get_or_raise(session, owner_user_id, prazo_id)
 
-        data: dict = {}
-        for field, val in payload.__dict__.items():
-            if field not in PrazosService._UPDATABLE_FIELDS:
-                continue
-            if val is None:
-                continue
+        data = PrazosService._normalize_update_payload(payload)
+        if not data:
+            return prazo
 
-            if isinstance(val, str):
-                val = PrazosService._clean_str(val)
+        try:
+            for field, value in data.items():
+                setattr(prazo, field, value)
 
-            if field == "prioridade":
-                val = PrazosService._normalize_prioridade(val)
-
-            data[field] = val
-
-        if "evento" in data and not data["evento"]:
-            raise ValueError("evento não pode ficar vazio")
-
-        if data:
-            session.execute(update(Prazo).where(Prazo.id == prazo_id).values(**data))
             session.commit()
+            session.refresh(prazo)
+            return prazo
+        except Exception:
+            session.rollback()
+            raise
 
-    # ----------------------------
-    # DELETE
-    # ----------------------------
     @staticmethod
     def delete(session: Session, owner_user_id: int, prazo_id: int) -> None:
-        prazo = PrazosService.get(session, owner_user_id, prazo_id)
-        if not prazo:
-            raise ValueError("Prazo não encontrado")
+        prazo = PrazosService._get_or_raise(session, owner_user_id, prazo_id)
 
-        session.execute(delete(Prazo).where(Prazo.id == prazo_id))
-        session.commit()
+        try:
+            session.delete(prazo)
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
-    # ----------------------------
-    # AÇÕES DE APOIO
-    # ----------------------------
     @staticmethod
     def set_concluido(
         session: Session,
         owner_user_id: int,
         prazo_id: int,
         concluido: bool,
-    ) -> None:
-        PrazosService.update(
+    ) -> Prazo:
+        PrazosService._validate_bool(concluido, "Concluído")
+        return PrazosService.update(
             session,
             owner_user_id,
             prazo_id,
@@ -258,13 +300,22 @@ class PrazosService:
         )
 
     @staticmethod
-    def postpone_days(
+    def concluir(session: Session, owner_user_id: int, prazo_id: int) -> Prazo:
+        return PrazosService.set_concluido(session, owner_user_id, prazo_id, True)
+
+    @staticmethod
+    def reabrir(session: Session, owner_user_id: int, prazo_id: int) -> Prazo:
+        return PrazosService.set_concluido(session, owner_user_id, prazo_id, False)
+
+    @staticmethod
+    def set_data_limite(
         session: Session,
         owner_user_id: int,
         prazo_id: int,
         new_data_limite: datetime,
-    ) -> None:
-        PrazosService.update(
+    ) -> Prazo:
+        PrazosService._validate_datetime(new_data_limite, "Data limite")
+        return PrazosService.update(
             session,
             owner_user_id,
             prazo_id,

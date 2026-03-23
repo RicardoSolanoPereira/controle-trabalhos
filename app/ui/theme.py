@@ -27,7 +27,7 @@ __all__ = [
     "metric_card",
 ]
 
-_CSS_VERSION: Final[str] = "v41"
+_CSS_VERSION: Final[str] = "v42"
 
 DEFAULT_TONE: Final[str] = "neutral"
 ALLOWED_TONES: Final[set[str]] = {"neutral", "danger", "warning", "success", "info"}
@@ -125,6 +125,7 @@ TOKENS
   --fs-xl:1.34rem;
   --fs-2xl:1.72rem;
   --fs-3xl:2.08rem;
+  --fs-tab:12px;
 
   --lh-tight:1.08;
   --lh-snug:1.22;
@@ -1099,6 +1100,124 @@ DIVIDER
   margin:0.80rem 0;
   border:0;
   border-top:1px solid #e7ebea;
+}}
+
+/* ======================================================
+PRAZOS - GLOBALIZED MODULE STYLES
+====================================================== */
+
+.pz-muted {{
+  color: rgba(49, 51, 63, 0.75);
+  font-size: 0.92rem;
+}}
+
+.pz-section-box {{
+  border: 1px solid rgba(49, 51, 63, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}}
+
+.pz-top-card {{
+  border: 1px solid rgba(49, 51, 63, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}}
+
+.pz-priority-empty {{
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.08);
+  color: #166534;
+  padding: 12px 14px;
+  font-size: 0.94rem;
+  font-weight: 500;
+}}
+
+.pz-soft-empty {{
+  border: 1px solid rgba(59, 130, 246, 0.14);
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.07);
+  color: #1d4ed8;
+  padding: 12px 14px;
+  font-size: 0.94rem;
+  font-weight: 500;
+}}
+
+.pz-priority-card {{
+  border: 1px solid rgba(49, 51, 63, 0.12);
+  border-left: 5px solid rgba(17, 25, 40, 0.18);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  margin-bottom: 10px;
+}}
+
+.pz-priority-card.is-overdue {{
+  border-left-color: #c62828;
+  background: rgba(198, 40, 40, 0.03);
+}}
+
+.pz-priority-card.is-today {{
+  border-left-color: #ef6c00;
+  background: rgba(239, 108, 0, 0.04);
+}}
+
+.pz-priority-card.is-soon {{
+  border-left-color: #f9a825;
+  background: rgba(249, 168, 37, 0.05);
+}}
+
+.pz-meta {{
+  color: rgba(49, 51, 63, 0.78);
+  font-size: 0.90rem;
+}}
+
+.pz-badge {{
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 6px;
+  margin-bottom: 6px;
+  background: rgba(17, 25, 40, 0.06);
+}}
+
+/* tabs/radios usados em prazos */
+div[data-testid="stRadio"] > div {{
+  flex-direction: row !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}}
+
+div[data-testid="stRadio"] label {{
+  border: 1px solid rgba(49, 51, 63, 0.18);
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  margin: 0 !important;
+}}
+
+div[data-testid="stRadio"] label:hover {{
+  border-color: rgba(49, 51, 63, 0.38);
+}}
+
+div[data-testid="stRadio"] label > div:first-child {{
+  display: none !important;
+}}
+
+div[data-testid="stRadio"] label span {{
+  font-size: var(--fs-tab);
+  font-weight: 700;
+}}
+
+div[data-testid="stRadio"] input:checked + div {{
+  background: rgba(17, 25, 40, 0.06) !important;
+  border-radius: 8px !important;
 }}
 
 /* ======================================================
