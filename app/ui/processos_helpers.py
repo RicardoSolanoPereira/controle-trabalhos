@@ -5,14 +5,10 @@ import os
 import re
 from pathlib import Path
 from typing import Any
+from ui.shared.constants import ATUACAO_UI
 
 import pandas as pd
 
-ATUACAO_UI = {
-    "Perícia (Juízo)": "Perito Judicial",
-    "Assistência Técnica": "Assistente Técnico",
-    "Particular / Outros serviços": "Trabalho Particular",
-}
 
 ROOT_TRABALHOS = Path(os.getenv("ROOT_TRABALHOS", r"D:\TRABALHOS"))
 

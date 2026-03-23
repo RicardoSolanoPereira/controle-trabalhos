@@ -19,13 +19,8 @@ from ui_state import (
     set_current_menu,
     set_current_section,
 )
+from ui.shared.constants import ATUACAO_UI
 
-ATUACAO_UI = {
-    "(Todas)": None,
-    "Perícia (Juízo)": "Perito Judicial",
-    "Assistência Técnica": "Assistente Técnico",
-    "Particular / Outros serviços": "Trabalho Particular",
-}
 
 TONE_LABELS = {
     "danger": "Crítico",

@@ -4,7 +4,6 @@ import html
 import os
 import re
 import subprocess
-from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
@@ -15,13 +14,44 @@ from db.connection import get_session
 from services.processos_service import ProcessoCreate, ProcessoUpdate, ProcessosService
 from ui.layout import empty_state, grid, grid_weights, is_mobile, section, spacer
 from ui.page_header import HeaderAction, page_header
-from ui.theme import card
-from ui_state import (
-    bump_data_version,
-    clear_qp_keys,
-    get_data_version,
-    get_qp_str,
-    navigate,
+from ui.processos.constants import (
+    ATUACAO_UI_ALL,
+    ATUACAO_UI_PROCESSOS,
+    CARD_PAGE_SIZE,
+    CARD_PAGE_SIZE_OPTIONS,
+    CATEGORIAS_UI,
+    K_CREATE_ATUACAO,
+    K_CREATE_CATEGORIA,
+    K_CREATE_COMARCA,
+    K_CREATE_CONTRATANTE,
+    K_CREATE_NUMERO,
+    K_CREATE_OBS,
+    K_CREATE_PASTA,
+    K_CREATE_STATUS,
+    K_CREATE_TIPO,
+    K_CREATE_VARA,
+    K_EDIT_SEARCH,
+    K_FILTER_ATUACAO,
+    K_FILTER_CATEGORIA,
+    K_FILTER_ORDEM,
+    K_FILTER_PAGE,
+    K_FILTER_Q,
+    K_FILTER_SOMENTE_COM_PASTA,
+    K_FILTER_STATUS,
+    K_SECTION,
+    K_SECTION_LEGACY,
+    K_SECTION_SELECTOR,
+    K_SECTION_SELECTOR_LEGACY,
+    K_SELECTED_ID,
+    MENU_AGENDA_KEY,
+    MENU_FIN_KEY,
+    MENU_PRAZOS_KEY,
+    ROOT_TRABALHOS,
+    SECTION_CARTEIRA,
+    SECTION_NOVO,
+    SECTION_PAINEL,
+    SECTIONS,
+    STATUS_VALIDOS,
 )
 from ui.processos_helpers import (
     atuacao_badge as _atuacao_badge,
@@ -41,91 +71,31 @@ from ui.processos_helpers import (
     status_tone as _status_tone,
     strip_html as _strip_html,
 )
+from ui.processos_insights import (
+    render_empty_list as _render_empty_list_ui,
+    render_filter_summary as _render_filter_summary_ui,
+    render_header as _render_header_ui,
+    render_list_insights as _render_list_insights_ui,
+    render_overview_cards as _render_overview_cards_ui,
+    render_priority_banners as _render_priority_banners_ui,
+    results_metrics as _results_metrics_ui,
+    summarize_filters as _summarize_filters_ui,
+)
 from ui.processos_view_model import (
     processo_view_model as _processo_view_model,
     row_label as _row_label,
 )
-from ui.processos_insights import (
-    summarize_filters as _summarize_filters_ui,
-    results_metrics as _results_metrics_ui,
-    render_header as _render_header_ui,
-    render_filter_summary as _render_filter_summary_ui,
-    render_priority_banners as _render_priority_banners_ui,
-    render_overview_cards as _render_overview_cards_ui,
-    render_list_insights as _render_list_insights_ui,
-    render_empty_list as _render_empty_list_ui,
+from ui.theme import card
+from ui_state import (
+    bump_data_version,
+    clear_qp_keys,
+    get_data_version,
+    get_qp_str,
+    navigate,
 )
 
-
 # ============================================================
-# CONSTANTES / CONFIG
-# ============================================================
-
-ATUACAO_UI = {
-    "Perícia (Juízo)": "Perito Judicial",
-    "Assistência Técnica": "Assistente Técnico",
-    "Particular / Outros serviços": "Trabalho Particular",
-}
-ATUACAO_UI_ALL = {"(Todas)": None, **ATUACAO_UI}
-
-STATUS_VALIDOS = ("Ativo", "Concluído", "Suspenso")
-
-CATEGORIAS_UI = [
-    "Perícia",
-    "Assistência Técnica",
-    "Consultoria",
-    "Análise documental",
-    "Vistoria",
-    "Topografia",
-    "Avaliação imobiliária",
-    "Regularização",
-    "Outros",
-]
-
-ROOT_TRABALHOS = Path(os.getenv("ROOT_TRABALHOS", r"D:\TRABALHOS"))
-
-MENU_PRAZOS_KEY = "Prazos"
-MENU_AGENDA_KEY = "Agenda"
-MENU_FIN_KEY = "Financeiro"
-
-SECTION_CARTEIRA = "Carteira"
-SECTION_NOVO = "Novo"
-SECTION_PAINEL = "Painel do trabalho"
-SECTIONS = (SECTION_CARTEIRA, SECTION_NOVO, SECTION_PAINEL)
-
-K_SECTION = "processos_section"
-K_SECTION_SELECTOR = "processos_section_selector"
-K_SELECTED_ID = "processo_selected_id"
-K_SECTION_LEGACY = "trabalhos_section"
-K_SECTION_SELECTOR_LEGACY = "trabalhos_section_selector"
-
-K_FILTER_STATUS = "processos_filter_status"
-K_FILTER_ATUACAO = "processos_filter_atuacao"
-K_FILTER_CATEGORIA = "processos_filter_categoria"
-K_FILTER_Q = "processos_filter_q"
-K_FILTER_ORDEM = "processos_filter_ordem"
-K_FILTER_SOMENTE_COM_PASTA = "processos_filter_somente_com_pasta"
-K_FILTER_PAGE = "processos_filter_page"
-
-K_CREATE_PASTA = "proc_create_pasta"
-K_CREATE_NUMERO = "proc_create_numero"
-K_CREATE_ATUACAO = "proc_create_atuacao"
-K_CREATE_STATUS = "proc_create_status"
-K_CREATE_CATEGORIA = "proc_create_categoria"
-K_CREATE_TIPO = "proc_create_tipo_acao"
-K_CREATE_COMARCA = "proc_create_comarca"
-K_CREATE_VARA = "proc_create_vara"
-K_CREATE_CONTRATANTE = "proc_create_contratante"
-K_CREATE_OBS = "proc_create_obs"
-
-K_EDIT_SEARCH = "proc_edit_search"
-
-CARD_PAGE_SIZE = 20
-CARD_PAGE_SIZE_OPTIONS = [10, 20, 30, 50]
-
-
-# ============================================================
-# HELPERS DE TEXTO / FORMATAÇÃO
+# HELPERS DE UI BÁSICOS
 # ============================================================
 
 
@@ -168,159 +138,6 @@ def _button(
     return st.button(**kwargs)
 
 
-def _strip_html(text: str | None) -> str:
-    s = (text or "").strip()
-    if not s:
-        return ""
-    s = html.unescape(s)
-    s = re.sub(r"<br\s*/?>", " ", s, flags=re.I)
-    s = re.sub(r"</div\s*>", " ", s, flags=re.I)
-    s = re.sub(r"<[^>]+>", "", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
-
-
-def _compact_text(v: str | None, max_len: int = 120) -> str:
-    txt = _strip_html(v)
-    if len(txt) <= max_len:
-        return txt
-    return txt[: max_len - 1].rstrip() + "…"
-
-
-def _safe_strip(value: Any) -> str:
-    return _strip_html("" if value is None else str(value))
-
-
-def _escape_text(value: Any) -> str:
-    return html.escape(_safe_strip(value))
-
-
-def _fmt_money(value: Any) -> str:
-    try:
-        num = float(value or 0)
-    except Exception:
-        num = 0.0
-    s = f"{num:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"R$ {s}"
-
-
-def _fmt_date(value: Any) -> str:
-    if value is None:
-        return "—"
-    try:
-        dt = pd.to_datetime(value)
-        if pd.isna(dt):
-            return "—"
-        return dt.strftime("%d/%m/%Y")
-    except Exception:
-        return "—"
-
-
-def _fmt_datetime(value: Any) -> str:
-    if value is None:
-        return "—"
-    try:
-        dt = pd.to_datetime(value)
-        if pd.isna(dt):
-            return "—"
-        if dt.hour == 0 and dt.minute == 0:
-            return dt.strftime("%d/%m/%Y")
-        return dt.strftime("%d/%m/%Y %H:%M")
-    except Exception:
-        return "—"
-
-
-# ============================================================
-# HELPERS DE STATUS / ATUAÇÃO
-# ============================================================
-
-
-def _status_badge(status: str) -> str:
-    s = (status or "").strip().lower()
-    if s == "ativo":
-        return "🟢 Ativo"
-    if s in ("concluído", "concluido"):
-        return "✅ Concluído"
-    if s == "suspenso":
-        return "⏸ Suspenso"
-    return status or "—"
-
-
-def _status_chip_class(status: str | None) -> str:
-    s = (status or "").strip().lower()
-    if s == "ativo":
-        return "sp-chip-success"
-    if s in ("concluído", "concluido"):
-        return "sp-chip-neutral"
-    if s == "suspenso":
-        return "sp-chip-warning"
-    return "sp-chip-info"
-
-
-def _status_tone(status: str | None) -> str:
-    s = (status or "").strip().lower()
-    if s == "ativo":
-        return "success"
-    if s in ("concluído", "concluido"):
-        return "neutral"
-    if s == "suspenso":
-        return "warning"
-    return "info"
-
-
-def _norm_tipo_trabalho(val: str | None) -> str:
-    v = (val or "").strip()
-    if not v:
-        return "Assistente Técnico"
-    v_low = v.lower()
-    if v_low in ("perito", "perito judicial"):
-        return "Perito Judicial"
-    if v_low in ("assistente", "assistente tecnico", "assistente técnico"):
-        return "Assistente Técnico"
-    if v_low in (
-        "particular",
-        "trabalho particular",
-        "avaliação particular",
-        "avaliacao",
-    ):
-        return "Trabalho Particular"
-    return v
-
-
-def _atuacao_badge(db_val: str | None) -> str:
-    v = _norm_tipo_trabalho(db_val)
-    if v == "Perito Judicial":
-        return "⚖️ Perícia (Juízo)"
-    if v == "Assistente Técnico":
-        return "🛠️ Assistência Técnica"
-    if v == "Trabalho Particular":
-        return "🏷️ Particular"
-    return v
-
-
-def _atuacao_chip_class(db_val: str | None) -> str:
-    v = _norm_tipo_trabalho(db_val)
-    if v == "Perito Judicial":
-        return "sp-chip-info"
-    if v == "Assistente Técnico":
-        return "sp-chip-success"
-    if v == "Trabalho Particular":
-        return "sp-chip-warning"
-    return "sp-chip-neutral"
-
-
-def _atuacao_label_from_db(db_val: str | None) -> str:
-    v = _norm_tipo_trabalho(db_val)
-    for label, db in ATUACAO_UI.items():
-        if db == v:
-            return label
-    return v
-
-
-def _atuacao_db_from_label(label: str) -> str:
-    return ATUACAO_UI.get(label, "Assistente Técnico")
-
-
 # ============================================================
 # HELPERS GERAIS / UX
 # ============================================================
@@ -328,15 +145,6 @@ def _atuacao_db_from_label(label: str) -> str:
 
 def _use_cards() -> bool:
     return bool(st.session_state.get("ui_mobile_cards", True) or is_mobile())
-
-
-def _guess_pasta_local(numero: str) -> str:
-    n = (numero or "").strip()
-    if not n:
-        return ""
-    safe = re.sub(r"[\\/]+", "-", n)
-    safe = re.sub(r'[:*?"<>|]+', "", safe).strip()
-    return rf"{ROOT_TRABALHOS}\{safe}"
 
 
 def _clear_data_cache() -> None:
@@ -1201,7 +1009,10 @@ def _render_cadastrar(owner_user_id: int) -> None:
                 )
             with c2:
                 atuacao_label = st.selectbox(
-                    "Atuação *", list(ATUACAO_UI.keys()), index=1, key=K_CREATE_ATUACAO
+                    "Atuação *",
+                    list(ATUACAO_UI_PROCESSOS.keys()),
+                    index=1,
+                    key=K_CREATE_ATUACAO,
                 )
             with c3:
                 status = st.selectbox(
@@ -1704,10 +1515,10 @@ def _render_painel(owner_user_id: int) -> None:
             with c6:
                 atuacao_label_e = st.selectbox(
                     "Atuação",
-                    list(ATUACAO_UI.keys()),
+                    list(ATUACAO_UI_PROCESSOS.keys()),
                     index=(
-                        list(ATUACAO_UI.keys()).index(atuacao_atual_label)
-                        if atuacao_atual_label in ATUACAO_UI
+                        list(ATUACAO_UI_PROCESSOS.keys()).index(atuacao_atual_label)
+                        if atuacao_atual_label in ATUACAO_UI_PROCESSOS
                         else 1
                     ),
                     key=f"proc_edit_atu_{selected_id}",
@@ -1817,7 +1628,7 @@ def _render_painel(owner_user_id: int) -> None:
 # ============================================================
 
 
-def render(owner_user_id: int):
+def render(owner_user_id: int) -> None:
     _sync_from_dashboard_and_qp()
     _inject_css()
 
