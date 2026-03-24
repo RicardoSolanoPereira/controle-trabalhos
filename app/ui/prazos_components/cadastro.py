@@ -32,6 +32,8 @@ from ui.prazos_components.helpers import merge_obs_with_audit, norm, safe_str
 from ui.components.sections import section_card
 from ui.prazos_components.state import request_list_tab, request_tab
 
+KEY_C_RESET_FORM = "pz_create_reset_form"
+
 
 def render_cadastro(
     *,
@@ -40,6 +42,14 @@ def render_cadastro(
     label_to_id: dict[str, int],
     proc_by_id: dict[int, dict[str, object]],
 ) -> None:
+    # aplica reset do formulário ANTES de instanciar os widgets
+    if st.session_state.pop(KEY_C_RESET_FORM, False):
+        st.session_state[KEY_C_EVENTO] = ""
+        st.session_state[KEY_C_REF] = ""
+        st.session_state[KEY_C_OBS] = ""
+        st.session_state[KEY_C_PRIO] = "Média"
+        st.session_state[KEY_C_ORIGEM] = ORIGENS[0] if ORIGENS else ""
+
     with st.container(border=True):
         section_card(
             "Novo prazo",
@@ -272,11 +282,8 @@ def render_cadastro(
                 request_tab("Lista")
                 request_list_tab("Abertos")
 
-                st.session_state[KEY_C_EVENTO] = ""
-                st.session_state[KEY_C_REF] = ""
-                st.session_state[KEY_C_OBS] = ""
-                st.session_state[KEY_C_PRIO] = "Média"
-                st.session_state[KEY_C_ORIGEM] = ""
+                # agenda reset para a próxima execução
+                st.session_state[KEY_C_RESET_FORM] = True
 
                 st.success(f"Prazo criado com sucesso. ID: {prazo_novo.id}")
                 st.rerun()
