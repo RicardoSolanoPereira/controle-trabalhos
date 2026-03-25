@@ -117,17 +117,6 @@ def _surface_container(*, bordered: bool = True):
         return st.container()
 
 
-def _build_style_attr(style: str | None) -> str:
-    if not style or not style.strip():
-        return ""
-    return f' style="{_escape(style.strip(), quote=True)}"'
-
-
-def _build_class_attr(*classes: str | None) -> str:
-    parts = [part.strip() for part in classes if part and part.strip()]
-    return " ".join(parts)
-
-
 def _section_header_html(title: str, subtitle: str | None = None) -> None:
     subtitle_block = (
         f"<div class='sp-section-subtitle'>{_escape(subtitle)}</div>"
@@ -179,40 +168,23 @@ def content_shell(
     padding_inline: str | None = None,
     class_name: str | None = None,
 ) -> Iterator[None]:
-    classes = _build_class_attr("sp-content-shell", class_name)
-    padding = padding_inline or (
-        PAGE_PADDING_MOBILE if is_mobile() else PAGE_PADDING_DESKTOP
-    )
-    style = f"max-width:{max_width}; margin:0 auto; padding-inline:{padding};"
-
-    _render_html(f"<div class='{classes}'{_build_style_attr(style)}>")
-    try:
-        with st.container():
-            yield
-    finally:
-        _render_html("</div>")
+    del max_width, padding_inline, class_name
+    with st.container():
+        yield
 
 
 @contextmanager
 def page_stack(class_name: str | None = None) -> Iterator[None]:
-    classes = _build_class_attr("sp-stack-lg", class_name)
-    _render_html(f"<div class='{classes}'>")
-    try:
-        with st.container():
-            yield
-    finally:
-        _render_html("</div>")
+    del class_name
+    with st.container():
+        yield
 
 
 @contextmanager
 def topbar_shell(class_name: str | None = None) -> Iterator[None]:
-    classes = _build_class_attr("sp-stack-sm", class_name)
-    _render_html(f"<div class='{classes}'>")
-    try:
-        with st.container():
-            yield
-    finally:
-        _render_html("</div>")
+    del class_name
+    with st.container():
+        yield
 
 
 def grid(
@@ -288,22 +260,9 @@ def plain_block(
     class_name: str | None = None,
     style: str | None = None,
 ) -> Iterator[None]:
-    classes = _build_class_attr(class_name)
-    attrs = []
-    if classes:
-        attrs.append(f"class='{classes}'")
-    style_attr = _build_style_attr(style)
-    if style_attr:
-        attrs.append(style_attr.strip())
-
-    if attrs:
-        _render_html(f"<div {' '.join(attrs)}>")
-    try:
-        with st.container():
-            yield
-    finally:
-        if attrs:
-            _render_html("</div>")
+    del class_name, style
+    with st.container():
+        yield
 
 
 @contextmanager
@@ -312,17 +271,9 @@ def surface(
     style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
-    classes = _build_class_attr(
-        "sp-surface",
-        None if padded else "sp-surface-no-pad",
-        class_name,
-    )
-    _render_html(f"<div class='{classes}'{_build_style_attr(style)}>")
-    try:
-        with _surface_container(bordered=False):
-            yield
-    finally:
-        _render_html("</div>")
+    del class_name, style, padded
+    with _surface_container(bordered=True):
+        yield
 
 
 def _section_header(
@@ -344,6 +295,8 @@ def section(
     surface_style: str | None = None,
     padded: bool = True,
 ) -> Iterator[None]:
+    del surface_class, surface_style, padded
+
     if title:
         if header_actions and not is_mobile():
             left, right = st.columns(
@@ -366,18 +319,8 @@ def section(
     elif title:
         spacer(SPACE_2XS if compact else SPACE_XS)
 
-    classes = _build_class_attr(
-        "sp-surface",
-        None if padded else "sp-surface-no-pad",
-        surface_class,
-    )
-
-    _render_html(f"<div class='{classes}'{_build_style_attr(surface_style)}>")
-    try:
-        with _surface_container(bordered=False):
-            yield
-    finally:
-        _render_html("</div>")
+    with _surface_container(bordered=True):
+        yield
 
 
 @contextmanager
@@ -391,11 +334,11 @@ def toolbar_row(
     right_actions: Callable[[], None] | None = None,
 ) -> None:
     if is_mobile():
-        with plain_block("sp-stack-sm"):
-            if left_content:
-                left_content()
-            if right_actions:
-                right_actions()
+        if left_content:
+            left_content()
+        if right_actions:
+            compact_gap()
+            right_actions()
         spacer(SPACE_SM)
         return
 
@@ -410,8 +353,7 @@ def toolbar_row(
 
 
 def actions_row(render_actions: Callable[[], None]) -> None:
-    with plain_block("sp-stack-xs"):
-        render_actions()
+    render_actions()
     spacer(SPACE_SM)
 
 
@@ -479,7 +421,8 @@ def page_frame(
     max_width: str = PAGE_MAX_WIDTH,
     class_name: str | None = None,
 ) -> Iterator[None]:
-    with content_shell(max_width=max_width, class_name=class_name):
+    del max_width, class_name
+    with content_shell():
         with page_stack():
             page_header(meta, right_actions=right_actions)
             yield
@@ -495,9 +438,10 @@ def header_actions(
         return
 
     if is_mobile() or len(valid_actions) == 1:
-        for action in valid_actions:
+        for idx, action in enumerate(valid_actions):
             action()
-            compact_gap()
+            if idx < len(valid_actions) - 1:
+                compact_gap()
         return
 
     cols = st.columns(len(valid_actions), gap=gap, vertical_alignment="center")

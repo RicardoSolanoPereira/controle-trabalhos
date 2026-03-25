@@ -7,7 +7,8 @@ import streamlit as st
 from db.connection import get_session
 from services.prazos_service import PrazoUpdate, PrazosService
 from services.utils import date_to_br_datetime, ensure_br, format_date_br
-from ui.theme import card, subtle_divider
+from ui.layout import compact_gap, section_surface
+from ui.theme import card, pill, status_banner
 from ui_state import bump_data_version
 from ui.prazos_components.cache import cached_prazos_list_all
 from ui.prazos_components.constants import (
@@ -36,25 +37,23 @@ from ui.prazos_components.helpers import (
     split_status_groups,
     status_label,
 )
-from ui.components.sections import section_card
 from ui.prazos_components.sections import (
     list_tabs_selector,
     render_df,
     render_priority_queue,
     render_summary_kpis,
 )
-
 from ui.prazos_components.state import apply_requested_list_tab, request_tab
 
 
 def render_filtros_lista(proc_labels: list[str]) -> tuple[str, str, str, str, str]:
-    with st.container(border=True):
-        section_card(
-            "Filtros operacionais", "Use apenas quando precisar refinar a leitura."
-        )
-        subtle_divider()
-
+    with section_surface(
+        "Filtros operacionais",
+        subtitle="Refine a visualização por tipo, trabalho, prioridade, origem ou texto livre.",
+        compact=True,
+    ):
         f1, f2, f3, f4 = st.columns(4)
+
         filtro_tipo = f1.selectbox(
             "Tipo",
             ["(Todos)"] + list(TIPOS_TRABALHO),
@@ -80,6 +79,8 @@ def render_filtros_lista(proc_labels: list[str]) -> tuple[str, str, str, str, st
             key=KEY_FILTER_ORIGEM,
         )
 
+        compact_gap()
+
         busca = (
             st.text_input(
                 "Buscar",
@@ -94,8 +95,13 @@ def render_filtros_lista(proc_labels: list[str]) -> tuple[str, str, str, str, st
 
 
 def render_open_controls() -> tuple[str, str]:
-    with st.container(border=True):
+    with section_surface(
+        "Controle da fila aberta",
+        subtitle="Ajuste a janela temporal e a ordenação dos itens em aberto.",
+        compact=True,
+    ):
         c1, c2 = st.columns([2, 4])
+
         filtro_janela = c1.selectbox(
             "Janela",
             ["Todos", "Atrasados", "Hoje", "0–7 dias", "0–15 dias", "0–30 dias"],
@@ -108,6 +114,7 @@ def render_open_controls() -> tuple[str, str]:
             index=0,
             key=KEY_OPEN_ORDER,
         )
+
     return filtro_janela, ordem
 
 
@@ -116,6 +123,7 @@ def filter_open_window(rows, janela: str):
     for row in rows:
         if row.concluido:
             continue
+
         dias = dias_restantes(row.data_limite)
 
         if janela == "Atrasados" and not (dias < 0):
@@ -130,6 +138,7 @@ def filter_open_window(rows, janela: str):
             continue
 
         items.append(row)
+
     return items
 
 
@@ -137,9 +146,10 @@ def render_lista_topbar() -> None:
     c1, c2 = st.columns([0.72, 0.28])
 
     with c1:
-        st.markdown("#### Operação de prazos")
-        st.caption(
-            "Comece pelos itens mais críticos e depois refine a fila com os filtros."
+        status_banner(
+            "Operação de prazos",
+            "Comece pelos itens mais críticos e refine a fila apenas quando necessário.",
+            tone="info",
         )
 
     with c2:
@@ -153,9 +163,27 @@ def render_lista_topbar() -> None:
             st.rerun()
 
 
+def _tone_for_selected_row(row) -> str:
+    if row.concluido:
+        return "success"
+
+    dias = dias_restantes(row.data_limite)
+    if dias < 0:
+        return "danger"
+    if dias == 0:
+        return "warning"
+    if dias <= 7:
+        return "warning"
+    return "info"
+
+
 def quick_actions(filtered_items, owner_user_id: int) -> None:
     if not filtered_items:
-        st.info("Nenhum prazo com os filtros atuais.")
+        status_banner(
+            "Nenhum prazo com os filtros atuais.",
+            "Ajuste os filtros ou amplie a janela para executar ações rápidas.",
+            tone="info",
+        )
         return
 
     options: list[str] = []
@@ -176,7 +204,7 @@ def quick_actions(filtered_items, owner_user_id: int) -> None:
         options.append(label)
         id_by_label[label] = int(row.prazo_id)
 
-    st.caption("Ações aplicadas ao prazo selecionado.")
+    st.caption("As ações abaixo serão aplicadas ao prazo selecionado.")
 
     selected = st.selectbox("Selecione um prazo", options, key=KEY_QUICK_SELECT)
     prazo_id = id_by_label[selected]
@@ -188,30 +216,56 @@ def quick_actions(filtered_items, owner_user_id: int) -> None:
 
     dias = dias_restantes(selected_row.data_limite)
     status_txt = status_label(dias, selected_row.concluido)
+    tone = _tone_for_selected_row(selected_row)
 
-    meta_cols = st.columns(4)
-    with meta_cols[0]:
-        card("Status", status_txt, "situação atual", tone="neutral")
-    with meta_cols[1]:
+    compact_gap()
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        card("Status", status_txt, "situação atual", tone=tone)
+    with m2:
         card(
             "Data",
             format_date_br(selected_row.data_limite),
             "vencimento",
             tone="neutral",
         )
-    with meta_cols[2]:
-        card("Prioridade", selected_row.prioridade, "nível operacional", tone="neutral")
-    with meta_cols[3]:
+    with m3:
+        card(
+            "Prioridade",
+            selected_row.prioridade,
+            "nível operacional",
+            tone="neutral",
+        )
+    with m4:
         if dias < 0:
-            sub = f"{abs(dias)} dia(s) em atraso"
-            tone = "danger"
+            resumo = f"{abs(dias)} dia(s) em atraso"
+            prazo_tone = "danger"
         elif dias == 0:
-            sub = "vence hoje"
-            tone = "warning"
+            resumo = "vence hoje"
+            prazo_tone = "warning"
         else:
-            sub = f"{dias} dia(s) restantes"
-            tone = "info"
-        card("Prazo", sub, "janela temporal", tone=tone)
+            resumo = f"{dias} dia(s) restantes"
+            prazo_tone = "info"
+
+        card("Prazo", resumo, "janela temporal", tone=prazo_tone)
+
+    compact_gap()
+
+    badge_cols = st.columns(3)
+    with badge_cols[0]:
+        pill(
+            "Concluído" if selected_row.concluido else "Em aberto",
+            tone="success" if selected_row.concluido else tone,
+        )
+    with badge_cols[1]:
+        if getattr(selected_row, "origem", None):
+            pill(f"Origem: {selected_row.origem}", tone="neutral")
+    with badge_cols[2]:
+        if getattr(selected_row, "processo_numero", None):
+            pill(f"Processo: {selected_row.processo_numero}", tone="neutral")
+
+    compact_gap()
 
     c1, c2, c3 = st.columns(3)
 
@@ -292,74 +346,9 @@ def quick_actions(filtered_items, owner_user_id: int) -> None:
                 st.error(f"Erro ao excluir: {e}")
 
 
-def render_lista(
-    *,
-    owner_user_id: int,
-    proc_labels: list[str],
-    label_to_id: dict[str, int],
-    version: int,
+def _render_table_for_view(
+    chosen_view: str, filtered, abertos, hoje, atrasados, vencem7, concluidos
 ) -> None:
-    apply_requested_list_tab()
-
-    all_rows = dicts_to_dataclass(cached_prazos_list_all(owner_user_id, version))
-
-    filtered_base = apply_lista_filters(
-        all_rows,
-        tipo_val=None,
-        processo_id_val=None,
-        prioridade_val=None,
-        origem_val=None,
-        busca="",
-    )
-
-    abertos_base, hoje_base, atrasados_base, vencem7_base, concluidos_base = (
-        split_status_groups(filtered_base)
-    )
-
-    render_lista_topbar()
-
-    render_summary_kpis(
-        abertos=len(abertos_base),
-        hoje=len(hoje_base),
-        atrasados=len(atrasados_base),
-        vencem7=len(vencem7_base),
-        concluidos=len(concluidos_base),
-    )
-
-    with st.container(border=True):
-        render_priority_queue(filtered_base)
-
-    filtro_tipo, filtro_proc, filtro_prio, filtro_origem, busca = render_filtros_lista(
-        proc_labels
-    )
-
-    tipo_val = None if filtro_tipo == "(Todos)" else filtro_tipo
-    processo_id_val = (
-        None if filtro_proc == "(Todos)" else int(label_to_id[filtro_proc])
-    )
-    prioridade_val = None if filtro_prio == "(Todas)" else filtro_prio
-    origem_val = None if filtro_origem == "(Todas)" else filtro_origem
-
-    filtered = apply_lista_filters(
-        all_rows,
-        tipo_val=tipo_val,
-        processo_id_val=processo_id_val,
-        prioridade_val=prioridade_val,
-        origem_val=origem_val,
-        busca=busca,
-    )
-
-    abertos, hoje, atrasados, vencem7, concluidos = split_status_groups(filtered)
-
-    with st.container(border=True):
-        section_card(
-            "⚡ Ações rápidas", "Resolva operações frequentes sem sair da fila."
-        )
-        quick_actions(filtered, owner_user_id)
-
-    subtle_divider()
-    chosen_view = list_tabs_selector()
-
     if chosen_view == "Atrasados":
         items = sorted(
             atrasados,
@@ -504,3 +493,94 @@ def render_lista(
         ["prazo_id", "processo", "evento", "data_limite", "prioridade", "origem"],
         height=380,
     )
+
+
+def render_lista(
+    *,
+    owner_user_id: int,
+    proc_labels: list[str],
+    label_to_id: dict[str, int],
+    version: int,
+) -> None:
+    apply_requested_list_tab()
+
+    all_rows = dicts_to_dataclass(cached_prazos_list_all(owner_user_id, version))
+
+    filtered_base = apply_lista_filters(
+        all_rows,
+        tipo_val=None,
+        processo_id_val=None,
+        prioridade_val=None,
+        origem_val=None,
+        busca="",
+    )
+
+    abertos_base, hoje_base, atrasados_base, vencem7_base, concluidos_base = (
+        split_status_groups(filtered_base)
+    )
+
+    render_lista_topbar()
+
+    compact_gap()
+
+    render_summary_kpis(
+        abertos=len(abertos_base),
+        hoje=len(hoje_base),
+        atrasados=len(atrasados_base),
+        vencem7=len(vencem7_base),
+        concluidos=len(concluidos_base),
+    )
+
+    compact_gap()
+
+    with section_surface(
+        "Fila prioritária",
+        subtitle="Itens que exigem atenção imediata ou acompanhamento próximo.",
+    ):
+        render_priority_queue(filtered_base)
+
+    filtro_tipo, filtro_proc, filtro_prio, filtro_origem, busca = render_filtros_lista(
+        proc_labels
+    )
+
+    tipo_val = None if filtro_tipo == "(Todos)" else filtro_tipo
+    processo_id_val = (
+        None if filtro_proc == "(Todos)" else int(label_to_id[filtro_proc])
+    )
+    prioridade_val = None if filtro_prio == "(Todas)" else filtro_prio
+    origem_val = None if filtro_origem == "(Todas)" else filtro_origem
+
+    filtered = apply_lista_filters(
+        all_rows,
+        tipo_val=tipo_val,
+        processo_id_val=processo_id_val,
+        prioridade_val=prioridade_val,
+        origem_val=origem_val,
+        busca=busca,
+    )
+
+    abertos, hoje, atrasados, vencem7, concluidos = split_status_groups(filtered)
+
+    with section_surface(
+        "Ações rápidas",
+        subtitle="Execute operações frequentes sem sair da fila de acompanhamento.",
+    ):
+        quick_actions(filtered, owner_user_id)
+
+    compact_gap()
+    chosen_view = list_tabs_selector()
+    compact_gap()
+
+    with section_surface(
+        "Tabela operacional",
+        subtitle=f"Visualização atual: {chosen_view}",
+    ):
+        _render_table_for_view(
+            chosen_view=chosen_view,
+            filtered=filtered,
+            abertos=abertos,
+            hoje=hoje,
+            atrasados=atrasados,
+            vencem7=vencem7,
+            concluidos=concluidos,
+        )

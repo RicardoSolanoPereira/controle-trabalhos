@@ -8,7 +8,8 @@ from db.connection import get_session
 from services.calendario_service import CalendarioService, RegrasCalendario
 from services.prazos_service import PrazoCreate, PrazosService
 from services.utils import date_to_br_datetime, format_date_br, now_br
-from ui.theme import card, subtle_divider
+from ui.layout import section_surface, compact_gap
+from ui.theme import card, status_banner
 from ui_state import bump_data_version
 from ui.prazos_components.constants import (
     DEBUG_PRAZOS,
@@ -29,20 +30,12 @@ from ui.prazos_components.constants import (
     PRIORIDADES,
 )
 from ui.prazos_components.helpers import merge_obs_with_audit, norm, safe_str
-from ui.components.sections import section_card
 from ui.prazos_components.state import request_list_tab, request_tab
 
 KEY_C_RESET_FORM = "pz_create_reset_form"
 
 
-def render_cadastro(
-    *,
-    owner_user_id: int,
-    proc_labels: list[str],
-    label_to_id: dict[str, int],
-    proc_by_id: dict[int, dict[str, object]],
-) -> None:
-    # aplica reset do formulário ANTES de instanciar os widgets
+def _reset_create_form_if_requested() -> None:
     if st.session_state.pop(KEY_C_RESET_FORM, False):
         st.session_state[KEY_C_EVENTO] = ""
         st.session_state[KEY_C_REF] = ""
@@ -50,33 +43,90 @@ def render_cadastro(
         st.session_state[KEY_C_PRIO] = "Média"
         st.session_state[KEY_C_ORIGEM] = ORIGENS[0] if ORIGENS else ""
 
-    with st.container(border=True):
-        section_card(
-            "Novo prazo",
-            "Escolha o modo de contagem, confira a data final e salve.",
+
+def _render_work_section(proc_labels: list[str]) -> str:
+    with section_surface(
+        "Trabalho",
+        subtitle="Selecione o processo ao qual este prazo será vinculado.",
+    ):
+        return st.selectbox(
+            "Trabalho *",
+            proc_labels,
+            index=0,
+            key=KEY_C_PROC,
         )
-        subtle_divider()
 
-        sel_proc = st.selectbox("Trabalho *", proc_labels, index=0, key=KEY_C_PROC)
-        processo_id = int(label_to_id[sel_proc])
-        proc = proc_by_id.get(processo_id)
-        comarca_proc = (safe_str(proc.get("comarca")) or None) if proc else None
 
-        st.markdown("**1) Modo de contagem**")
-        modo = st.selectbox(
+def _render_mode_section() -> str:
+    with section_surface(
+        "Modo de contagem",
+        subtitle="Defina como a data final será apurada.",
+    ):
+        return st.selectbox(
             "Modo",
             ["Manual", "Dias corridos", "Dias úteis"],
             key=KEY_C_MODE,
         )
 
-        subtle_divider()
-        st.markdown("**2) Base e cálculo**")
 
+def _render_manual_calc() -> None:
+    st.date_input("Data limite *", key=KEY_C_DATA_LIM)
+    st.session_state[KEY_C_AUDIT] = ""
+
+    preview_date = st.session_state.get(KEY_C_DATA_LIM, now_br().date())
+    compact_gap()
+    card(
+        "Data final",
+        format_date_br(preview_date),
+        "definida manualmente",
+        tone="info",
+    )
+
+
+def _render_calendar_debug(
+    comarca_proc: str | None,
+    aplicar_local: bool,
+    incluir_municipal: bool,
+    usar_tjsp: bool,
+    base,
+    dias: int,
+    nova,
+    regras: RegrasCalendario,
+) -> None:
+    from datetime import date as _date
+
+    st.markdown("### 🔎 DEBUG PRAZO")
+    st.write("comarca_proc:", repr(comarca_proc))
+    st.write("aplicar_local:", aplicar_local)
+    st.write("incluir_municipal:", bool(incluir_municipal))
+    st.write("usar_tjsp:", bool(usar_tjsp))
+    st.write("base:", base)
+    st.write("dias:", int(dias))
+    st.write("nova:", nova)
+
+    ini = _date(2026, 1, 15)
+    fim = _date(2026, 2, 15)
+    fer_set = CalendarioService.feriados_aplicaveis(
+        ini,
+        fim,
+        comarca=comarca_proc,
+        municipio=None,
+        aplicar_local=aplicar_local,
+        regras=regras,
+    )
+    st.write("feriados janela:", sorted(list(fer_set)))
+
+
+def _render_calc_section(modo: str, comarca_proc: str | None) -> None:
+    with section_surface(
+        "Base e cálculo",
+        subtitle="Informe a base do prazo e confira a data final calculada.",
+    ):
         if modo == "Manual":
-            st.date_input("Data limite *", key=KEY_C_DATA_LIM)
-            st.session_state[KEY_C_AUDIT] = ""
+            _render_manual_calc()
+            return
 
-        elif modo == "Dias corridos":
+        if modo == "Dias corridos":
             c1, c2 = st.columns(2)
             base = c1.date_input("Data base", key=KEY_C_BASE)
             dias = c2.number_input("Qtd dias", min_value=1, step=1, key=KEY_C_DIAS)
@@ -85,140 +135,142 @@ def render_cadastro(
             st.session_state[KEY_C_DATA_LIM] = nova
             st.session_state[KEY_C_AUDIT] = "Auto: dias corridos"
 
+            compact_gap()
             card(
                 "Data final",
                 nova.strftime("%d/%m/%Y"),
                 f"Base: {base.strftime('%d/%m/%Y')} • +{int(dias)} dia(s)",
                 tone="info",
             )
+            return
 
+        c1, c2 = st.columns(2)
+        base = c1.date_input("Data base (disponibilização DJE)", key=KEY_C_BASE)
+        dias = c2.number_input(
+            "Qtd dias úteis",
+            min_value=1,
+            step=1,
+            key=KEY_C_DIAS,
+        )
+
+        usar_tjsp = st.checkbox(
+            "Considerar calendário TJSP (inclui CPC art. 220 automaticamente)",
+            key=KEY_C_USAR_TJSP,
+        )
+
+        incluir_municipal = st.checkbox(
+            "Incluir feriados municipais da comarca",
+            key=KEY_C_LOCAL,
+            disabled=not bool(comarca_proc),
+            help="Requer 'Comarca' preenchida no trabalho.",
+        )
+
+        regras = RegrasCalendario(
+            incluir_nacional=True,
+            incluir_estadual_sp=True,
+            incluir_tjsp_geral=bool(usar_tjsp),
+            incluir_tjsp_comarca=bool(usar_tjsp),
+            incluir_municipal=bool(incluir_municipal),
+        )
+
+        aplicar_local = bool(comarca_proc)
+
+        nova = CalendarioService.prazo_dje_tjsp(
+            disponibilizacao=base,
+            dias_uteis=int(dias),
+            comarca=comarca_proc,
+            municipio=None,
+            aplicar_local=aplicar_local,
+            regras=regras,
+        )
+
+        st.session_state[KEY_C_DATA_LIM] = nova
+
+        if usar_tjsp:
+            if incluir_municipal and comarca_proc:
+                st.session_state[KEY_C_AUDIT] = (
+                    f"Auto: DJE + dias úteis (TJSP/CPC220 + municipal {comarca_proc})"
+                )
+            else:
+                st.session_state[KEY_C_AUDIT] = "Auto: DJE + dias úteis (TJSP/CPC220)"
         else:
-            c1, c2 = st.columns(2)
-            base = c1.date_input("Data base (disponibilização DJE)", key=KEY_C_BASE)
-            dias = c2.number_input(
-                "Qtd dias úteis",
-                min_value=1,
-                step=1,
-                key=KEY_C_DIAS,
+            if incluir_municipal and comarca_proc:
+                st.session_state[KEY_C_AUDIT] = (
+                    f"Auto: DJE + dias úteis (Nac/Estadual + municipal {comarca_proc})"
+                )
+            else:
+                st.session_state[KEY_C_AUDIT] = "Auto: DJE + dias úteis (Nac/Estadual)"
+
+        compact_gap()
+        card(
+            "Data final",
+            nova.strftime("%d/%m/%Y"),
+            f"Base: {base.strftime('%d/%m/%Y')} • {int(dias)} dia(s) úteis"
+            + (
+                f" • Comarca: {comarca_proc}"
+                if (incluir_municipal and comarca_proc)
+                else ""
+            ),
+            tone="info",
+        )
+
+        if usar_tjsp:
+            compact_gap()
+            status_banner(
+                "Cálculo judicial habilitado",
+                "O calendário TJSP está sendo considerado, com tratamento automático do art. 220 do CPC.",
+                tone="success",
             )
 
-            usar_tjsp = st.checkbox(
-                "Considerar calendário TJSP (inclui CPC art. 220 automaticamente)",
-                key=KEY_C_USAR_TJSP,
-            )
-
-            incluir_municipal = st.checkbox(
-                "Incluir feriados municipais da comarca",
-                key=KEY_C_LOCAL,
-                disabled=not bool(comarca_proc),
-                help="Requer 'Comarca' preenchida no trabalho.",
-            )
-
-            regras = RegrasCalendario(
-                incluir_nacional=True,
-                incluir_estadual_sp=True,
-                incluir_tjsp_geral=bool(usar_tjsp),
-                incluir_tjsp_comarca=bool(usar_tjsp),
-                incluir_municipal=bool(incluir_municipal),
-            )
-
-            aplicar_local = bool(comarca_proc)
-
-            nova = CalendarioService.prazo_dje_tjsp(
-                disponibilizacao=base,
-                dias_uteis=int(dias),
-                comarca=comarca_proc,
-                municipio=None,
+        if DEBUG_PRAZOS:
+            _render_calendar_debug(
+                comarca_proc=comarca_proc,
                 aplicar_local=aplicar_local,
+                incluir_municipal=bool(incluir_municipal),
+                usar_tjsp=bool(usar_tjsp),
+                base=base,
+                dias=int(dias),
+                nova=nova,
                 regras=regras,
             )
 
-            st.session_state[KEY_C_DATA_LIM] = nova
 
-            if usar_tjsp:
-                if incluir_municipal and comarca_proc:
-                    st.session_state[KEY_C_AUDIT] = (
-                        f"Auto: DJE + dias úteis (TJSP/CPC220 + municipal {comarca_proc})"
-                    )
-                else:
-                    st.session_state[KEY_C_AUDIT] = (
-                        "Auto: DJE + dias úteis (TJSP/CPC220)"
-                    )
-            else:
-                if incluir_municipal and comarca_proc:
-                    st.session_state[KEY_C_AUDIT] = (
-                        f"Auto: DJE + dias úteis (Nac/Estadual + municipal {comarca_proc})"
-                    )
-                else:
-                    st.session_state[KEY_C_AUDIT] = (
-                        "Auto: DJE + dias úteis (Nac/Estadual)"
-                    )
+def _render_preview_cards() -> None:
+    preview_date = st.session_state.get(KEY_C_DATA_LIM, now_br().date())
+    preview_event = safe_str(st.session_state.get(KEY_C_EVENTO))
+    preview_prio = safe_str(st.session_state.get(KEY_C_PRIO) or "Média")
 
-            card(
-                "Data final",
-                nova.strftime("%d/%m/%Y"),
-                f"Base: {base.strftime('%d/%m/%Y')} • {int(dias)} dia(s) úteis"
-                + (
-                    f" • Comarca: {comarca_proc}"
-                    if (incluir_municipal and comarca_proc)
-                    else ""
-                ),
-                tone="info",
-            )
+    p1, p2, p3 = st.columns(3)
+    with p1:
+        card(
+            "Data apurada",
+            format_date_br(preview_date),
+            "resultado do cálculo",
+            tone="info",
+        )
+    with p2:
+        card(
+            "Prioridade",
+            preview_prio or "Média",
+            "nível operacional",
+            tone="neutral",
+        )
+    with p3:
+        card(
+            "Evento",
+            preview_event or "A definir",
+            "descrição principal",
+            tone="neutral",
+        )
 
-            if DEBUG_PRAZOS:
-                from datetime import date as _date
 
-                st.markdown("### 🔎 DEBUG PRAZO")
-                st.write("comarca_proc:", repr(comarca_proc))
-                st.write("aplicar_local:", aplicar_local)
-                st.write("incluir_municipal:", bool(incluir_municipal))
-                st.write("usar_tjsp:", bool(usar_tjsp))
-                st.write("base:", base)
-                st.write("dias:", int(dias))
-                st.write("nova:", nova)
-
-                ini = _date(2026, 1, 15)
-                fim = _date(2026, 2, 15)
-                fer_set = CalendarioService.feriados_aplicaveis(
-                    ini,
-                    fim,
-                    comarca=comarca_proc,
-                    municipio=None,
-                    aplicar_local=aplicar_local,
-                    regras=regras,
-                )
-                st.write("feriados janela:", sorted(list(fer_set)))
-
-        subtle_divider()
-        st.markdown("**3) Detalhes do prazo**")
-
-        preview_date = st.session_state.get(KEY_C_DATA_LIM, now_br().date())
-        preview_event = safe_str(st.session_state.get(KEY_C_EVENTO))
-        preview_prio = safe_str(st.session_state.get(KEY_C_PRIO) or "Média")
-
-        p1, p2, p3 = st.columns(3)
-        with p1:
-            card(
-                "Data apurada",
-                format_date_br(preview_date),
-                "resultado do cálculo",
-                tone="info",
-            )
-        with p2:
-            card(
-                "Prioridade",
-                preview_prio or "Média",
-                "nível operacional",
-                tone="neutral",
-            )
-        with p3:
-            card(
-                "Evento",
-                preview_event or "A definir",
-                "descrição principal",
-                tone="neutral",
-            )
+def _render_details_section() -> tuple[str, str, str, str]:
+    with section_surface(
+        "Detalhes do prazo",
+        subtitle="Revise o resumo operacional e preencha os campos finais antes de salvar.",
+    ):
+        _render_preview_cards()
+        compact_gap()
 
         with st.form("form_prazo_create", clear_on_submit=False):
             c1, c2, c3 = st.columns(3)
@@ -242,7 +294,11 @@ def render_cadastro(
                 placeholder="Ex.: fls. 389 / ID 12345 / mov. 12.1",
                 key=KEY_C_REF,
             )
-            obs = st.text_area("Observações", key=KEY_C_OBS)
+            obs = st.text_area(
+                "Observações",
+                key=KEY_C_OBS,
+                placeholder="Informações complementares para controle interno, despacho, movimentação ou orientação operacional.",
+            )
 
             salvar = st.form_submit_button(
                 "Salvar prazo",
@@ -250,43 +306,66 @@ def render_cadastro(
                 use_container_width=True,
             )
 
-        if salvar:
-            if not safe_str(evento):
-                st.error("Informe o evento.")
-                return
+    return evento, prioridade, origem, referencia, obs, salvar
 
-            try:
-                data_final = st.session_state.get(KEY_C_DATA_LIM, now_br().date())
-                dt_lim = date_to_br_datetime(data_final)
 
-                audit_txt = safe_str(st.session_state.get(KEY_C_AUDIT))
-                obs_final = merge_obs_with_audit(obs, audit_txt)
+def render_cadastro(
+    *,
+    owner_user_id: int,
+    proc_labels: list[str],
+    label_to_id: dict[str, int],
+    proc_by_id: dict[int, dict[str, object]],
+) -> None:
+    _reset_create_form_if_requested()
 
-                with get_session() as s:
-                    prazo_novo = PrazosService.create(
-                        s,
-                        owner_user_id,
-                        PrazoCreate(
-                            processo_id=int(processo_id),
-                            evento=safe_str(evento),
-                            data_limite=dt_lim,
-                            prioridade=prioridade,
-                            origem=(origem or None),
-                            referencia=norm(referencia),
-                            observacoes=obs_final,
-                        ),
-                    )
+    sel_proc = _render_work_section(proc_labels)
+    processo_id = int(label_to_id[sel_proc])
+    proc = proc_by_id.get(processo_id)
+    comarca_proc = (safe_str(proc.get("comarca")) or None) if proc else None
 
-                bump_data_version(owner_user_id)
+    modo = _render_mode_section()
+    _render_calc_section(modo, comarca_proc)
 
-                request_tab("Lista")
-                request_list_tab("Abertos")
+    evento, prioridade, origem, referencia, obs, salvar = _render_details_section()
 
-                # agenda reset para a próxima execução
-                st.session_state[KEY_C_RESET_FORM] = True
+    if not salvar:
+        return
 
-                st.success(f"Prazo criado com sucesso. ID: {prazo_novo.id}")
-                st.rerun()
+    if not safe_str(evento):
+        st.error("Informe o evento.")
+        return
 
-            except Exception as e:
-                st.error(f"Erro ao criar prazo: {e}")
+    try:
+        data_final = st.session_state.get(KEY_C_DATA_LIM, now_br().date())
+        dt_lim = date_to_br_datetime(data_final)
+
+        audit_txt = safe_str(st.session_state.get(KEY_C_AUDIT))
+        obs_final = merge_obs_with_audit(obs, audit_txt)
+
+        with get_session() as s:
+            prazo_novo = PrazosService.create(
+                s,
+                owner_user_id,
+                PrazoCreate(
+                    processo_id=int(processo_id),
+                    evento=safe_str(evento),
+                    data_limite=dt_lim,
+                    prioridade=prioridade,
+                    origem=(origem or None),
+                    referencia=norm(referencia),
+                    observacoes=obs_final,
+                ),
+            )
+
+        bump_data_version(owner_user_id)
+
+        request_tab("Lista")
+        request_list_tab("Abertos")
+
+        st.session_state[KEY_C_RESET_FORM] = True
+
+        st.success(f"Prazo criado com sucesso. ID: {prazo_novo.id}")
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"Erro ao criar prazo: {e}")

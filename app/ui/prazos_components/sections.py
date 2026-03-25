@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import pandas as pd
 import streamlit as st
 
 from services.utils import ensure_br, format_date_br
-from ui.theme import card
 from ui.layout import section_surface
+from ui.theme import card, muted, pill, status_banner, subtle_divider
 from ui.prazos_components.constants import KEY_LIST_ACTIVE, KEY_LIST_SELECTOR
 from ui.prazos_components.helpers import (
     dias_restantes,
@@ -23,25 +24,44 @@ def render_html(html: str) -> None:
 
 
 def section_tabs(key: str) -> str:
-    return st.radio(
-        "Seção",
-        ["Cadastrar", "Lista", "Editar / Excluir"],
-        horizontal=True,
-        label_visibility="collapsed",
-        key=key,
-    )
+    tabs = ["Cadastrar", "Lista", "Editar / Excluir"]
+    current = st.session_state.get(key, tabs[0])
+
+    cols = st.columns(len(tabs), gap="small")
+    for col, label in zip(cols, tabs):
+        with col:
+            is_active = current == label
+            if st.button(
+                label,
+                key=f"{key}_{label}",
+                type="primary" if is_active else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state[key] = label
+                current = label
+
+    return current
 
 
 def list_tabs_selector() -> str:
-    selected = st.radio(
-        "Visão",
-        ["Abertos", "Hoje", "Atrasados", "Vencem (7 dias)", "Concluídos"],
-        horizontal=True,
-        label_visibility="collapsed",
-        key=KEY_LIST_SELECTOR,
-    )
-    st.session_state[KEY_LIST_ACTIVE] = selected
-    return selected
+    tabs = ["Abertos", "Hoje", "Atrasados", "Vencem (7 dias)", "Concluídos"]
+    current = st.session_state.get(KEY_LIST_SELECTOR, tabs[0])
+
+    cols = st.columns(len(tabs), gap="small")
+    for col, label in zip(cols, tabs):
+        with col:
+            is_active = current == label
+            if st.button(
+                label,
+                key=f"{KEY_LIST_SELECTOR}_{label}",
+                type="primary" if is_active else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state[KEY_LIST_SELECTOR] = label
+                current = label
+
+    st.session_state[KEY_LIST_ACTIVE] = current
+    return current
 
 
 def render_df(df: pd.DataFrame, cols: list[str], height: int) -> None:
@@ -87,18 +107,6 @@ def render_summary_kpis(
         card("Concluídos", f"{concluidos}", "histórico finalizado", tone="neutral")
 
 
-def chip(text: str) -> str:
-    value = safe_str(text)
-    if not value:
-        return ""
-    return (
-        "<span style='display:inline-block;padding:6px 10px;border-radius:999px;"
-        "background:rgba(17,25,40,0.06);font-size:12px;font-weight:700;"
-        "margin-right:6px;margin-bottom:6px;'>"
-        f"{value}</span>"
-    )
-
-
 def count_proc_open_metrics(
     proc_id: int, rows: list[PrazoRow]
 ) -> tuple[int, int, str | None]:
@@ -107,6 +115,14 @@ def count_proc_open_metrics(
     proximos = sorted(abertos, key=lambda r: ensure_br(r.data_limite))
     prox_txt = format_date_br(proximos[0].data_limite) if proximos else None
     return len(abertos), len(atrasados), prox_txt
+
+
+def _tone_for_priority_context(atrasados: int, abertos: int) -> str:
+    if atrasados > 0:
+        return "danger"
+    if abertos > 0:
+        return "info"
+    return "neutral"
 
 
 def render_contexto_trabalho(
@@ -123,40 +139,48 @@ def render_contexto_trabalho(
     papel = safe_str(proc.get("papel"))
     proc_id = int(proc.get("id") or 0)
 
-    chips = []
-    if numero:
-        chips.append(chip(f"📄 {numero}"))
-    if tipo_acao:
-        chips.append(chip(f"🗂️ {tipo_acao}"))
-    if papel:
-        chips.append(chip(f"⚖️ {papel}"))
-    if comarca:
-        chips.append(chip(f"🏛 {comarca}"))
-    if vara:
-        chips.append(chip(f"🏢 {vara}"))
-    if contratante:
-        chips.append(chip(f"👤 {contratante}"))
-
     abertos, atrasados, prox_txt = count_proc_open_metrics(proc_id, all_rows)
-    if abertos:
-        chips.append(chip(f"📋 {abertos} abertos"))
-    if atrasados:
-        chips.append(chip(f"🔴 {atrasados} atrasados"))
-    if prox_txt:
-        chips.append(chip(f"📅 Próximo: {prox_txt}"))
+    tone = _tone_for_priority_context(atrasados, abertos)
 
-    chips_html = " ".join([c for c in chips if c])
+    subtitle_parts: list[str] = []
+    if numero:
+        subtitle_parts.append(numero)
+    if tipo_acao:
+        subtitle_parts.append(tipo_acao)
+    if comarca:
+        subtitle_parts.append(comarca)
+    if vara:
+        subtitle_parts.append(vara)
+
+    subtitle = " • ".join(subtitle_parts) if subtitle_parts else "Trabalho selecionado."
 
     with section_surface("Contexto do trabalho"):
-        render_html(
-            f"""
-            <div>
-                {chips_html if chips_html else "<span class='pz-muted'>—</span>"}
-            </div>
-            """
+        status_banner(
+            "Visão rápida do trabalho selecionado",
+            subtitle,
+            tone=tone,
         )
 
-        col1, col2 = st.columns([0.8, 0.2])
+        subtle_divider()
+
+        meta_cols = st.columns([1, 1, 1, 1])
+        if papel:
+            with meta_cols[0]:
+                pill(f"Papel: {papel}", tone="neutral")
+        if contratante:
+            with meta_cols[1]:
+                pill(f"Contratante: {contratante}", tone="neutral")
+        if abertos:
+            with meta_cols[2]:
+                pill(f"{abertos} prazo(s) abertos", tone="info")
+        if atrasados:
+            with meta_cols[3]:
+                pill(f"{atrasados} atrasado(s)", tone="danger")
+
+        if prox_txt:
+            st.caption(f"Próximo vencimento: {prox_txt}")
+
+        col1, col2 = st.columns([0.82, 0.18])
         with col2:
             if st.button("Limpar", key="pz_clear_pref_ctx", use_container_width=True):
                 for key in ("pref_processo_id", "pref_processo_ref"):
@@ -179,12 +203,10 @@ def render_priority_queue(filtered: list[PrazoRow]) -> None:
     st.caption("Veja primeiro o que exige ação imediata ou merece atenção próxima.")
 
     if not top_items:
-        render_html(
-            """
-            <div class="pz-priority-empty">
-                Nenhum prazo aberto com os filtros atuais.
-            </div>
-            """
+        status_banner(
+            "Nenhum prazo aberto com os filtros atuais.",
+            "Ajuste os filtros ou cadastre um novo prazo para acompanhar itens nesta fila.",
+            tone="success",
         )
         return
 
@@ -194,40 +216,33 @@ def render_priority_queue(filtered: list[PrazoRow]) -> None:
 
         if dias < 0:
             urgencia_txt = f"{abs(dias)} dia(s) em atraso"
-            css_class = "pz-priority-card is-overdue"
+            tone = "danger"
         elif dias == 0:
             urgencia_txt = "vence hoje"
-            css_class = "pz-priority-card is-today"
+            tone = "warning"
         elif dias <= 7:
             urgencia_txt = f"vence em {dias} dia(s)"
-            css_class = "pz-priority-card is-soon"
+            tone = "warning"
         else:
             urgencia_txt = f"{dias} dia(s) restantes"
-            css_class = "pz-priority-card"
+            tone = "info"
 
-        badges = [
-            f"<span class='pz-badge'>{status}</span>",
-            f"<span class='pz-badge'>Prioridade: {row.prioridade}</span>",
-            f"<span class='pz-badge'>{urgencia_txt}</span>",
-        ]
+        with section_surface():
+            c1, c2 = st.columns([2.2, 1.2])
 
-        render_html(
-            f"""
-            <div class="{css_class}">
-                <div style="font-weight:800;font-size:1rem;margin-bottom:4px;">
-                    {row.evento}
-                </div>
-                <div class="pz-meta" style="margin-bottom:8px;">
-                    Data: {format_date_br(row.data_limite)}
-                </div>
-                <div>{" ".join(badges)}</div>
-            </div>
-            """
-        )
+            with c1:
+                st.markdown(f"**{safe_str(row.evento)}**")
+                muted(f"Data: {format_date_br(row.data_limite)}")
+
+            with c2:
+                pill(status, tone=tone)
+                st.caption(f"Prioridade: {safe_str(row.prioridade)}")
+                st.caption(urgencia_txt)
 
 
 def render_soft_empty(message: str) -> None:
-    render_html(f'<div class="pz-soft-empty">{message}</div>')
-
-
-from collections.abc import Callable
+    status_banner(
+        "Sem resultados",
+        message,
+        tone="info",
+    )
